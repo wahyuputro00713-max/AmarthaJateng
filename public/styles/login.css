@@ -30,11 +30,14 @@ body {
 .company-icon {
     width: 100px;
     height: 100px;
-    /* --- GANTI URL INI DENGAN LOGO PERUSAHAAN ANDA --- */
-    background-image: url('https://via.placeholder.com/150/4e73df/ffffff?text=ICON');
+    
+    /* URL Logo telah diperbarui mengarah ke folder assets */
+    /* Pastikan file amarthalogo.png ada di folder public/assets/ */
+    background-image: url('../assets/amarthalogo.png');
+    
     background-size: cover;
     background-position: center;
-    border-radius: 50%;
+    border-radius: 50%; /* Membuat logo menjadi bulat */
     margin: 0 auto 30px; /* Tengah horizontal dan margin bawah */
     box-shadow: 0 4px 8px rgba(0,0,0,0.05);
 }
