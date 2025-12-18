@@ -1,8 +1,9 @@
 /* login.css */
 
 body {
-    /* Latar belakang cerah ala aplikasi modern */
+    /* Perubahan warna background di sini */
     background-color: #8e26d4;
+    
     /* Memastikan konten berada di tengah secara vertikal pada layar tinggi */
     min-height: 100vh;
     display: flex;
@@ -31,7 +32,6 @@ body {
     width: 100px;
     height: 100px;
     
-    /* URL Logo telah diperbarui mengarah ke folder assets */
     /* Pastikan file amarthalogo.png ada di folder public/assets/ */
     background-image: url('../assets/amarthalogo.png');
     
@@ -51,7 +51,7 @@ body {
 }
 .form-control:focus {
     box-shadow: none;
-    border-color: #4e73df;
+    border-color: #8e26d4; /* Opsional: Mengubah warna border saat diklik agar serasi dengan background */
     background-color: #fff;
 }
 
@@ -61,19 +61,19 @@ body {
     padding: 12px;
     font-weight: 600;
     font-size: 1.1rem;
-    background-color: #4e73df;
+    background-color: #8e26d4; /* Tombol juga disesuaikan agar serasi */
     border: none;
     transition: all 0.3s;
 }
 .btn-login:hover {
-    background-color: #375abf;
+    background-color: #701eb0; /* Warna lebih gelap saat hover */
     transform: translateY(-2px);
 }
 
 /* Styling Checkbox custom */
 .form-check-input:checked {
-    background-color: #4e73df;
-    border-color: #4e73df;
+    background-color: #8e26d4;
+    border-color: #8e26d4;
 }
 .forgot-text {
         font-size: 0.9rem;
