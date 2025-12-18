@@ -1,0 +1,85 @@
+/* login.css */
+
+body {
+    /* Latar belakang cerah ala aplikasi modern */
+    background-color: #f0f2f5;
+    /* Memastikan konten berada di tengah secara vertikal pada layar tinggi */
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Container utama yang membatasi lebar seperti HP */
+.mobile-container {
+    width: 100%;
+    padding: 20px;
+}
+
+/* Styling Card Modern */
+.login-card {
+    border: none;
+    border-radius: 20px; /* Sudut membulat */
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1); /* Efek bayangan modern */
+    padding: 30px 25px;
+    background: white;
+}
+
+/* Styling Ikon Perusahaan */
+.company-icon {
+    width: 100px;
+    height: 100px;
+    /* --- GANTI URL INI DENGAN LOGO PERUSAHAAN ANDA --- */
+    background-image: url('https://via.placeholder.com/150/4e73df/ffffff?text=ICON');
+    background-size: cover;
+    background-position: center;
+    border-radius: 50%;
+    margin: 0 auto 30px; /* Tengah horizontal dan margin bawah */
+    box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+}
+
+/* Styling Input Textbox agar terlihat modern */
+.form-control {
+    border-radius: 10px;
+    padding: 12px 15px;
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+}
+.form-control:focus {
+    box-shadow: none;
+    border-color: #4e73df;
+    background-color: #fff;
+}
+
+/* Styling Tombol Login */
+.btn-login {
+    border-radius: 10px;
+    padding: 12px;
+    font-weight: 600;
+    font-size: 1.1rem;
+    background-color: #4e73df;
+    border: none;
+    transition: all 0.3s;
+}
+.btn-login:hover {
+    background-color: #375abf;
+    transform: translateY(-2px);
+}
+
+/* Styling Checkbox custom */
+.form-check-input:checked {
+    background-color: #4e73df;
+    border-color: #4e73df;
+}
+.forgot-text {
+        font-size: 0.9rem;
+        color: #6c757d;
+}
+
+/* Responsiveness: Pada layar besar, batasi lebarnya agar tetap terlihat seperti 'app' di tengah */
+@media (min-width: 768px) {
+    .mobile-container {
+        max-width: 450px; /* Lebar maksimal kartu di desktop */
+    }
+}
