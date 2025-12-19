@@ -3,15 +3,15 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-// --- PASTE FIREBASE CONFIG DI SINI (SAMA SEPERTI DI LOGIN.JS) ---
+// --- KONFIGURASI FIREBASE (Sudah disesuaikan dengan milik Anda) ---
 const firebaseConfig = {
-    apiKey: "PASTE_API_KEY_ANDA_DISINI",
-    authDomain: "PASTE_PROJECT_ID_ANDA.firebaseapp.com",
-    databaseURL: "https://PASTE_PROJECT_ID_ANDA-default-rtdb.firebaseio.com",
-    projectId: "PASTE_PROJECT_ID_ANDA",
-    storageBucket: "PASTE_PROJECT_ID_ANDA.appspot.com",
-    messagingSenderId: "PASTE_SENDER_ID_ANDA",
-    appId: "PASTE_APP_ID_ANDA"
+    apiKey: "AIzaSyC8wOUkyZTa4W2hHHGZq_YKnGFqYEGOuH8",
+    authDomain: "amarthajatengwebapp.firebaseapp.com",
+    databaseURL: "https://amarthajatengwebapp-default-rtdb.firebaseio.com",
+    projectId: "amarthajatengwebapp",
+    storageBucket: "amarthajatengwebapp.firebasestorage.app",
+    messagingSenderId: "22431520744",
+    appId: "1:22431520744:web:711af76a5335d97179765d"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -22,35 +22,37 @@ const userNameSpan = document.getElementById('userName');
 const logoutBtn = document.getElementById('logoutBtn');
 
 // 1. Cek Status Login (Security Check)
-// Jika user belum login, tendang kembali ke index.html
+// Fungsi ini yang menjaga agar halaman tidak bisa dibuka kalau belum login
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        // User sedang login
-        console.log("User terdeteksi:", user.email);
+        // User DITEMUKAN (Sedang login)
+        console.log("User terdeteksi di Home:", user.email);
         
-        // Tampilkan nama (atau email jika nama belum di-set)
-        // Split email untuk mengambil nama depan sebelum @ jika displayName kosong
+        // Tampilkan nama (mengambil nama depan dari email)
         const displayName = user.displayName ? user.displayName : user.email.split('@')[0];
-        userNameSpan.textContent = displayName;
+        if (userNameSpan) {
+            userNameSpan.textContent = displayName;
+        }
         
     } else {
-        // User tidak login / sesi habis
-        console.log("User tidak login, redirecting...");
+        // User TIDAK DITEMUKAN (Belum login)
+        console.log("User tidak login, mengembalikan ke halaman login...");
+        // Redirect paksa ke halaman login
         window.location.replace("index.html");
     }
 });
 
 // 2. Fungsi Logout
-logoutBtn.addEventListener('click', () => {
-    // Tampilkan konfirmasi (opsional)
-    if(confirm("Apakah Anda yakin ingin logout?")) {
-        signOut(auth).then(() => {
-            // Sign-out successful.
-            window.location.replace("index.html");
-        }).catch((error) => {
-            // An error happened.
-            console.error("Logout Error:", error);
-            alert("Gagal logout. Coba lagi.");
-        });
-    }
-});
+if (logoutBtn) {
+    logoutBtn.addEventListener('click', () => {
+        if(confirm("Apakah Anda yakin ingin logout?")) {
+            signOut(auth).then(() => {
+                // Sign-out berhasil
+                window.location.replace("index.html");
+            }).catch((error) => {
+                console.error("Logout Error:", error);
+                alert("Gagal logout. Coba lagi.");
+            });
+        }
+    });
+}
