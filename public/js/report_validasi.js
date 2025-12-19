@@ -20,7 +20,7 @@ const auth = getAuth(app);
 // ============================================================================
 // ⚠️ GANTI URL INI DENGAN URL DEPLOYMENT APPS SCRIPT ANDA (AKHIRAN /exec) ⚠️
 // ============================================================================
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx-HRxqcXuXAwewr6K6zL2mMo6Ay1czK1MKWViH4-GnTJfqnexCxpgQFGoySL8LmWib/exec"; 
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwlkTxFE-0GHzxkri2wsjdVvqkXTcDE69SyIoV2puLFylIxWc2IkfDRxd58tYvilA3J/exec"; 
 
 
 // 1. Cek Login (Security)
