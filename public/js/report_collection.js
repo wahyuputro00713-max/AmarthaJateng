@@ -18,7 +18,7 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 // ⚠️ GANTI URL INI DENGAN URL APPS SCRIPT ANDA (AKHIRAN /exec) ⚠️
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwlkTxFE-0GHzxkri2wsjdVvqkXTcDE69SyIoV2puLFylIxWc2IkfDRxd58tYvilA3J/exec"; 
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwnEOc8SGbuH3lNBssVNNJKinrqP1Oo4LXFB2AgR_1R97ASV9CeUeQ2-GD9eJD49koM/exec"; 
 
 // 1. Cek Login & Ambil Data User
 onAuthStateChanged(auth, (user) => {
