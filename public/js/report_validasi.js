@@ -1,7 +1,9 @@
+// js/report_validasi.js
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-// --- CONFIG FIREBASE ---
+// --- KONFIGURASI FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyC8wOUkyZTa4W2hHHGZq_YKnGFqYEGOuH8",
     authDomain: "amarthajatengwebapp.firebaseapp.com",
@@ -15,17 +17,20 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
-// --- MASUKKAN URL APPS SCRIPT ANDA DISINI ---
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbza7zWXxG4y-LowMx_BFfyKYuEPA4UE_oRdNDRTTChf943Q2dS8WWIyExwboV4Rzz-B/exec"; 
+// ============================================================================
+// ⚠️ GANTI URL INI DENGAN URL DEPLOYMENT APPS SCRIPT ANDA (AKHIRAN /exec) ⚠️
+// ============================================================================
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwZXeUX3-lRyUTzuvo3I2y4lZ0_WAwcy3lFx2W_zmTg2KkJUM4FfLmdFKfE4GQUGmAJ/exec"; 
 
-// 1. Cek Login
+
+// 1. Cek Login (Security)
 onAuthStateChanged(auth, (user) => {
     if (!user) {
         window.location.replace("index.html");
     }
 });
 
-// 2. Set Tanggal Hari Ini
+// 2. Set Tanggal Hari Ini Otomatis
 const dateInput = document.getElementById('tanggalInput');
 const today = new Date().toISOString().split('T')[0];
 if(dateInput) dateInput.value = today;
@@ -48,7 +53,10 @@ if (areaSelect && pointSelect) {
     areaSelect.addEventListener('change', function() {
         const selectedArea = this.value;
         const points = dataPoints[selectedArea] || [];
+
+        // Reset dropdown point
         pointSelect.innerHTML = '<option value="" selected disabled>Pilih Point...</option>';
+
         if (points.length > 0) {
             pointSelect.disabled = false;
             points.forEach(point => {
@@ -66,12 +74,18 @@ if (areaSelect && pointSelect) {
 
 // 4. Format Rupiah
 const rupiahInputs = document.querySelectorAll('.rupiah-input');
+
 rupiahInputs.forEach(input => {
     input.addEventListener('keyup', function(e) {
+        // Format tampilan ke user (Rp 1.000.000)
         input.value = formatRupiah(this.value, 'Rp. ');
+        
+        // Simpan angka murni ke input hidden (ID Hidden = ID Display diganti 'Real')
+        // Contoh: amountValDisplay -> amountValReal
         const realInputId = this.id.replace('Display', 'Real');
         const realInput = document.getElementById(realInputId);
         if(realInput) {
+            // Hapus karakter non-digit agar jadi angka murni
             realInput.value = this.value.replace(/[^0-9]/g, '');
         }
     });
@@ -83,10 +97,12 @@ function formatRupiah(angka, prefix) {
         sisa = split[0].length % 3,
         rupiah = split[0].substr(0, sisa),
         ribuan = split[0].substr(sisa).match(/\d{3}/gi);
+
     if (ribuan) {
         let separator = sisa ? '.' : '';
         rupiah += separator + ribuan.join('.');
     }
+
     rupiah = split[1] != undefined ? rupiah + ',' + split[1] : rupiah;
     return prefix == undefined ? rupiah : (rupiah ? 'Rp. ' + rupiah : '');
 }
@@ -97,66 +113,71 @@ function formatRupiah(angka, prefix) {
 const form = document.getElementById('validasiForm');
 const loadingOverlay = document.getElementById('loadingOverlay');
 
-form.addEventListener('submit', async (e) => {
-    e.preventDefault();
+if (form) {
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
 
-    // Validasi Foto
-    const fileInput = document.getElementById('fotoInput');
-    if (fileInput.files.length === 0) {
-        alert("Wajib upload foto validasi!");
-        return;
-    }
-
-    // Tampilkan Loading
-    loadingOverlay.style.display = 'flex';
-
-    try {
-        const file = fileInput.files[0];
-        const base64File = await toBase64(file); // Konversi foto ke string
-
-        // Siapkan Data Paket
-        const formData = {
-            tanggal: document.getElementById('tanggalInput').value,
-            regional: document.getElementById('regionalInput').value,
-            area: document.getElementById('areaSelect').value,
-            point: document.getElementById('pointSelect').value,
-            jmlMitraVal: document.getElementById('jmlMitraVal').value,
-            amtVal: document.getElementById('amountValReal').value,       // Ambil nilai murni
-            jmlMitraModal: document.getElementById('jmlMitraModal').value,
-            amtModal: document.getElementById('amountModalReal').value,   // Ambil nilai murni
-            tenor: document.getElementById('tenorSelect').value,
-            
-            // Data Foto
-            fotoBase64: base64File.split(",")[1], // Hapus header 'data:image/...'
-            fotoMimeType: file.type,
-            fotoNama: file.name
-        };
-
-        // Kirim ke Apps Script via FETCH
-        const response = await fetch(SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify(formData),
-            // Mode 'no-cors' kadang diperlukan jika Apps Script tidak return header yang benar,
-            // tapi idealnya Apps Script return text/json. 
-            // Kita coba direct POST.
-        });
-
-        const result = await response.json();
-
-        if (result.result === 'success') {
-            alert("✅ Data Berhasil Terkirim ke Spreadsheet!");
-            window.location.href = "home.html";
-        } else {
-            throw new Error(result.error);
+        // Validasi Foto
+        const fileInput = document.getElementById('fotoInput');
+        if (fileInput.files.length === 0) {
+            alert("Wajib upload foto validasi!");
+            return;
         }
 
-    } catch (error) {
-        console.error("Error:", error);
-        alert("❌ Gagal mengirim data: " + error.message);
-    } finally {
-        loadingOverlay.style.display = 'none';
-    }
-});
+        // Tampilkan Loading
+        loadingOverlay.style.display = 'flex';
+
+        try {
+            const file = fileInput.files[0];
+            const base64File = await toBase64(file); 
+            
+            // PEMBERSIHAN STRING BASE64
+            // Kita buang bagian "data:image/jpeg;base64," supaya Server Apps Script bisa membacanya
+            const cleanBase64 = base64File.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
+
+            // Siapkan Paket Data
+            const formData = {
+                tanggal: document.getElementById('tanggalInput').value,
+                regional: document.getElementById('regionalInput').value,
+                area: document.getElementById('areaSelect').value,
+                point: document.getElementById('pointSelect').value,
+                
+                // Ambil data dari ID yang sudah kita perbaiki di HTML
+                jmlMitraVal: document.getElementById('jmlMitraVal').value,
+                amtVal: document.getElementById('amountValReal').value,       // Nilai murni (bukan Rp)
+                jmlMitraModal: document.getElementById('jmlMitraModal').value,
+                amtModal: document.getElementById('amountModalReal').value,   // Nilai murni (bukan Rp)
+                tenor: document.getElementById('tenorSelect').value,
+                
+                // Data Foto
+                foto: cleanBase64,
+                namaFoto: file.name,
+                mimeType: file.type
+            };
+
+            // Kirim ke Apps Script
+            const response = await fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify(formData)
+            });
+
+            const result = await response.json();
+
+            if (result.result === 'success') {
+                alert("✅ Data Berhasil Terkirim ke Spreadsheet!");
+                window.location.href = "home.html";
+            } else {
+                throw new Error(result.error);
+            }
+
+        } catch (error) {
+            console.error("Error:", error);
+            alert("❌ Gagal mengirim data: " + error.message);
+        } finally {
+            loadingOverlay.style.display = 'none';
+        }
+    });
+}
 
 // Fungsi Helper: Ubah File ke Base64
 const toBase64 = file => new Promise((resolve, reject) => {
