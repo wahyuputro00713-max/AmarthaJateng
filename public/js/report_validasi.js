@@ -16,7 +16,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
 // --- MASUKKAN URL APPS SCRIPT ANDA DISINI ---
-const SCRIPT_URL = "19B2bBWuI_k8AdPTF1joJZlmaxzYPtsn2"; 
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwZ5xhJevBh8GVgdN0WQ8u9QYKPzQR24_tp_PG6B_I8URPtqNB8mVaw96_6-6xaQHRw/exec"; 
 
 // 1. Cek Login
 onAuthStateChanged(auth, (user) => {
