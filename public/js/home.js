@@ -1,9 +1,9 @@
-// js/home.js - VERSI DEBUGGING (Agar tidak terpental)
+// js/home.js
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-// --- KONFIGURASI FIREBASE ---
+// --- KONFIGURASI FIREBASE ANDA ---
 const firebaseConfig = {
     apiKey: "AIzaSyC8wOUkyZTa4W2hHHGZq_YKnGFqYEGOuH8",
     authDomain: "amarthajatengwebapp.firebaseapp.com",
@@ -14,6 +14,7 @@ const firebaseConfig = {
     appId: "1:22431520744:web:711af76a5335d97179765d"
 };
 
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
@@ -21,51 +22,41 @@ const auth = getAuth(app);
 const userNameSpan = document.getElementById('userName');
 const logoutBtn = document.getElementById('logoutBtn');
 
-// Pesan Status di Layar (Untuk Debugging)
-function showDebugStatus(msg, color) {
-    const statusDiv = document.createElement('div');
-    statusDiv.style.position = 'fixed';
-    statusDiv.style.top = '0';
-    statusDiv.style.left = '0';
-    statusDiv.style.width = '100%';
-    statusDiv.style.padding = '20px';
-    statusDiv.style.backgroundColor = 'white';
-    statusDiv.style.color = color;
-    statusDiv.style.fontWeight = 'bold';
-    statusDiv.style.zIndex = '9999';
-    statusDiv.style.borderBottom = `5px solid ${color}`;
-    statusDiv.innerText = msg;
-    document.body.prepend(statusDiv);
-}
-
-// 1. Cek Status Login
-console.log("Memulai pengecekan auth...");
-
+// 1. Cek Status Login (Security Check)
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        // --- JIKA SUKSES ---
-        console.log("User ditemukan:", user.email);
-        showDebugStatus(`SUKSES: User terdeteksi sebagai ${user.email}`, 'green');
+        // User sedang login
+        console.log("User terdeteksi:", user.email);
         
-        // Tampilkan nama di halaman
+        // Tampilkan nama user (atau email jika nama tidak ada)
         const displayName = user.displayName ? user.displayName : user.email.split('@')[0];
-        if (userNameSpan) userNameSpan.textContent = displayName;
+        if (userNameSpan) {
+            userNameSpan.textContent = displayName;
+        }
         
     } else {
-        // --- JIKA GAGAL ---
-        console.log("User tidak ditemukan (null)");
-        showDebugStatus("GAGAL: Firebase tidak menemukan data login. (Jangan panik, lihat console)", 'red');
-        
-        // SAYA MEMATIKAN REDIRECT DI BAWAH INI AGAR ANDA BISA BACA PESANNYA
-        // window.location.replace("index.html"); 
+        // User tidak login -> Tendang ke halaman login
+        console.log("User tidak login, redirecting...");
+        window.location.replace("index.html");
     }
 });
 
 // 2. Fungsi Logout
 if (logoutBtn) {
     logoutBtn.addEventListener('click', () => {
-        signOut(auth).then(() => {
-            window.location.replace("index.html");
-        });
+        // Konfirmasi sebelum logout
+        if(confirm("Apakah Anda yakin ingin keluar?")) {
+            signOut(auth).then(() => {
+                // Logout berhasil
+                console.log("Logout Berhasil");
+                window.location.replace("index.html");
+            }).catch((error) => {
+                // Error saat logout
+                console.error("Logout Error:", error);
+                alert("Gagal logout. Coba lagi.");
+            });
+        }
     });
+} else {
+    console.error("Tombol Logout tidak ditemukan! Cek ID 'logoutBtn' di HTML.");
 }
