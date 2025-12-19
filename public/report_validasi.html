@@ -9,54 +9,18 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     
     <style>
-        :root {
-            --primary-purple: #8e26d4;
-            --dark-purple: #701eb0;
-            --bg-light: #f5f7fa;
-        }
-        body {
-            background-color: var(--bg-light);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            padding-top: 80px; 
-            padding-bottom: 40px;
-        }
-        .navbar {
-            background: linear-gradient(90deg, var(--primary-purple), var(--dark-purple));
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .form-card {
-            border: none;
-            border-radius: 15px;
-            background: white;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            padding: 25px;
-            margin-bottom: 20px;
-        }
-        .form-label {
-            font-weight: 600;
-            font-size: 0.9rem;
-            color: #555;
-        }
-        .btn-purple {
-            background-color: var(--primary-purple);
-            color: white;
-            border: none;
-            font-weight: bold;
-        }
-        .btn-purple:hover {
-            background-color: var(--dark-purple);
-            color: white;
-        }
+        :root { --primary-purple: #8e26d4; --dark-purple: #701eb0; --bg-light: #f5f7fa; }
+        body { background-color: var(--bg-light); font-family: 'Segoe UI', sans-serif; padding-top: 80px; padding-bottom: 40px; }
+        .navbar { background: linear-gradient(90deg, var(--primary-purple), var(--dark-purple)); box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .form-card { border: none; border-radius: 15px; background: white; padding: 25px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .btn-purple { background-color: var(--primary-purple); color: white; border: none; font-weight: bold; }
+        .btn-purple:hover { background-color: var(--dark-purple); color: white; }
+        
         /* Loading Overlay */
         #loadingOverlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255,255,255,0.8);
-            z-index: 9999;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.9); z-index: 9999;
+            align-items: center; justify-content: center; flex-direction: column;
         }
     </style>
 </head>
@@ -64,7 +28,7 @@
 
     <div id="loadingOverlay">
         <div class="spinner-border text-primary" role="status"></div>
-        <p class="mt-2 fw-bold text-primary">Mengirim Data...</p>
+        <p class="mt-2 fw-bold text-primary">Sedang Mengirim ke Google Form...</p>
     </div>
 
     <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
@@ -76,24 +40,26 @@
     </nav>
 
     <div class="container">
-        
         <form id="validasiForm" 
               action="https://docs.google.com/forms/d/e/1FAIpQLSfeeZT8q-qG_FazihDK0YMnOWD2PfVycN4CcSsim8krW3gdWA/formResponse" 
               method="POST" 
-              target="hidden_iframe"
-              enctype="multipart/form-data">
+              target="hidden_iframe">
 
             <div class="form-card">
                 <h5 class="mb-4 text-purple fw-bold"><i class="fa-solid fa-list-check me-2"></i>Input Data Validasi</h5>
 
                 <div class="mb-3">
                     <label class="form-label">Tanggal</label>
-                    <input type="date" class="form-control" id="tanggalInput" name="entry.111111" required readonly>
+                    <input type="date" class="form-control" id="tanggalVisual" required>
+                    
+                    <input type="hidden" id="dateYear" name="entry.894517485_year">
+                    <input type="hidden" id="dateMonth" name="entry.894517485_month">
+                    <input type="hidden" id="dateDay" name="entry.894517485_day">
                 </div>
 
                 <div class="mb-3">
                     <label class="form-label">Regional</label>
-                    <input type="text" class="form-control" name="entry.1127585559" value="Jawa Tengah 1" required>
+                    <input type="text" class="form-control" name="entry.1127585559" value="Jawa Tengah" readonly>
                 </div>
 
                 <div class="mb-3">
@@ -118,7 +84,7 @@
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">Jumlah Mitra yang di Validasi</label>
+                    <label class="form-label">Jumlah Mitra Validasi</label>
                     <input type="number" class="form-control" name="entry.1727132670" placeholder="0" required>
                 </div>
 
@@ -146,12 +112,12 @@
                         <option value="Full">Full</option>
                     </select>
                 </div>
-
+                
                 <div class="mb-4">
                     <label class="form-label">Foto Val</label>
-                    <input type="file" class="form-control" id="fotoInput" accept="image/*">
-                    <div class="form-text text-warning small">
-                        <i class="fa-solid fa-triangle-exclamation"></i> Upload foto tidak terkirim langsung ke Google Form standar. Mohon upload manual jika diperlukan.
+                    <input type="file" class="form-control" accept="image/*">
+                    <div class="form-text text-danger small">
+                        *Upload foto tidak didukung lewat Direct Form. Abaikan jika tidak wajib.
                     </div>
                 </div>
 
@@ -159,11 +125,8 @@
                     <button type="submit" class="btn btn-purple btn-lg shadow-sm">
                         <i class="fa-solid fa-paper-plane me-2"></i> Submit Data
                     </button>
-                    <a href="home.html" class="btn btn-outline-secondary">
-                        Kembali ke Beranda
-                    </a>
+                    <a href="home.html" class="btn btn-outline-secondary">Kembali</a>
                 </div>
-
             </div>
         </form>
     </div>
@@ -178,18 +141,18 @@
         const form = document.getElementById('validasiForm');
         const loading = document.getElementById('loadingOverlay');
         const iframe = document.getElementById('hidden_iframe');
+        let submitted = false;
 
         form.addEventListener('submit', () => {
+            submitted = true;
             loading.style.display = 'flex';
         });
 
         iframe.onload = function() {
-            // Jika iframe selesai memuat (artinya data terkirim)
-            if (loading.style.display === 'flex') {
+            if (submitted) {
                 loading.style.display = 'none';
-                alert("Data Berhasil Disimpan!");
-                form.reset();
-                window.location.href = "home.html"; // Kembali ke home
+                alert("Data Berhasil Terkirim ke Spreadsheet!");
+                window.location.href = "home.html";
             }
         };
     </script>
