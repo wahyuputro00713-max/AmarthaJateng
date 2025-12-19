@@ -37,7 +37,7 @@ const dataPoints = {
     "Solo 2": ["Gatak", "Jumantono", "Karanganyar", "Nguter", "Pasar kliwon"],
     "Yogyakarta": ["01 Sleman", "Kalasan", "Ngaglik", "Umbulharjo"],
     "Yogyakarta 2": ["01 Pandak", "01 Pengasih", "01 Pleret", "Kutoarjo", "Purworejo", "Saptosari"],
-    "Wonogiri": [] // Tidak ada data di prompt
+    "Wonogiri": ["Jatisrono", "Ngadirojo", "Ngawen 2", "Pracimantoro", "Wonosari"] // Tidak ada data di prompt
 };
 
 const areaSelect = document.getElementById('areaSelect');
