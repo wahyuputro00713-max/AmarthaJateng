@@ -75,9 +75,12 @@ loginForm.addEventListener('submit', (e) => {
                 status: 'success'
             })
             .then(() => {
-                console.log("Data login berhasil dicatat di RTDB");
-                showAlert("Login Berhasil! Mengalihkan...", "success");
-                
+    console.log("Data login berhasil dicatat di RTDB");
+    showAlert("Login Berhasil! Mengalihkan...", "success");
+    
+    // REDIRECT DIAKTIFKAN:
+    setTimeout(() => { window.location.href = "home.html"; }, 1500);
+})
                 // --- Redirect ---
                 // Hapus komentar di bawah ini untuk mengalihkan ke halaman lain setelah sukses
                 // setTimeout(() => { window.location.href = "dashboard.html"; }, 2000);
