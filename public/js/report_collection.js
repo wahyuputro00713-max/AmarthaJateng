@@ -1,8 +1,8 @@
+// ... (Bagian import dan config sama) ...
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// --- CONFIG FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyC8wOUkyZTa4W2hHHGZq_YKnGFqYEGOuH8",
     authDomain: "amarthajatengwebapp.firebaseapp.com",
@@ -17,30 +17,96 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// ⚠️ URL DEPLOYMENT APPS SCRIPT ANDA ⚠️
+// URL APPS SCRIPT (Tetap)
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxmtteV3LF5FiBgWOSgFvJlGv-S3Sks1sBrZIl-aks6NPzPM7DgNQhUrKtJFw2hRkQT/exec"; 
 
-// 1. Cek Login
+// Data Points (Tetap)
+const dataPoints = {
+    "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucul"],
+    "Magelang": ["Grabag", "Mungkid", "Pakis", "Salam"],
+    "Solo": ["Banjarsari", "Gemolong", "Masaran", "Tangen"],
+    "Solo 2": ["Gatak", "Jumantono", "Karanganyar", "Nguter", "Pasar kliwon"],
+    "Yogyakarta": ["01 Sleman", "Kalasan", "Ngaglik", "Umbulharjo"],
+    "Yogyakarta 2": ["01 Pandak", "01 Pengasih", "01 Pleret", "Kutoarjo", "Purworejo", "Saptosari"],
+    "Wonogiri": ["Jatisrono", "Ngadirojo", "Ngawen 2", "Pracimantoro", "Wonosari"]
+};
+
+const areaSelect = document.getElementById('areaSelect');
+const pointSelect = document.getElementById('pointSelect');
+
+// LOGIKA UPDATE DROPDOWN
+function updatePointsDropdown(selectedArea) {
+    const points = dataPoints[selectedArea] || [];
+    pointSelect.innerHTML = '<option value="" selected disabled>Pilih Point...</option>';
+    if (points.length > 0) {
+        pointSelect.disabled = false;
+        points.forEach(point => {
+            const option = document.createElement('option');
+            option.value = point;
+            option.textContent = point;
+            pointSelect.appendChild(option);
+        });
+    } else {
+        pointSelect.disabled = true;
+    }
+}
+
+areaSelect.addEventListener('change', function() {
+    updatePointsDropdown(this.value);
+});
+
+// 1. CEK LOGIN & AUTO FILL
 onAuthStateChanged(auth, (user) => {
     if (user) {
         const userRef = ref(db, 'users/' + user.uid);
         get(userRef).then((snapshot) => {
             if (snapshot.exists()) {
                 const dataUser = snapshot.val();
+                
+                // Isi ID & Nama
                 document.getElementById('idKaryawan').value = dataUser.idKaryawan || "-";
                 document.getElementById('namaBP').value = dataUser.nama || "-";
+
+                // LOGIKA KHUSUS JABATAN
+                const jabatan = dataUser.jabatan;
+                
+                // Jika user punya area di profil, isi area otomatis
+                if (dataUser.area) {
+                    areaSelect.value = dataUser.area;
+                    updatePointsDropdown(dataUser.area); // Trigger update point list
+                }
+
+                // JIKA BM ATAU BP -> KUNCI AREA & POINT
+                if (jabatan === 'BM' || jabatan === 'BP') {
+                    if (dataUser.area) {
+                        areaSelect.disabled = true; // Kunci Area
+                    }
+                    if (dataUser.point) {
+                        pointSelect.value = dataUser.point; // Pilih Point
+                        pointSelect.disabled = true; // Kunci Point
+                    }
+                } 
+                // JIKA RM ATAU AM -> BIARKAN POINT TERBUKA (Bisa pilih manual)
+                else if (jabatan === 'RM' || jabatan === 'AM') {
+                    // Area mungkin terisi otomatis, tapi Point tetap bisa dipilih manual
+                    pointSelect.disabled = false;
+                }
             }
         });
-        ambilLokasi(); 
+        ambilLokasi();
     } else {
         window.location.replace("index.html");
     }
 });
 
+// ... (SISANYA SAMA: Tanggal, Geotag, Rupiah, Submit Logic) ...
+// Pastikan kode di bawah ini tetap ada (ambilLokasi, formatRupiah, submit listener)
+// Copy dari file lama Anda untuk bagian bawahnya.
+
 // 2. Set Tanggal
 document.getElementById('tanggalInput').value = new Date().toISOString().split('T')[0];
 
-// 3. Logic Geotag (GPS Akurasi Tinggi)
+// 3. Logic Geotag (HIGH ACCURACY / GPS)
 const geoInput = document.getElementById('geotagInput');
 const geoStatus = document.getElementById('geoStatus');
 const btnRefreshLoc = document.getElementById('btnRefreshLoc');
@@ -51,7 +117,11 @@ function ambilLokasi() {
     geoStatus.className = "form-text small text-warning fw-bold";
 
     if (navigator.geolocation) {
-        const options = { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 };
+        const options = {
+            enableHighAccuracy: true, 
+            timeout: 20000,           
+            maximumAge: 0             
+        };
 
         navigator.geolocation.getCurrentPosition(
             (position) => {
@@ -80,60 +150,7 @@ function ambilLokasi() {
 }
 btnRefreshLoc.addEventListener('click', ambilLokasi);
 
-// 4. LOGIKA PREVIEW FOTO (BARU)
-const fileInput = document.getElementById('fotoInput');
-const previewFoto = document.getElementById('previewFoto');
-const previewText = document.getElementById('previewText');
-
-fileInput.addEventListener('change', function(e) {
-    const file = this.files[0];
-    if (file) {
-        // Buat Preview
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            previewFoto.src = e.target.result;
-            previewFoto.style.display = 'block';
-            previewText.style.display = 'block';
-        }
-        reader.readAsDataURL(file);
-    } else {
-        previewFoto.style.display = 'none';
-        previewText.style.display = 'none';
-    }
-});
-
-// 5. Dropdown Area & Rupiah
-const dataPoints = {
-    "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucul"],
-    "Magelang": ["Grabag", "Mungkid", "Pakis", "Salam"],
-    "Solo": ["Banjarsari", "Gemolong", "Masaran", "Tangen"],
-    "Solo 2": ["Gatak", "Jumantono", "Karanganyar", "Nguter", "Pasar kliwon"],
-    "Yogyakarta": ["01 Sleman", "Kalasan", "Ngaglik", "Umbulharjo"],
-    "Yogyakarta 2": ["01 Pandak", "01 Pengasih", "01 Pleret", "Kutoarjo", "Purworejo", "Saptosari"],
-    "Wonogiri": ["Jatisrono", "Ngadirojo", "Ngawen 2", "Pracimantoro", "Wonosari"]
-};
-
-const areaSelect = document.getElementById('areaSelect');
-const pointSelect = document.getElementById('pointSelect');
-
-areaSelect.addEventListener('change', function() {
-    const selectedArea = this.value;
-    const points = dataPoints[selectedArea] || [];
-    pointSelect.innerHTML = '<option value="" selected disabled>Pilih Point...</option>';
-    
-    if (points.length > 0) {
-        pointSelect.disabled = false;
-        points.forEach(point => {
-            const option = document.createElement('option');
-            option.value = point;
-            option.textContent = point;
-            pointSelect.appendChild(option);
-        });
-    } else {
-        pointSelect.disabled = true;
-    }
-});
-
+// 5. Format Rupiah
 const rupiahInput = document.getElementById('amountCollectDisplay');
 rupiahInput.addEventListener('keyup', function(e) {
     this.value = formatRupiah(this.value, 'Rp. ');
@@ -156,13 +173,14 @@ function formatRupiah(angka, prefix) {
 
 // 6. Submit Logic
 const form = document.getElementById('collectionForm');
-const loadingOverlay = document.getElementById('loadingOverlay');
+// const loadingOverlay = document.getElementById('loadingOverlay'); // Sudah didefinisikan di profil.js tapi ini file beda, jadi perlu
 
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
     const amtReal = document.getElementById('amountCollectReal').value;
     const geotag = document.getElementById('geotagInput').value;
+    const fileInput = document.getElementById('fotoInput');
 
     if (!amtReal || amtReal === "0") { alert("❌ Amount Collect wajib diisi!"); return; }
     if (!geotag || geotag.includes("Menunggu") || geotag.includes("Gagal")) {
@@ -170,6 +188,7 @@ form.addEventListener('submit', async (e) => {
     }
     if (fileInput.files.length === 0) { alert("❌ Wajib upload foto!"); return; }
 
+    const loadingOverlay = document.getElementById('loadingOverlay');
     loadingOverlay.style.display = 'flex';
 
     try {
@@ -177,13 +196,15 @@ form.addEventListener('submit', async (e) => {
         const base64File = await toBase64(file);
         const cleanBase64 = base64File.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
 
+        // PENTING: Jika Area/Point disabled, value-nya tidak terkirim otomatis oleh form HTML standar.
+        // Kita ambil value manual dari element.
         const formData = {
             jenisLaporan: "Collection",
             tanggal: document.getElementById('tanggalInput').value,
             idKaryawan: document.getElementById('idKaryawan').value,
             namaBP: document.getElementById('namaBP').value,
-            area: document.getElementById('areaSelect').value,
-            point: document.getElementById('pointSelect').value,
+            area: areaSelect.value, // Ambil value meski disabled
+            point: pointSelect.value, // Ambil value meski disabled
             idLoan: document.getElementById('idLoan').value,
             namaMitra: document.getElementById('namaMitra').value,
             amountCollect: amtReal,
@@ -213,6 +234,7 @@ form.addEventListener('submit', async (e) => {
         console.error(error);
         alert("❌ Gagal: " + error.message);
     } finally {
+        const loadingOverlay = document.getElementById('loadingOverlay');
         loadingOverlay.style.display = 'none';
     }
 });
