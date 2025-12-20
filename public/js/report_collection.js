@@ -17,7 +17,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// URL APPS SCRIPT (Dari file yang Anda upload sebelumnya)
+// ⚠️ URL DEPLOYMENT APPS SCRIPT ANDA ⚠️
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxmtteV3LF5FiBgWOSgFvJlGv-S3Sks1sBrZIl-aks6NPzPM7DgNQhUrKtJFw2hRkQT/exec"; 
 
 // 1. Cek Login
@@ -40,7 +40,7 @@ onAuthStateChanged(auth, (user) => {
 // 2. Set Tanggal
 document.getElementById('tanggalInput').value = new Date().toISOString().split('T')[0];
 
-// 3. Logic Geotag (HIGH ACCURACY)
+// 3. Logic Geotag (GPS Akurasi Tinggi)
 const geoInput = document.getElementById('geotagInput');
 const geoStatus = document.getElementById('geoStatus');
 const btnRefreshLoc = document.getElementById('btnRefreshLoc');
@@ -68,7 +68,7 @@ function ambilLokasi() {
                 geoInput.value = "Lokasi Gagal";
                 let msg = "Gagal. Pastikan GPS aktif.";
                 if (error.code === 1) msg = "❌ Izin lokasi ditolak.";
-                if (error.code === 3) msg = "❌ Sinyal GPS lemah.";
+                
                 geoStatus.innerText = msg;
                 geoStatus.className = "form-text small text-danger fw-bold";
             },
@@ -80,21 +80,25 @@ function ambilLokasi() {
 }
 btnRefreshLoc.addEventListener('click', ambilLokasi);
 
-// 4. PREVIEW FOTO (LOGIK BARU)
+// 4. LOGIKA PREVIEW FOTO (BARU)
 const fileInput = document.getElementById('fotoInput');
 const previewFoto = document.getElementById('previewFoto');
+const previewText = document.getElementById('previewText');
 
 fileInput.addEventListener('change', function(e) {
     const file = this.files[0];
     if (file) {
+        // Buat Preview
         const reader = new FileReader();
         reader.onload = function(e) {
             previewFoto.src = e.target.result;
             previewFoto.style.display = 'block';
+            previewText.style.display = 'block';
         }
         reader.readAsDataURL(file);
     } else {
         previewFoto.style.display = 'none';
+        previewText.style.display = 'none';
     }
 });
 
@@ -150,7 +154,7 @@ function formatRupiah(angka, prefix) {
     return prefix == undefined ? rupiah : (rupiah ? 'Rp. ' + rupiah : '');
 }
 
-// 6. Submit Logic (VALIDASI KETAT)
+// 6. Submit Logic
 const form = document.getElementById('collectionForm');
 const loadingOverlay = document.getElementById('loadingOverlay');
 
@@ -161,7 +165,7 @@ form.addEventListener('submit', async (e) => {
     const geotag = document.getElementById('geotagInput').value;
 
     if (!amtReal || amtReal === "0") { alert("❌ Amount Collect wajib diisi!"); return; }
-    if (!geotag || geotag.includes("Menunggu") || geotag.includes("Gagal") || geotag.includes("mencari")) {
+    if (!geotag || geotag.includes("Menunggu") || geotag.includes("Gagal")) {
         alert("❌ Lokasi wajib terkunci! Tunggu akurasi muncul."); return;
     }
     if (fileInput.files.length === 0) { alert("❌ Wajib upload foto!"); return; }
