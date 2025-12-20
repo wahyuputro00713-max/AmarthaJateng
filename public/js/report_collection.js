@@ -18,7 +18,7 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 // URL APPS SCRIPT (Tetap)
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxmtteV3LF5FiBgWOSgFvJlGv-S3Sks1sBrZIl-aks6NPzPM7DgNQhUrKtJFw2hRkQT/exec"; 
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyl4uGnwv98SowA-sWhxtrhgI2hxs_yNhc1AZOGR8qKpkMdU8QXJ74gfVqbPDAMrrOY/exec"; 
 
 // Data Points (Tetap)
 const dataPoints = {
