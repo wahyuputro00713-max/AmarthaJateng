@@ -15,7 +15,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
-// ⚠️ GANTI DENGAN URL DEPLOYMENT TERBARU ANDA ⚠️
+// URL APPS SCRIPT
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxmtteV3LF5FiBgWOSgFvJlGv-S3Sks1sBrZIl-aks6NPzPM7DgNQhUrKtJFw2hRkQT/exec"; 
 
 onAuthStateChanged(auth, (user) => {
@@ -25,6 +25,7 @@ onAuthStateChanged(auth, (user) => {
 const dateInput = document.getElementById('tanggalInput');
 if(dateInput) dateInput.value = new Date().toISOString().split('T')[0];
 
+// Data Dropdown
 const dataPoints = {
     "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucul"],
     "Magelang": ["Grabag", "Mungkid", "Pakis", "Salam"],
@@ -57,6 +58,7 @@ if (areaSelect && pointSelect) {
     });
 }
 
+// Format Rupiah
 const rupiahInputs = document.querySelectorAll('.rupiah-input');
 rupiahInputs.forEach(input => {
     input.addEventListener('keyup', function(e) {
@@ -81,7 +83,25 @@ function formatRupiah(angka, prefix) {
     return prefix == undefined ? rupiah : (rupiah ? 'Rp. ' + rupiah : '');
 }
 
-// SUBMIT LOGIC (VALIDASI KETAT)
+// LOGIK PREVIEW FOTO
+const fileInput = document.getElementById('fotoInput');
+const previewFoto = document.getElementById('previewFoto');
+
+fileInput.addEventListener('change', function(e) {
+    const file = this.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            previewFoto.src = e.target.result;
+            previewFoto.style.display = 'block';
+        }
+        reader.readAsDataURL(file);
+    } else {
+        previewFoto.style.display = 'none';
+    }
+});
+
+// SUBMIT LOGIC
 const form = document.getElementById('validasiForm');
 const loadingOverlay = document.getElementById('loadingOverlay');
 
@@ -91,7 +111,6 @@ if (form) {
 
         const amtVal = document.getElementById('amountValReal').value;
         const amtModal = document.getElementById('amountModalReal').value;
-        const fileInput = document.getElementById('fotoInput');
 
         if (!amtVal || amtVal === "") { alert("❌ Amount Val wajib diisi!"); return; }
         if (!amtModal || amtModal === "") { alert("❌ Amount Modal wajib diisi!"); return; }
