@@ -17,10 +17,10 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// ⚠️ GANTI URL INI DENGAN URL APPS SCRIPT ANDA (AKHIRAN /exec) ⚠️
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwnEOc8SGbuH3lNBssVNNJKinrqP1Oo4LXFB2AgR_1R97ASV9CeUeQ2-GD9eJD49koM/exec"; 
+// ⚠️ GANTI DENGAN URL DEPLOYMENT TERBARU ANDA (/exec) ⚠️
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxmtteV3LF5FiBgWOSgFvJlGv-S3Sks1sBrZIl-aks6NPzPM7DgNQhUrKtJFw2hRkQT/exec"; 
 
-// 1. Cek Login & Ambil Data User
+// 1. Cek Login
 onAuthStateChanged(auth, (user) => {
     if (user) {
         const userRef = ref(db, 'users/' + user.uid);
@@ -31,46 +31,47 @@ onAuthStateChanged(auth, (user) => {
                 document.getElementById('namaBP').value = dataUser.nama || "-";
             }
         });
-        
-        // Mulai ambil lokasi saat login terdeteksi
-        ambilLokasi();
+        ambilLokasi(); // Ambil lokasi di awal
     } else {
         window.location.replace("index.html");
     }
 });
 
-// 2. Set Tanggal Otomatis (Readonly)
+// 2. Set Tanggal
 document.getElementById('tanggalInput').value = new Date().toISOString().split('T')[0];
 
-// 3. Fungsi Ambil Lokasi (Geotag)
-function ambilLokasi() {
-    const geoInput = document.getElementById('geotagInput');
-    const geoStatus = document.getElementById('geoStatus');
+// 3. Logic Geotag & Refresh
+const geoInput = document.getElementById('geotagInput');
+const geoStatus = document.getElementById('geoStatus');
+const btnRefreshLoc = document.getElementById('btnRefreshLoc');
 
+function ambilLokasi() {
+    geoInput.value = "Sedang mengambil...";
+    geoStatus.innerText = "Mencari koordinat...";
+    
     if (navigator.geolocation) {
-        geoStatus.innerText = "Sedang mengambil lokasi...";
         navigator.geolocation.getCurrentPosition(
             (position) => {
                 const lat = position.coords.latitude;
                 const long = position.coords.longitude;
-                // Format Google Maps Link
                 geoInput.value = `https://www.google.com/maps?q=${lat},${long}`;
                 geoStatus.innerText = "✅ Lokasi terkunci.";
-                geoStatus.classList.replace("text-muted", "text-success");
+                geoStatus.className = "form-text small text-success";
             },
             (error) => {
                 console.error("Error Lokasi:", error);
                 geoInput.value = "Lokasi Gagal";
-                geoStatus.innerText = "❌ Gagal ambil lokasi. Pastikan GPS aktif.";
-                geoStatus.classList.replace("text-muted", "text-danger");
+                geoStatus.innerText = "❌ Gagal. Coba Refresh.";
+                geoStatus.className = "form-text small text-danger";
             }
         );
     } else {
         geoInput.value = "Tidak Support";
     }
 }
+btnRefreshLoc.addEventListener('click', ambilLokasi);
 
-// 4. Dropdown Area -> Point
+// 4. Dropdown Area
 const dataPoints = {
     "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucul"],
     "Magelang": ["Grabag", "Mungkid", "Pakis", "Salam"],
@@ -123,22 +124,26 @@ function formatRupiah(angka, prefix) {
     return prefix == undefined ? rupiah : (rupiah ? 'Rp. ' + rupiah : '');
 }
 
-// 6. Submit Logic
+// 6. Submit Logic (VALIDASI KETAT)
 const form = document.getElementById('collectionForm');
 const loadingOverlay = document.getElementById('loadingOverlay');
 
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    // Validasi Foto & Geotag
-    const fileInput = document.getElementById('fotoInput');
+    // Validasi JavaScript Tambahan
+    const amtReal = document.getElementById('amountCollectReal').value;
     const geotag = document.getElementById('geotagInput').value;
+    const fileInput = document.getElementById('fotoInput');
 
-    if (fileInput.files.length === 0) {
-        alert("Wajib upload foto!"); return;
+    if (!amtReal || amtReal === "0") {
+        alert("❌ Amount Collect wajib diisi!"); return;
     }
-    if (!geotag || geotag === "Lokasi Gagal" || geotag.includes("Menunggu")) {
-        alert("Wajib ada lokasi! Coba refresh halaman atau hidupkan GPS."); return;
+    if (!geotag || geotag.includes("Menunggu") || geotag.includes("Gagal")) {
+        alert("❌ Lokasi wajib ada! Pastikan GPS aktif."); return;
+    }
+    if (fileInput.files.length === 0) {
+        alert("❌ Wajib upload foto!"); return;
     }
 
     loadingOverlay.style.display = 'flex';
@@ -158,10 +163,10 @@ form.addEventListener('submit', async (e) => {
             point: document.getElementById('pointSelect').value,
             idLoan: document.getElementById('idLoan').value,
             namaMitra: document.getElementById('namaMitra').value,
-            amountCollect: document.getElementById('amountCollectReal').value,
+            amountCollect: amtReal,
             dpd: document.getElementById('dpdSelect').value,
             keterangan: document.getElementById('ketSelect').value,
-            geotag: geotag, // Kirim link Google Maps
+            geotag: geotag,
             
             foto: cleanBase64,
             namaFoto: "Coll_" + file.name,
