@@ -20,7 +20,11 @@ const db = getDatabase(app);
 // DOM Elements
 const loadingOverlay = document.getElementById('loadingOverlay');
 
-// Inputs Data Diri
+const btnEditProfil = document.getElementById('btnEditProfil');
+const actionButtons = document.getElementById('actionButtons');
+const btnBatalEdit = document.getElementById('btnBatalEdit');
+const profilForm = document.getElementById('profilForm');
+
 const inputsProfil = [
     document.getElementById('namaInput'),
     document.getElementById('idKaryawanInput'),
@@ -28,21 +32,6 @@ const inputsProfil = [
     document.getElementById('regionalInput'),
     document.getElementById('areaInput')
 ];
-const btnEditProfil = document.getElementById('btnEditProfil');
-const actionButtons = document.getElementById('actionButtons');
-const btnBatalEdit = document.getElementById('btnBatalEdit');
-const profilForm = document.getElementById('profilForm');
-
-// Inputs Keamanan
-const emailInput = document.getElementById('emailInput');
-const btnEditEmail = document.getElementById('btnEditEmail');
-const btnSimpanEmail = document.getElementById('btnSimpanEmail');
-const emailEditGroup = document.getElementById('emailEditGroup');
-
-const passInput = document.getElementById('passwordInput');
-const btnEditPass = document.getElementById('btnEditPass');
-const btnSimpanPass = document.getElementById('btnSimpanPass');
-const passEditGroup = document.getElementById('passEditGroup');
 
 let currentUser = null;
 
@@ -50,7 +39,7 @@ let currentUser = null;
 onAuthStateChanged(auth, (user) => {
     if (user) {
         currentUser = user;
-        emailInput.value = user.email; // Load Email Login
+        document.getElementById('emailInput').value = user.email;
         loadUserData(user.uid);
     } else {
         window.location.replace("index.html");
@@ -67,121 +56,131 @@ function loadUserData(uid) {
             document.getElementById('jabatanInput').value = data.jabatan || "";
             document.getElementById('regionalInput').value = data.regional || "";
             document.getElementById('areaInput').value = data.area || "";
+            
+            // Aktifkan tombol edit setelah data masuk
+            if(btnEditProfil) btnEditProfil.disabled = false;
         }
     });
 }
 
 // 2. LOGIKA EDIT DATA DIRI
-btnEditProfil.addEventListener('click', () => {
-    // Aktifkan semua input
-    inputsProfil.forEach(input => input.disabled = false);
-    // Tampilkan tombol simpan, sembunyikan tombol edit
-    actionButtons.style.display = "grid";
-    btnEditProfil.style.display = "none";
-});
-
-btnBatalEdit.addEventListener('click', () => {
-    // Refresh halaman untuk reset data
-    window.location.reload();
-});
-
-profilForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    if (!currentUser) return;
-
-    loadingOverlay.style.display = 'flex';
-
-    // Data yang akan diupdate ke Database
-    const updates = {
-        nama: document.getElementById('namaInput').value,
-        idKaryawan: document.getElementById('idKaryawanInput').value,
-        jabatan: document.getElementById('jabatanInput').value,
-        regional: document.getElementById('regionalInput').value,
-        area: document.getElementById('areaInput').value
-    };
-
-    update(ref(db, 'users/' + currentUser.uid), updates)
-        .then(() => {
-            alert("✅ Profil berhasil diperbarui!");
-            window.location.reload();
-        })
-        .catch((error) => {
-            console.error(error);
-            alert("❌ Gagal update: " + error.message);
-            loadingOverlay.style.display = 'none';
+if (btnEditProfil) {
+    btnEditProfil.addEventListener('click', (e) => {
+        e.preventDefault(); // Mencegah perilaku aneh di HP
+        console.log("Tombol Edit Ditekan");
+        
+        // Aktifkan input
+        inputsProfil.forEach(input => {
+            if(input) input.disabled = false;
         });
-});
+        
+        // Tampilkan tombol simpan
+        if(actionButtons) actionButtons.style.display = "grid";
+        btnEditProfil.style.display = "none";
+    });
+}
 
-// 3. LOGIKA UPDATE EMAIL
-btnEditEmail.addEventListener('click', () => {
-    emailInput.disabled = !emailInput.disabled;
-    if (!emailInput.disabled) {
-        emailInput.focus();
-        emailEditGroup.style.display = 'block';
-    } else {
-        emailEditGroup.style.display = 'none';
-        emailInput.value = currentUser.email; // Reset jika batal
-    }
-});
+if (btnBatalEdit) {
+    btnBatalEdit.addEventListener('click', () => {
+        window.location.reload();
+    });
+}
 
-btnSimpanEmail.addEventListener('click', () => {
-    const newEmail = emailInput.value.trim();
-    if (!newEmail) return;
-    
-    if (confirm("Yakin ingin mengubah email login? Anda harus login ulang setelah ini.")) {
+if (profilForm) {
+    profilForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (!currentUser) return;
+
         loadingOverlay.style.display = 'flex';
-        updateEmail(currentUser, newEmail)
+
+        const updates = {
+            nama: document.getElementById('namaInput').value,
+            idKaryawan: document.getElementById('idKaryawanInput').value,
+            jabatan: document.getElementById('jabatanInput').value,
+            regional: document.getElementById('regionalInput').value,
+            area: document.getElementById('areaInput').value
+        };
+
+        update(ref(db, 'users/' + currentUser.uid), updates)
             .then(() => {
-                alert("✅ Email berhasil diubah! Silakan login ulang.");
+                alert("✅ Profil berhasil diperbarui!");
+                window.location.reload();
+            })
+            .catch((error) => {
+                console.error(error);
+                alert("❌ Gagal update: " + error.message);
+                loadingOverlay.style.display = 'none';
+            });
+    });
+}
+
+// 3. LOGIKA EMAIL & PASSWORD (Sama seperti sebelumnya)
+const btnEditEmail = document.getElementById('btnEditEmail');
+const btnSimpanEmail = document.getElementById('btnSimpanEmail');
+const emailEditGroup = document.getElementById('emailEditGroup');
+const emailInput = document.getElementById('emailInput');
+
+if(btnEditEmail) {
+    btnEditEmail.addEventListener('click', () => {
+        emailInput.disabled = !emailInput.disabled;
+        if (!emailInput.disabled) {
+            emailInput.focus();
+            emailEditGroup.style.display = 'block';
+        } else {
+            emailEditGroup.style.display = 'none';
+            emailInput.value = currentUser.email; 
+        }
+    });
+}
+
+if(btnSimpanEmail) {
+    btnSimpanEmail.addEventListener('click', () => {
+        const newEmail = emailInput.value.trim();
+        if(confirm("Ubah email login? Anda harus login ulang.")) {
+            loadingOverlay.style.display = 'flex';
+            updateEmail(currentUser, newEmail).then(() => {
+                alert("✅ Sukses! Silakan login ulang.");
                 window.location.replace("index.html");
-            })
-            .catch((error) => {
+            }).catch(err => {
                 loadingOverlay.style.display = 'none';
-                if (error.code === 'auth/requires-recent-login') {
-                    alert("⚠️ Untuk keamanan, silakan Logout dan Login kembali sebelum mengganti Email.");
-                } else {
-                    alert("❌ Gagal: " + error.message);
-                }
+                alert("❌ Gagal: " + err.message);
             });
-    }
-});
+        }
+    });
+}
 
-// 4. LOGIKA UPDATE PASSWORD
-btnEditPass.addEventListener('click', () => {
-    passInput.disabled = !passInput.disabled;
-    if (!passInput.disabled) {
-        passInput.focus();
-        passEditGroup.style.display = 'block';
-    } else {
-        passEditGroup.style.display = 'none';
-        passInput.value = "";
-    }
-});
+const btnEditPass = document.getElementById('btnEditPass');
+const btnSimpanPass = document.getElementById('btnSimpanPass');
+const passEditGroup = document.getElementById('passEditGroup');
+const passInput = document.getElementById('passwordInput');
 
-btnSimpanPass.addEventListener('click', () => {
-    const newPass = passInput.value;
-    if (newPass.length < 6) {
-        alert("Password minimal 6 karakter.");
-        return;
-    }
+if(btnEditPass) {
+    btnEditPass.addEventListener('click', () => {
+        passInput.disabled = !passInput.disabled;
+        if (!passInput.disabled) {
+            passInput.focus();
+            passEditGroup.style.display = 'block';
+        } else {
+            passEditGroup.style.display = 'none';
+            passInput.value = "";
+        }
+    });
+}
 
-    if (confirm("Apakah Anda yakin ingin mengganti password?")) {
-        loadingOverlay.style.display = 'flex';
-        updatePassword(currentUser, newPass)
-            .then(() => {
-                alert("✅ Password berhasil diganti!");
-                passInput.value = "";
-                passInput.disabled = true;
-                passEditGroup.style.display = 'none';
+if(btnSimpanPass) {
+    btnSimpanPass.addEventListener('click', () => {
+        const newPass = passInput.value;
+        if (newPass.length < 6) return alert("Min 6 karakter");
+        
+        if(confirm("Ganti password?")) {
+            loadingOverlay.style.display = 'flex';
+            updatePassword(currentUser, newPass).then(() => {
+                alert("✅ Password diganti.");
+                window.location.reload();
+            }).catch(err => {
                 loadingOverlay.style.display = 'none';
-            })
-            .catch((error) => {
-                loadingOverlay.style.display = 'none';
-                if (error.code === 'auth/requires-recent-login') {
-                    alert("⚠️ Untuk keamanan, silakan Logout dan Login kembali sebelum mengganti Password.");
-                } else {
-                    alert("❌ Gagal: " + error.message);
-                }
+                alert("❌ Gagal: " + err.message);
             });
-    }
-});
+        }
+    });
+}
