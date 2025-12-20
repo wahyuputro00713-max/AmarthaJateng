@@ -18,7 +18,7 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 // ⚠️ GANTI DENGAN URL DEPLOYMENT APPS SCRIPT TERBARU ANDA ⚠️
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxmtteV3LF5FiBgWOSgFvJlGv-S3Sks1sBrZIl-aks6NPzPM7DgNQhUrKtJFw2hRkQT/exec"; 
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyl4uGnwv98SowA-sWhxtrhgI2hxs_yNhc1AZOGR8qKpkMdU8QXJ74gfVqbPDAMrrOY/exec"; 
 
 // Data Dropdown Point
 const dataPoints = {
