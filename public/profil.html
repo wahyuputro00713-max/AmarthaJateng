@@ -9,15 +9,10 @@
     <style>
         :root { --primary-purple: #8e26d4; --dark-purple: #701eb0; --bg-light: #f5f7fa; }
         body { background-color: var(--bg-light); font-family: 'Segoe UI', sans-serif; padding-top: 80px; padding-bottom: 40px; }
-        
         .navbar { background: linear-gradient(90deg, var(--primary-purple), var(--dark-purple)); box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        
         .form-card { border: none; border-radius: 15px; background: white; padding: 25px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        
         .btn-purple { background-color: var(--primary-purple); color: white; border: none; font-weight: bold; }
         .btn-purple:hover { background-color: var(--dark-purple); color: white; }
-        
-        /* Loading Overlay */
         #loadingOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 9999; align-items: center; justify-content: center; flex-direction: column; }
     </style>
 </head>
@@ -41,7 +36,6 @@
         <div class="form-card">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h5 class="text-purple fw-bold m-0"><i class="fa-solid fa-id-card me-2"></i>Data Karyawan</h5>
-                
                 <button type="button" id="btnEditProfil" class="btn btn-sm btn-outline-warning fw-bold">
                     <i class="fa-solid fa-pen-to-square"></i> Edit
                 </button>
@@ -70,14 +64,30 @@
                     </div>
                 </div>
 
+                <div class="mb-3">
+                    <label class="form-label small text-muted">Regional</label>
+                    <input type="text" class="form-control" id="regionalInput" disabled placeholder="...">
+                </div>
+
                 <div class="row">
                     <div class="col-6 mb-3">
-                        <label class="form-label small text-muted">Regional</label>
-                        <input type="text" class="form-control" id="regionalInput" disabled placeholder="...">
+                        <label class="form-label small text-muted">Area</label>
+                        <select class="form-select" id="areaInput" disabled>
+                            <option value="" selected disabled>Pilih Area...</option>
+                            <option value="Klaten">Klaten</option>
+                            <option value="Magelang">Magelang</option>
+                            <option value="Solo">Solo</option>
+                            <option value="Solo 2">Solo 2</option>
+                            <option value="Wonogiri">Wonogiri</option>
+                            <option value="Yogyakarta">Yogyakarta</option>
+                            <option value="Yogyakarta 2">Yogyakarta 2</option>
+                        </select>
                     </div>
                     <div class="col-6 mb-3">
-                        <label class="form-label small text-muted">Area</label>
-                        <input type="text" class="form-control" id="areaInput" disabled placeholder="...">
+                        <label class="form-label small text-muted">Point</label>
+                        <select class="form-select" id="pointInput" disabled>
+                            <option value="" selected disabled>-</option>
+                        </select>
                     </div>
                 </div>
 
@@ -92,29 +102,22 @@
 
         <div class="form-card bg-light">
             <h5 class="text-dark fw-bold mb-4"><i class="fa-solid fa-shield-halved me-2"></i>Keamanan Akun</h5>
-            
             <div class="mb-3">
                 <label class="form-label small text-muted">Email Login</label>
                 <div class="input-group">
                     <input type="email" class="form-control" id="emailInput" disabled>
-                    <button class="btn btn-outline-secondary" type="button" id="btnEditEmail">
-                        <i class="fa-solid fa-pen"></i>
-                    </button>
+                    <button class="btn btn-outline-secondary" type="button" id="btnEditEmail"><i class="fa-solid fa-pen"></i></button>
                 </div>
                 <div id="emailEditGroup" class="mt-2" style="display: none;">
                      <button type="button" id="btnSimpanEmail" class="btn btn-sm btn-primary w-100">Update Email</button>
                 </div>
             </div>
-
             <div class="mb-3">
                 <label class="form-label small text-muted">Ganti Password</label>
                 <div class="input-group">
                     <input type="password" class="form-control" id="passwordInput" placeholder="******" disabled>
-                    <button class="btn btn-outline-secondary" type="button" id="btnEditPass">
-                        <i class="fa-solid fa-pen"></i>
-                    </button>
+                    <button class="btn btn-outline-secondary" type="button" id="btnEditPass"><i class="fa-solid fa-pen"></i></button>
                 </div>
-                
                 <div id="passEditGroup" class="mt-2" style="display: none;">
                     <button type="button" id="btnSimpanPass" class="btn btn-sm btn-danger w-100">Simpan Password Baru</button>
                </div>
