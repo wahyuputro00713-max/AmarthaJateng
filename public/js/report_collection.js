@@ -17,7 +17,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// ⚠️ GANTI DENGAN URL DEPLOYMENT TERBARU ANDA (/exec) ⚠️
+// ⚠️ PASTE URL APPS SCRIPT BARU DISINI (AKHIRAN /exec) ⚠️
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxmtteV3LF5FiBgWOSgFvJlGv-S3Sks1sBrZIl-aks6NPzPM7DgNQhUrKtJFw2hRkQT/exec"; 
 
 // 1. Cek Login
@@ -31,7 +31,7 @@ onAuthStateChanged(auth, (user) => {
                 document.getElementById('namaBP').value = dataUser.nama || "-";
             }
         });
-        ambilLokasi(); // Ambil lokasi di awal
+        ambilLokasi(); // Auto start GPS
     } else {
         window.location.replace("index.html");
     }
@@ -40,33 +40,49 @@ onAuthStateChanged(auth, (user) => {
 // 2. Set Tanggal
 document.getElementById('tanggalInput').value = new Date().toISOString().split('T')[0];
 
-// 3. Logic Geotag & Refresh
+// 3. Logic Geotag (HIGH ACCURACY / GPS)
 const geoInput = document.getElementById('geotagInput');
 const geoStatus = document.getElementById('geoStatus');
 const btnRefreshLoc = document.getElementById('btnRefreshLoc');
 
 function ambilLokasi() {
-    geoInput.value = "Sedang mengambil...";
-    geoStatus.innerText = "Mencari koordinat...";
-    
+    geoInput.value = "Sedang mencari...";
+    geoStatus.innerText = "⏳ Mengaktifkan GPS Akurasi Tinggi...";
+    geoStatus.className = "form-text small text-warning fw-bold";
+
     if (navigator.geolocation) {
+        // Konfigurasi Paksa GPS
+        const options = {
+            enableHighAccuracy: true, // Wajib ON
+            timeout: 20000,           // Tunggu sampai 20 detik
+            maximumAge: 0             // Jangan pakai cache
+        };
+
         navigator.geolocation.getCurrentPosition(
             (position) => {
                 const lat = position.coords.latitude;
                 const long = position.coords.longitude;
+                const akurasi = position.coords.accuracy;
+
                 geoInput.value = `https://www.google.com/maps?q=${lat},${long}`;
-                geoStatus.innerText = "✅ Lokasi terkunci.";
-                geoStatus.className = "form-text small text-success";
+                geoStatus.innerHTML = `✅ Terkunci (Akurasi: <b>${Math.round(akurasi)} meter</b>)`;
+                geoStatus.className = "form-text small text-success fw-bold";
             },
             (error) => {
                 console.error("Error Lokasi:", error);
                 geoInput.value = "Lokasi Gagal";
-                geoStatus.innerText = "❌ Gagal. Coba Refresh.";
-                geoStatus.className = "form-text small text-danger";
-            }
+                let msg = "Gagal. Pastikan GPS aktif.";
+                if (error.code === 1) msg = "❌ Izin lokasi ditolak.";
+                if (error.code === 3) msg = "❌ Sinyal GPS lemah (Timeout).";
+                
+                geoStatus.innerText = msg;
+                geoStatus.className = "form-text small text-danger fw-bold";
+            },
+            options
         );
     } else {
         geoInput.value = "Tidak Support";
+        geoStatus.innerText = "Browser tidak support GPS.";
     }
 }
 btnRefreshLoc.addEventListener('click', ambilLokasi);
@@ -131,7 +147,6 @@ const loadingOverlay = document.getElementById('loadingOverlay');
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    // Validasi JavaScript Tambahan
     const amtReal = document.getElementById('amountCollectReal').value;
     const geotag = document.getElementById('geotagInput').value;
     const fileInput = document.getElementById('fotoInput');
@@ -139,8 +154,8 @@ form.addEventListener('submit', async (e) => {
     if (!amtReal || amtReal === "0") {
         alert("❌ Amount Collect wajib diisi!"); return;
     }
-    if (!geotag || geotag.includes("Menunggu") || geotag.includes("Gagal")) {
-        alert("❌ Lokasi wajib ada! Pastikan GPS aktif."); return;
+    if (!geotag || geotag.includes("Menunggu") || geotag.includes("Gagal") || geotag.includes("mencari")) {
+        alert("❌ Lokasi wajib terkunci! Tunggu akurasi muncul."); return;
     }
     if (fileInput.files.length === 0) {
         alert("❌ Wajib upload foto!"); return;
