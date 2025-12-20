@@ -17,8 +17,8 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// ⚠️ GANTI DENGAN URL DEPLOYMENT APPS SCRIPT TERBARU ANDA ⚠️
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzKSLFYjD2Z8CSW2uT59rTjGMGpaPULVKvAsHKznItHlA8WIYGOveTJEcXcPbVESStN/exec"; 
+// ⚠️ PASTE URL SCRIPT BARU ANDA DISINI ⚠️
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyS_Sv3SM72NtvtwtXOTr-46H2DdGjgp_2V9ImOt6pqjuLX20Nb9FNg-AV88eomcFT1/exec"; 
 
 // Data Dropdown Point
 const dataPoints = {
@@ -38,7 +38,6 @@ const pointSelect = document.getElementById('pointSelect');
 function updatePointsDropdown(selectedArea) {
     const points = dataPoints[selectedArea] || [];
     pointSelect.innerHTML = '<option value="" selected disabled>Pilih Point...</option>';
-    
     if (points.length > 0) {
         pointSelect.disabled = false;
         points.forEach(point => {
@@ -49,18 +48,16 @@ function updatePointsDropdown(selectedArea) {
         });
     } else {
         pointSelect.disabled = true;
-        pointSelect.innerHTML = '<option value="" disabled>Tidak ada point</option>';
     }
 }
 
-// Event Listener kalau Area diganti manual
 if (areaSelect) {
     areaSelect.addEventListener('change', function() {
         updatePointsDropdown(this.value);
     });
 }
 
-// 1. CEK LOGIN & AUTO FILL (LOGIKA JABATAN)
+// 1. CEK LOGIN & AUTO FILL
 onAuthStateChanged(auth, (user) => {
     if (user) {
         const userRef = ref(db, 'users/' + user.uid);
@@ -69,26 +66,18 @@ onAuthStateChanged(auth, (user) => {
                 const dataUser = snapshot.val();
                 const jabatan = dataUser.jabatan;
 
-                // 1. Isi Area Otomatis (Semua Jabatan)
                 if (dataUser.area) {
                     areaSelect.value = dataUser.area;
-                    updatePointsDropdown(dataUser.area); // Munculkan list point yang sesuai
+                    updatePointsDropdown(dataUser.area);
                 }
 
-                // 2. Logika Khusus BM & BP (Kunci Area & Isi Point)
                 if (jabatan === 'BM' || jabatan === 'BP') {
-                    if (dataUser.area) {
-                        areaSelect.disabled = true; // Kunci Area
-                    }
+                    if (dataUser.area) areaSelect.disabled = true;
                     if (dataUser.point) {
-                        pointSelect.value = dataUser.point; // Isi Point Otomatis
-                        pointSelect.disabled = true; // Kunci Point
+                        pointSelect.value = dataUser.point;
+                        pointSelect.disabled = true;
                     }
-                }
-                // 3. Logika RM & AM (Point Tetap Manual)
-                else if (jabatan === 'RM' || jabatan === 'AM') {
-                    // Area sudah terisi di atas (jika ada), tapi Point dibiarkan manual
-                    // Pastikan pointSelect enabled agar bisa dipilih
+                } else if (jabatan === 'RM' || jabatan === 'AM') {
                     pointSelect.disabled = false;
                 }
             }
@@ -98,11 +87,10 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
-// 2. Set Tanggal Hari Ini
 const dateInput = document.getElementById('tanggalInput');
 if(dateInput) dateInput.value = new Date().toISOString().split('T')[0];
 
-// 3. Format Rupiah
+// Format Rupiah
 const rupiahInputs = document.querySelectorAll('.rupiah-input');
 rupiahInputs.forEach(input => {
     input.addEventListener('keyup', function(e) {
@@ -127,7 +115,33 @@ function formatRupiah(angka, prefix) {
     return prefix == undefined ? rupiah : (rupiah ? 'Rp. ' + rupiah : '');
 }
 
-// 4. SUBMIT LOGIC
+// --- LOGIKA PREVIEW BANYAK FOTO ---
+const fileInput = document.getElementById('fotoInput');
+const previewContainer = document.getElementById('previewContainer');
+
+fileInput.addEventListener('change', function() {
+    previewContainer.innerHTML = ''; // Reset preview
+    const files = Array.from(this.files);
+    
+    if (files.length > 5) {
+        alert("Maksimal 5 foto sekaligus agar upload tidak gagal.");
+        this.value = ""; // Reset input
+        return;
+    }
+
+    files.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = document.createElement('img');
+            img.src = e.target.result;
+            img.className = 'preview-img';
+            previewContainer.appendChild(img);
+        }
+        reader.readAsDataURL(file);
+    });
+});
+
+// --- SUBMIT LOGIC ---
 const form = document.getElementById('validasiForm');
 const loadingOverlay = document.getElementById('loadingOverlay');
 
@@ -137,41 +151,40 @@ if (form) {
 
         const amtVal = document.getElementById('amountValReal').value;
         const amtModal = document.getElementById('amountModalReal').value;
-        const fileInput = document.getElementById('fotoInput');
-
-        // Validasi Manual
-        if (!amtVal || amtVal === "") { alert("❌ Amount Val wajib diisi!"); return; }
-        if (!amtModal || amtModal === "") { alert("❌ Amount Modal wajib diisi!"); return; }
-        if (fileInput.files.length === 0) { alert("❌ Wajib upload foto validasi!"); return; }
         
-        // Pastikan Area/Point terpilih (meskipun disabled)
+        // Cek Foto
+        if (fileInput.files.length === 0) { alert("❌ Wajib upload foto validasi!"); return; }
         if (!areaSelect.value) { alert("❌ Area belum terpilih!"); return; }
         if (!pointSelect.value) { alert("❌ Point belum terpilih!"); return; }
 
         loadingOverlay.style.display = 'flex';
 
         try {
-            const file = fileInput.files[0];
-            const base64File = await toBase64(file); 
-            const cleanBase64 = base64File.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
+            // PROSES MULTIPLE FILES
+            const files = Array.from(fileInput.files);
+            const processedFiles = await Promise.all(files.map(async (file) => {
+                const base64 = await toBase64(file);
+                return {
+                    foto: base64.replace(/^data:image\/(png|jpeg|jpg);base64,/, ""),
+                    namaFoto: "Val_" + file.name,
+                    mimeType: file.type
+                };
+            }));
 
             const formData = {
                 jenisLaporan: "Validasi", 
                 tanggal: document.getElementById('tanggalInput').value,
                 regional: document.getElementById('regionalInput').value,
-                
-                // PENTING: Ambil .value manual karena input disabled tidak terkirim otomatis di form submit biasa
                 area: areaSelect.value,
                 point: pointSelect.value,
-                
                 jmlMitraVal: document.getElementById('jmlMitraVal').value,
                 amtVal: amtVal,       
                 jmlMitraModal: document.getElementById('jmlMitraModal').value,
                 amtModal: amtModal,   
                 tenor: document.getElementById('tenorSelect').value,
-                foto: cleanBase64,
-                namaFoto: file.name,
-                mimeType: file.type
+                
+                // Kirim Array Files, bukan single foto
+                files: processedFiles 
             };
 
             const response = await fetch(SCRIPT_URL, {
