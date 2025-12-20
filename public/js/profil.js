@@ -17,23 +17,59 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
+// DATA POINTS (Sama seperti di Report)
+const dataPoints = {
+    "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucul"],
+    "Magelang": ["Grabag", "Mungkid", "Pakis", "Salam"],
+    "Solo": ["Banjarsari", "Gemolong", "Masaran", "Tangen"],
+    "Solo 2": ["Gatak", "Jumantono", "Karanganyar", "Nguter", "Pasar kliwon"],
+    "Yogyakarta": ["01 Sleman", "Kalasan", "Ngaglik", "Umbulharjo"],
+    "Yogyakarta 2": ["01 Pandak", "01 Pengasih", "01 Pleret", "Kutoarjo", "Purworejo", "Saptosari"],
+    "Wonogiri": ["Jatisrono", "Ngadirojo", "Ngawen 2", "Pracimantoro", "Wonosari"]
+};
+
 // DOM Elements
 const loadingOverlay = document.getElementById('loadingOverlay');
-
 const btnEditProfil = document.getElementById('btnEditProfil');
 const actionButtons = document.getElementById('actionButtons');
 const btnBatalEdit = document.getElementById('btnBatalEdit');
 const profilForm = document.getElementById('profilForm');
+
+const areaInput = document.getElementById('areaInput');
+const pointInput = document.getElementById('pointInput'); // Dropdown Point
 
 const inputsProfil = [
     document.getElementById('namaInput'),
     document.getElementById('idKaryawanInput'),
     document.getElementById('jabatanInput'),
     document.getElementById('regionalInput'),
-    document.getElementById('areaInput')
+    areaInput,
+    pointInput
 ];
 
 let currentUser = null;
+
+// LOGIKA DROPDOWN CASCADING DI PROFIL
+areaInput.addEventListener('change', function() {
+    updatePoints(this.value);
+});
+
+function updatePoints(selectedArea, selectedPoint = null) {
+    const points = dataPoints[selectedArea] || [];
+    pointInput.innerHTML = '<option value="" selected disabled>Pilih Point...</option>';
+    
+    if (points.length > 0) {
+        points.forEach(point => {
+            const option = document.createElement('option');
+            option.value = point;
+            option.textContent = point;
+            pointInput.appendChild(option);
+        });
+        if (selectedPoint) pointInput.value = selectedPoint;
+    } else {
+        pointInput.innerHTML = '<option value="" disabled>Tidak ada data</option>';
+    }
+}
 
 // 1. CEK LOGIN & LOAD DATA
 onAuthStateChanged(auth, (user) => {
@@ -55,35 +91,30 @@ function loadUserData(uid) {
             document.getElementById('idKaryawanInput').value = data.idKaryawan || "";
             document.getElementById('jabatanInput').value = data.jabatan || "";
             document.getElementById('regionalInput').value = data.regional || "";
-            document.getElementById('areaInput').value = data.area || "";
             
-            // Aktifkan tombol edit setelah data masuk
+            // Set Area & Point
+            if (data.area) {
+                areaInput.value = data.area;
+                updatePoints(data.area, data.point); // Load point sesuai area yg tersimpan
+            }
+            
             if(btnEditProfil) btnEditProfil.disabled = false;
         }
     });
 }
 
-// 2. LOGIKA EDIT DATA DIRI
+// 2. LOGIKA EDIT
 if (btnEditProfil) {
     btnEditProfil.addEventListener('click', (e) => {
-        e.preventDefault(); // Mencegah perilaku aneh di HP
-        console.log("Tombol Edit Ditekan");
-        
-        // Aktifkan input
-        inputsProfil.forEach(input => {
-            if(input) input.disabled = false;
-        });
-        
-        // Tampilkan tombol simpan
+        e.preventDefault();
+        inputsProfil.forEach(input => { if(input) input.disabled = false; });
         if(actionButtons) actionButtons.style.display = "grid";
         btnEditProfil.style.display = "none";
     });
 }
 
 if (btnBatalEdit) {
-    btnBatalEdit.addEventListener('click', () => {
-        window.location.reload();
-    });
+    btnBatalEdit.addEventListener('click', () => window.location.reload());
 }
 
 if (profilForm) {
@@ -98,7 +129,8 @@ if (profilForm) {
             idKaryawan: document.getElementById('idKaryawanInput').value,
             jabatan: document.getElementById('jabatanInput').value,
             regional: document.getElementById('regionalInput').value,
-            area: document.getElementById('areaInput').value
+            area: areaInput.value,
+            point: pointInput.value // Simpan Point
         };
 
         update(ref(db, 'users/' + currentUser.uid), updates)
@@ -114,7 +146,10 @@ if (profilForm) {
     });
 }
 
-// 3. LOGIKA EMAIL & PASSWORD (Sama seperti sebelumnya)
+// ... (SISA KODE EMAIL & PASSWORD SAMA SEPERTI SEBELUMNYA) ...
+// (Untuk menghemat tempat, bagian updateEmail dan updatePassword tidak saya tulis ulang
+//  karena sama persis dengan file profil.js sebelumnya. 
+//  Pastikan Anda tetap menyertakan bagian itu di bawah sini.)
 const btnEditEmail = document.getElementById('btnEditEmail');
 const btnSimpanEmail = document.getElementById('btnSimpanEmail');
 const emailEditGroup = document.getElementById('emailEditGroup');
