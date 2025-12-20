@@ -17,10 +17,10 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// ⚠️ PASTE URL APPS SCRIPT YANG SAMA DISINI ⚠️
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyl4uGnwv98SowA-sWhxtrhgI2hxs_yNhc1AZOGR8qKpkMdU8QXJ74gfVqbPDAMrrOY/exec"; 
+// ⚠️ PASTE URL APPS SCRIPT ANDA DI SINI ⚠️
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxmtteV3LF5FiBgWOSgFvJlGv-S3Sks1sBrZIl-aks6NPzPM7DgNQhUrKtJFw2hRkQT/exec"; 
 
-// Data Points (Copy dari file lain)
+// Data Points
 const dataPoints = {
     "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucul"],
     "Magelang": ["Grabag", "Mungkid", "Pakis", "Salam"],
@@ -89,7 +89,7 @@ onAuthStateChanged(auth, (user) => {
 // Set Tanggal
 document.getElementById('tanggalInput').value = new Date().toISOString().split('T')[0];
 
-// --- 2. LOGIKA GPS & ALAMAT OTOMATIS (REVERSE GEOCODING) ---
+// --- 2. LOGIKA GPS & ALAMAT OTOMATIS (DIPERBAIKI) ---
 const geoInput = document.getElementById('geotagInput');
 const geoStatus = document.getElementById('geoStatus');
 const btnRefreshLoc = document.getElementById('btnRefreshLoc');
@@ -102,7 +102,9 @@ const kabInput = document.getElementById('kabInput');
 function ambilLokasiDanAlamat() {
     geoInput.value = "Mencari...";
     desaInput.value = "Mengambil data...";
-    desaInput.readOnly = true; // Kunci dulu
+    desaInput.readOnly = true; 
+    kecInput.readOnly = true;
+    kabInput.readOnly = true;
 
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(async (position) => {
@@ -115,8 +117,9 @@ function ambilLokasiDanAlamat() {
             geoStatus.innerHTML = `✅ Terkunci (Akurasi: ${akurasi}m)`;
             geoStatus.className = "form-text small text-success fw-bold";
 
-            // 2. Ambil Nama Desa/Kec/Kab dari API OpenStreetMap (Gratis)
+            // 2. Ambil Nama Alamat dari API OpenStreetMap
             try {
+                // Menggunakan zoom=18 untuk detail maksimal
                 const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${long}&zoom=18&addressdetails=1`, {
                     headers: { 'User-Agent': 'AmarthaJatengApp/1.0' }
                 });
@@ -126,25 +129,44 @@ function ambilLokasiDanAlamat() {
                 const data = await response.json();
                 const addr = data.address;
 
-                // Logika pemetaan nama (karena kadang format beda-beda)
-                const desa = addr.village || addr.suburb || addr.hamlet || "";
-                const kec = addr.city_district || addr.district || addr.county || "";
-                const kab = addr.city || addr.regency || addr.state_district || "";
+                // --- LOGIKA CERDAS PEMETAAN ALAMAT ---
+                
+                // 1. DESA / KELURAHAN
+                // Prioritas: village (desa) -> suburb (kelurahan) -> hamlet -> neighbourhood
+                let desa = addr.village || addr.suburb || addr.hamlet || addr.neighbourhood || "";
 
+                // 2. KECAMATAN
+                // Prioritas: city_district -> district -> county (hati-hati, county kadang kecamatan di data OSM Indo)
+                let kec = addr.city_district || addr.district || addr.county || "";
+
+                // 3. KABUPATEN / KOTA (PERBAIKAN UTAMA DISINI)
+                // Prioritas: regency (kabupaten) -> city (kota) -> municipality -> state_district
+                let kab = addr.regency || addr.city || addr.municipality || addr.state_district || "";
+
+                // PEMBERSIHAN DATA (Opsional: Hapus kata "Kecamatan" dst jika dobel, tapi dibiarkan dulu agar jelas)
+                
+                // ISI KE FORM
                 desaInput.value = desa;
                 kecInput.value = kec;
                 kabInput.value = kab;
 
-                // Jika kosong, buka kuncian biar bisa manual
+                // JIKA MASIH KOSONG, BUKA KUNCI AGAR BISA DIISI MANUAL
                 if(!desa) desaInput.readOnly = false;
                 if(!kec) kecInput.readOnly = false;
                 if(!kab) kabInput.readOnly = false;
 
             } catch (error) {
                 console.error("Gagal Reverse Geocode:", error);
-                desaInput.value = "";
-                desaInput.placeholder = "Sinyal buruk, ketik manual";
-                desaInput.readOnly = false; // Buka kunci input
+                // Jika error (sinyal hancur), reset jadi kosong dan buka kunci
+                desaInput.value = ""; 
+                kecInput.value = "";
+                kabInput.value = "";
+                
+                desaInput.placeholder = "Ketik Manual";
+                kecInput.placeholder = "Ketik Manual";
+                kabInput.placeholder = "Ketik Manual";
+
+                desaInput.readOnly = false;
                 kecInput.readOnly = false;
                 kabInput.readOnly = false;
             }
@@ -195,7 +217,7 @@ form.addEventListener('submit', async (e) => {
     const noHp = document.getElementById('noHpInput').value;
 
     if (!file) { alert("❌ Foto wajib diupload!"); return; }
-    if (!geotag || geotag.includes("Menunggu")) { alert("❌ Lokasi belum terkunci!"); return; }
+    if (!geotag || geotag.includes("Menunggu")) { alert("❌ Lokasi belum terkunci! Klik refresh."); return; }
     if (!noHp) { alert("❌ Nomor HP wajib diisi!"); return; }
 
     loadingOverlay.style.display = 'flex';
@@ -218,7 +240,7 @@ form.addEventListener('submit', async (e) => {
             kabupaten: kabInput.value,
             dusun: document.getElementById('dusunInput').value,
             calonMitra: document.getElementById('calonMitraInput').value,
-            noHp: "+62" + noHp, // Tambah prefix kode negara
+            noHp: "+62" + noHp, 
             
             geotag: geotag,
             foto: cleanBase64,
