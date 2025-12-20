@@ -83,9 +83,10 @@ function formatRupiah(angka, prefix) {
     return prefix == undefined ? rupiah : (rupiah ? 'Rp. ' + rupiah : '');
 }
 
-// LOGIK PREVIEW FOTO
+// LOGIK PREVIEW FOTO (BARU)
 const fileInput = document.getElementById('fotoInput');
 const previewFoto = document.getElementById('previewFoto');
+const previewText = document.getElementById('previewText');
 
 fileInput.addEventListener('change', function(e) {
     const file = this.files[0];
@@ -94,10 +95,12 @@ fileInput.addEventListener('change', function(e) {
         reader.onload = function(e) {
             previewFoto.src = e.target.result;
             previewFoto.style.display = 'block';
+            previewText.style.display = 'block';
         }
         reader.readAsDataURL(file);
     } else {
         previewFoto.style.display = 'none';
+        previewText.style.display = 'none';
     }
 });
 
