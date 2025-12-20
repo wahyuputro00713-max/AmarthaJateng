@@ -18,7 +18,7 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 // ⚠️ PASTE URL APPS SCRIPT ANDA DI SINI ⚠️
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwAK9qA3sJqCTg4ls1EckAhnAvVesluFWcyMrsCbY1WdfOXqVpaMWlKjKbwd4Sno-jz/exec"; 
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzKSLFYjD2Z8CSW2uT59rTjGMGpaPULVKvAsHKznItHlA8WIYGOveTJEcXcPbVESStN/exec"; 
 
 // Data Points
 const dataPoints = {
