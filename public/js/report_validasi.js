@@ -15,7 +15,7 @@ const firebaseConfig = {
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzKSLFYjD2Z8CSW2uT59rTjGMGpaPULVKvAsHKznItHlA8WIYGOveTJEcXcPbVESStN/exec"; 
 
-// 1. DATA POINT (WAJIB ADA AGAR DROPDOWN MUNCUL)
+// 1. DATA POINT & AREA
 const DATA_POINTS = {
     "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucul"],
     "Magelang": ["Grabag", "Mungkid", "Pakis", "Salam"],
@@ -26,16 +26,29 @@ const DATA_POINTS = {
     "Wonogiri": ["Jatisrono", "Ngadirojo", "Ngawen 2", "Pracimantoro", "Wonosari"]
 };
 
+// Ambil list Area dari keys DATA_POINTS
+const LIST_AREA = Object.keys(DATA_POINTS);
+
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
+// Elemen DOM
+const el = {
+    tanggal: document.getElementById('tanggalInput'),
+    nama: document.getElementById('namaKaryawan'),
+    id: document.getElementById('idKaryawan'),
+    areaInput: document.getElementById('areaInput'),   // Textbox Readonly
+    areaSelect: document.getElementById('areaSelect'), // Dropdown Manual
+    pointSelect: document.getElementById('pointKaryawan'),
+    loading: document.getElementById('loadingOverlay')
+};
+
 // Set Tanggal Hari Ini
 const today = new Date().toISOString().split('T')[0];
-if(document.getElementById('tanggalInput')) {
-    document.getElementById('tanggalInput').value = today;
-}
+if(el.tanggal) el.tanggal.value = today;
 
+// CEK LOGIN
 onAuthStateChanged(auth, (user) => {
     if (user) {
         loadUserData(user.uid);
@@ -50,37 +63,70 @@ function loadUserData(uid) {
         if (snapshot.exists()) {
             const data = snapshot.val();
             
-            // Isi Form Readonly
-            document.getElementById('namaKaryawan').value = data.nama || "";
-            document.getElementById('idKaryawan').value = data.idKaryawan || "";
-            document.getElementById('areaKaryawan').value = data.area || "";
+            // Isi Data Dasar
+            el.nama.value = data.nama || "";
+            el.id.value = data.idKaryawan || "";
 
-            // 2. ISI DROPDOWN POINT
-            const pointSelect = document.getElementById('pointKaryawan');
-            const userArea = data.area;
-
-            if (userArea && DATA_POINTS[userArea]) {
-                pointSelect.innerHTML = '<option value="" disabled>Pilih Point...</option>';
+            // LOGIKA AREA (HYBRID)
+            if (data.area && data.area !== "") {
+                // KASUS A: PROFIL SUDAH ADA AREA
+                // Tampilkan Textbox, Sembunyikan Select
+                el.areaInput.style.display = "block";
+                el.areaSelect.style.display = "none";
                 
-                DATA_POINTS[userArea].forEach(pt => {
-                    const option = document.createElement('option');
-                    option.value = pt;
-                    option.textContent = pt;
-                    
-                    // Auto Select jika sama dengan Profil
-                    if (data.point && pt === data.point) {
-                        option.selected = true;
-                    }
-                    pointSelect.appendChild(option);
-                });
+                el.areaInput.value = data.area; // Isi otomatis
+                
+                // Langsung update point berdasarkan area profil
+                updatePointDropdown(data.area, data.point);
             } else {
-                pointSelect.innerHTML = '<option value="" disabled selected>Area tidak valid/kosong</option>';
+                // KASUS B: PROFIL BELUM ADA AREA
+                // Sembunyikan Textbox, Tampilkan Select
+                el.areaInput.style.display = "none";
+                el.areaSelect.style.display = "block";
+                
+                // Isi Opsi Area ke Dropdown
+                el.areaSelect.innerHTML = '<option value="" disabled selected>Pilih Area Manual...</option>';
+                LIST_AREA.forEach(areaName => {
+                    const option = document.createElement('option');
+                    option.value = areaName;
+                    option.textContent = areaName;
+                    el.areaSelect.appendChild(option);
+                });
+
+                // Tambah Event Listener jika User pilih Area Manual
+                el.areaSelect.addEventListener('change', function() {
+                    updatePointDropdown(this.value, null);
+                });
             }
         }
     });
 }
 
-// Fungsi Format Rupiah & Foto (Biarkan kode sebelumnya)
+// FUNGSI ISI DROPDOWN POINT
+function updatePointDropdown(areaName, defaultPoint) {
+    el.pointSelect.innerHTML = '<option value="" disabled selected>Pilih Point...</option>';
+    
+    if (areaName && DATA_POINTS[areaName]) {
+        el.pointSelect.disabled = false;
+        
+        DATA_POINTS[areaName].forEach(pt => {
+            const option = document.createElement('option');
+            option.value = pt;
+            option.textContent = pt;
+            
+            // Jika ada default point (dari profil), pilih otomatis
+            if (defaultPoint && pt === defaultPoint) {
+                option.selected = true;
+            }
+            el.pointSelect.appendChild(option);
+        });
+    } else {
+        el.pointSelect.innerHTML = '<option value="" disabled selected>Area tidak valid</option>';
+        el.pointSelect.disabled = true;
+    }
+}
+
+// FUNGSI FORMAT RUPIAH
 const formatRupiah = (angka) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka);
 };
@@ -101,7 +147,7 @@ function setupRupiahInput(displayId, realId) {
 setupRupiahInput('amountValDisplay', 'amountValReal');
 setupRupiahInput('amountModalDisplay', 'amountModalReal');
 
-// Preview Foto
+// PREVIEW FOTO
 const fotoInput = document.getElementById('fotoInput');
 const previewContainer = document.getElementById('previewContainer');
 if (fotoInput) {
@@ -124,22 +170,31 @@ if (fotoInput) {
 // SUBMIT FORM
 document.getElementById('validasiForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const loadingOverlay = document.getElementById('loadingOverlay');
-    loadingOverlay.style.display = 'flex';
+    el.loading.style.display = 'flex';
 
     try {
+        // Tentukan Area mana yang dipakai (Input Otomatis atau Select Manual)
+        let finalArea = "";
+        if (el.areaInput.style.display !== "none") {
+            finalArea = el.areaInput.value;
+        } else {
+            finalArea = el.areaSelect.value;
+        }
+
+        if (!finalArea) {
+            throw new Error("Area belum terisi/dipilih!");
+        }
+
         const file = document.getElementById('fotoInput').files[0];
         let base64 = "";
         if (file) base64 = await toBase64(file);
 
         const formData = {
             jenisLaporan: "Validasi",
-            idKaryawan: document.getElementById('idKaryawan').value,
-            namaBP: document.getElementById('namaKaryawan').value,
-            area: document.getElementById('areaKaryawan').value,
-            
-            // PENTING: Ambil value dari SELECT
-            point: document.getElementById('pointKaryawan').value,
+            idKaryawan: el.id.value,
+            namaBP: el.nama.value,
+            area: finalArea, // Pakai Area yang sudah ditentukan di atas
+            point: el.pointSelect.value,
             
             jmlMitraVal: document.getElementById('jmlMitraVal').value,
             nominalVal: document.getElementById('amountValReal').value,
@@ -167,7 +222,7 @@ document.getElementById('validasiForm').addEventListener('submit', async (e) => 
     } catch (error) {
         alert("Gagal: " + error.message);
     } finally {
-        loadingOverlay.style.display = 'none';
+        el.loading.style.display = 'none';
     }
 });
 
