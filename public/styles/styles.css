@@ -1,1 +1,164 @@
+/* --- AMARTHA MODERN FIELD APP --- */
+:root {
+    --primary: #8e26d4;       /* Ungu Utama */
+    --primary-dark: #5e1891;  /* Ungu Gelap (Gradient) */
+    --accent: #ff9800;        /* Aksen Oranye (Notification/Highlight) */
+    --bg-body: #f4f6f9;       /* Background Abu Muda Bersih */
+    --text-dark: #2c3e50;
+    --text-grey: #95a5a6;
+    --white: #ffffff;
+    --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.05); /* Bayangan Halus Modern */
+    --shadow-hover: 0 15px 35px rgba(142, 38, 212, 0.15);
+}
 
+body {
+    background-color: var(--bg-body);
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    color: var(--text-dark);
+    margin: 0;
+    padding-bottom: 80px; /* Ruang aman untuk scroll bawah */
+    -webkit-font-smoothing: antialiased;
+}
+
+a { text-decoration: none; }
+
+/* --- HERO SECTION (HEADER UNGU) --- */
+.hero-header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: var(--white);
+    padding: 30px 25px 90px 25px; /* Padding bawah 90px agar ada ruang untuk kartu melayang */
+    border-radius: 0 0 35px 35px; /* Lengkungan Bawah */
+    position: relative;
+    z-index: 1;
+    box-shadow: 0 4px 15px rgba(94, 24, 145, 0.2);
+}
+
+.brand-logo { font-weight: 800; font-size: 1.2rem; letter-spacing: 0.5px; }
+.user-greeting { margin-top: 20px; }
+.user-greeting h3 { font-weight: 800; margin: 0; font-size: 1.6rem; }
+.user-greeting p { opacity: 0.9; margin: 5px 0 0; font-size: 0.95rem; }
+
+/* Tombol Header (Profil/Logout) */
+.header-btn {
+    width: 42px; height: 42px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    color: white; backdrop-filter: blur(5px);
+    transition: transform 0.2s;
+    border: none;
+}
+.header-btn:active { transform: scale(0.95); background: rgba(255, 255, 255, 0.3); }
+
+/* --- FLOATING CONTAINER (KONTEN UTAMA) --- */
+.main-container {
+    padding: 0 20px;
+    margin-top: -60px; /* EFEK MELAYANG: Naik 60px ke atas Hero */
+    position: relative;
+    z-index: 10;
+}
+
+/* --- KARTU ABSENSI (HIGHLIGHT) --- */
+.card-absensi {
+    background: var(--white);
+    border-radius: 20px;
+    padding: 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: var(--shadow-soft);
+    margin-bottom: 25px;
+    border: 1px solid rgba(0,0,0,0.02);
+    transition: all 0.3s ease;
+}
+
+.card-absensi:active { transform: scale(0.98); }
+
+.icon-box-large {
+    width: 55px; height: 55px;
+    background: #f3e5f5; /* Ungu Pudar */
+    color: var(--primary);
+    border-radius: 15px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.6rem;
+    margin-right: 15px;
+}
+
+.absensi-info h5 { margin: 0; font-weight: 700; color: var(--text-dark); font-size: 1.1rem; }
+.absensi-info span { font-size: 0.8rem; color: var(--text-grey); }
+
+/* --- GRID MENU --- */
+.section-title {
+    font-size: 0.85rem; font-weight: 700;
+    color: var(--text-grey); text-transform: uppercase;
+    margin-bottom: 15px; letter-spacing: 1px;
+    padding-left: 5px;
+}
+
+.menu-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); /* 2 Kolom */
+    gap: 15px;
+}
+
+.menu-card {
+    background: var(--white);
+    padding: 25px 15px;
+    border-radius: 20px;
+    text-align: center;
+    box-shadow: var(--shadow-soft);
+    transition: transform 0.2s;
+    color: var(--text-dark);
+    display: block;
+    height: 100%;
+}
+.menu-card:active { transform: scale(0.96); }
+
+.menu-icon {
+    width: 50px; height: 50px;
+    border-radius: 15px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem;
+    margin: 0 auto 12px auto;
+}
+.menu-title { font-weight: 600; font-size: 0.9rem; line-height: 1.3; }
+
+/* Warna Ikon Pastel */
+.bg-blue { background: #e3f2fd; color: #1976d2; }
+.bg-green { background: #e8f5e9; color: #2e7d32; }
+.bg-orange { background: #fff3e0; color: #f57c00; }
+.bg-pink { background: #fce4ec; color: #c2185b; }
+
+/* --- FORM & LOGIN STYLE --- */
+.login-wrapper {
+    min-height: 100vh;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+}
+
+.card-glass {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 25px;
+    padding: 40px 30px;
+    width: 100%; max-width: 400px;
+    text-align: center;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+}
+
+.form-control {
+    background: #f8f9fa; border: 1px solid #eee;
+    padding: 14px 18px; border-radius: 12px;
+    margin-bottom: 15px; font-size: 1rem;
+}
+.form-control:focus {
+    background: #fff; border-color: var(--primary);
+    box-shadow: 0 0 0 4px rgba(142, 38, 212, 0.1);
+}
+
+.btn-primary-custom {
+    background: var(--primary); color: white;
+    padding: 15px; border-radius: 12px; width: 100%;
+    font-weight: 700; border: none; font-size: 1rem;
+    box-shadow: 0 5px 15px rgba(142, 38, 212, 0.3);
+}
+.btn-primary-custom:active { transform: scale(0.98); }
