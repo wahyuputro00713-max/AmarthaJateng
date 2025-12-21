@@ -4,127 +4,78 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Dashboard - Amartha Jateng</title>
-    
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="styles/home.css" rel="stylesheet">
 </head>
 <body>
 
-    <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
+    <nav class="navbar navbar-expand bg-transparent">
         <div class="container">
-            <a class="navbar-brand fw-bold d-flex align-items-center" href="home.html">
-                <i class="fa-solid fa-building-columns me-2"></i>
-                <span>Amartha Jateng</span>
-            </a>
-            
-            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto align-items-center mt-3 mt-lg-0">
-                    <li class="nav-item">
-                        <a class="nav-link active" href="home.html">
-                            <i class="fa-solid fa-house me-1 d-lg-none"></i> Beranda
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="profil.html">
-                            <i class="fa-solid fa-user me-1 d-lg-none"></i> Profil
-                        </a>
-                    </li>
-                    <li class="nav-item ms-lg-3 mt-3 mt-lg-0 w-100 w-lg-auto">
-                        <button id="logoutBtn" class="btn btn-danger btn-sm px-4 fw-bold rounded-pill w-100 shadow-sm">
-                            <i class="fa-solid fa-power-off me-1"></i> Logout
-                        </button>
-                    </li>
-                </ul>
+            <span class="navbar-brand fw-bold fs-5">
+                <i class="fa-solid fa-building-columns me-2"></i>Amartha
+            </span>
+            <div class="ms-auto">
+                <a href="profil.html" class="text-white me-3 fs-5"><i class="fa-solid fa-user-circle"></i></a>
+                <button id="logoutBtn" class="btn btn-sm btn-outline-light rounded-pill px-3 fw-bold">Logout</button>
             </div>
         </div>
     </nav>
 
-    <div class="container main-content">
-        
-        <header class="hero-section text-center">
-            <h1 class="display-6 fw-bold mb-2">Welcome FO</h1>
-            <p class="mb-0 fs-6">Selamat Bekerja, <br>
-                <span id="userName" class="fw-bold text-warning fs-4">Loading...</span>
-            </p>
-        </header>
-
-        <div class="d-flex align-items-center mb-3 mt-4 px-2">
-            <i class="fa-solid fa-grid-2 text-purple me-2"></i>
-            <h5 class="fw-bold text-purple m-0">Menu Utama</h5>
+    <div class="hero-header">
+        <div class="mt-4">
+            <h1 class="welcome-text">Halo, <span id="userName">...</span></h1>
+            <p class="sub-text">Selamat bekerja, tetap semangat!</p>
         </div>
+    </div>
+
+    <div class="menu-container">
         
-        <div class="row g-3">
+        <a href="absensi.html" class="tool-card d-flex align-items-center mb-3 p-3 text-decoration-none">
+            <div class="icon-box icon-purple mb-0 me-3" style="width: 50px; height: 50px; font-size: 1.2rem;">
+                <i class="fa-solid fa-clock"></i>
+            </div>
+            <div class="text-start">
+                <div class="menu-title fs-6">Absensi Harian</div>
+                <small class="text-muted" style="font-size: 0.75rem;">Masuk & Pulang Kerja</small>
+            </div>
+            <i class="fa-solid fa-chevron-right ms-auto text-muted"></i>
+        </a>
+
+        <div class="menu-grid">
             
-            <div class="col-6 col-md-3">
-                <a href="absensi.html" class="text-decoration-none text-dark">
-                    <div class="card tool-card text-center h-100 p-3">
-                        <div class="d-flex flex-column align-items-center">
-                            <div class="icon-circle bg-light-purple">
-                                <i class="fa-solid fa-clock"></i>
-                            </div>
-                            <div class="menu-title mt-2">Absensi</div>
-                        </div>
-                    </div>
-                </a>
-            </div>
+            <a href="report_validasi.html" class="tool-card">
+                <div class="icon-box icon-purple">
+                    <i class="fa-solid fa-clipboard-check"></i>
+                </div>
+                <div class="menu-title">Report Validasi</div>
+            </a>
 
-            <div class="col-6 col-md-3">
-                <a href="report_validasi.html" class="text-decoration-none text-dark">
-                    <div class="card tool-card text-center h-100 p-3">
-                        <div class="d-flex flex-column align-items-center">
-                            <div class="icon-circle bg-light-purple">
-                                <i class="fa-solid fa-clipboard-check"></i>
-                            </div>
-                            <div class="menu-title mt-2">Report Validasi</div>
-                        </div>
-                    </div>
-                </a>
-            </div>
+            <a href="report_collection.html" class="tool-card">
+                <div class="icon-box icon-green">
+                    <i class="fa-solid fa-hand-holding-dollar"></i>
+                </div>
+                <div class="menu-title">Report Collection</div>
+            </a>
 
-            <div class="col-6 col-md-3">
-                <a href="report_collection.html" class="text-decoration-none text-dark">
-                    <div class="card tool-card text-center h-100 p-3">
-                        <div class="d-flex flex-column align-items-center">
-                            <div class="icon-circle bg-light-green">
-                                <i class="fa-solid fa-hand-holding-dollar"></i>
-                            </div>
-                            <div class="menu-title mt-2">Report Collection</div>
-                        </div>
-                    </div>
-                </a>
-            </div>
+            <a href="closing_modal.html" class="tool-card">
+                <div class="icon-box icon-orange">
+                    <i class="fa-solid fa-file-invoice-dollar"></i>
+                </div>
+                <div class="menu-title">Closing Modal</div>
+            </a>
 
-            <div class="col-6 col-md-3">
-                <a href="closing_modal.html" class="text-decoration-none text-dark">
-                    <div class="card tool-card text-center h-100 p-3">
-                        <div class="d-flex flex-column align-items-center">
-                            <div class="icon-circle bg-light-orange">
-                                <i class="fa-solid fa-wallet"></i>
-                            </div>
-                            <div class="menu-title mt-2">Closing Modal</div>
-                        </div>
-                    </div>
-                </a>
-            </div>
+            <a href="report_sosialisasi.html" class="tool-card">
+                <div class="icon-box icon-blue">
+                    <i class="fa-solid fa-users-rectangle"></i>
+                </div>
+                <div class="menu-title">Report Sosialisasi</div>
+            </a>
 
-            <div class="col-6 col-md-3">
-                <a href="report_sosialisasi.html" class="text-decoration-none text-dark">
-                    <div class="card tool-card text-center h-100 p-3">
-                        <div class="d-flex flex-column align-items-center">
-                            <div class="icon-circle bg-light-blue">
-                                <i class="fa-solid fa-users-rectangle"></i>
-                            </div>
-                            <div class="menu-title mt-2">Report Sosialisasi</div>
-                        </div>
-                    </div>
-                </a>
-            </div>
+        </div>
 
+        <div class="text-center mt-4 text-muted small">
+            &copy; 2025 Amartha Jawa Tengah
         </div>
     </div>
 
