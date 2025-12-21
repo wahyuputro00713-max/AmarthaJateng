@@ -6,6 +6,7 @@
     <title>Login - Amartha Jateng</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="styles/login.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
 
@@ -22,17 +23,24 @@
         </div>
         
         <h4>Selamat Datang</h4>
-        <span class="text-muted">Silakan login untuk memulai.</span>
+        <span class="text-muted">Masuk menggunakan ID Karyawan</span>
 
         <form id="loginForm">
-            <input type="email" class="form-control" id="email" placeholder="Email Amartha" required>
-            <input type="password" class="form-control" id="password" placeholder="Password" required>
+            <div class="input-group mb-3">
+                <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-id-badge text-muted"></i></span>
+                <input type="text" class="form-control border-start-0" id="idKaryawan" placeholder="Masukkan ID Karyawan" required autocomplete="off">
+            </div>
+
+            <div class="input-group mb-3">
+                <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-lock text-muted"></i></span>
+                <input type="password" class="form-control border-start-0" id="password" placeholder="Password" required>
+            </div>
             
             <button type="submit" class="btn btn-primary">MASUK SEKARANG</button>
         </form>
 
         <div class="footer-text">
-            Belum punya akun? <a href="register.html" class="btn-link">Daftar disini</a>
+            Belum punya akun? <a href="register.html" class="btn-link">Daftar ID Disini</a>
         </div>
     </div>
 
