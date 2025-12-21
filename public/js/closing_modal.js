@@ -18,7 +18,7 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 // ⚠️ PASTE URL APPS SCRIPT YANG BARU DI SINI ⚠️
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwib7Lx6EU36EK2GZcYA_tu3sgbref92fpRCQPKlrtIdFa1HWGCKrXFkNe36fH8zIHa/exec"; 
+const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; 
 
 // 1. Cek Login & Isi Data User
 onAuthStateChanged(auth, (user) => {
