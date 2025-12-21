@@ -60,8 +60,10 @@
             </div>
 
             <div class="mb-4">
-                <label class="form-label small text-muted">TITIK POINT (Tujuan Absen)</label>
-                <input type="text" class="form-control fw-bold text-primary bg-light" id="pointKaryawan" readonly value="Memuat...">
+                <label class="form-label small text-muted">TITIK POINT (Pilih Lokasi)</label>
+                <select class="form-select fw-bold text-primary bg-light" id="pointKaryawan" required>
+                    <option value="" disabled selected>Memuat Point...</option>
+                </select>
             </div>
 
             <hr class="my-4">
@@ -79,8 +81,7 @@
             </div>
             
             <p id="jarakInfo" class="text-center small text-muted mb-4" style="display:none;">
-                Jarak Anda ke Point: <span class="fw-bold" id="jarakMeter">0</span> meter.
-                <br>(Maksimal 25 meter)
+                Jarak ke Point: <span class="fw-bold" id="jarakMeter">0</span> meter.
             </p>
 
             <div class="mb-4">
@@ -94,7 +95,6 @@
             </div>
 
             <input type="hidden" id="geotagInput">
-            <input type="hidden" id="alamatInput">
 
             <button type="submit" id="btnAbsen" class="btn btn-primary w-100 py-3 fw-bold rounded-3 shadow-sm" disabled>
                 <i class="fa-solid fa-fingerprint me-2"></i> MASUK SEKARANG
