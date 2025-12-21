@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Absensi - Amartha</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="styles/home.css" rel="stylesheet">
+    <style>
+        .status-box {
+            padding: 15px; border-radius: 12px; margin-bottom: 15px;
+            font-size: 0.9rem; font-weight: 600;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .status-success { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
+        .status-error { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
+        .status-loading { background: #fff3e0; color: #ef6c00; border: 1px solid #ffe0b2; }
+    </style>
+</head>
+<body>
+
+    <div id="loadingOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.95); z-index:9999; align-items:center; justify-content:center; flex-direction:column;">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-3 fw-bold text-dark">Mengirim Absensi...</p>
+    </div>
+
+    <header class="hero-header">
+        <div class="top-bar">
+            <a href="home.html" class="text-white fs-4 me-3"><i class="fa-solid fa-arrow-left"></i></a>
+            <span class="brand-text">Absensi Harian</span>
+            <div style="width: 20px;"></div>
+        </div>
+        <div class="user-welcome">
+            <h2 id="jamRealtime">--:--</h2>
+            <p id="tanggalHariIni">Memuat Tanggal...</p>
+        </div>
+    </header>
+
+    <div class="main-container">
+        
+        <form id="absensiForm" class="menu-card text-start shadow-sm">
+            
+            <span class="section-label text-primary mb-3">Informasi Karyawan</span>
+            
+            <div class="mb-3">
+                <label class="form-label small text-muted">NAMA LENGKAP</label>
+                <input type="text" class="form-control bg-light" id="namaKaryawan" readonly>
+            </div>
+            
+            <div class="row">
+                <div class="col-6 mb-3">
+                    <label class="form-label small text-muted">ID KARYAWAN</label>
+                    <input type="text" class="form-control bg-light" id="idKaryawan" readonly>
+                </div>
+                <div class="col-6 mb-3">
+                    <label class="form-label small text-muted">AREA</label>
+                    <input type="text" class="form-control bg-light" id="areaKaryawan" readonly>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label small text-muted">TITIK POINT (Tujuan Absen)</label>
+                <input type="text" class="form-control fw-bold text-primary bg-light" id="pointKaryawan" readonly value="Memuat...">
+            </div>
+
+            <hr class="my-4">
+
+            <span class="section-label text-primary mb-3">Validasi Absensi</span>
+
+            <div id="statusWaktu" class="status-box status-loading">
+                <span><i class="fa-regular fa-clock me-2"></i>Cek Waktu...</span>
+                <i class="fa-solid fa-spinner fa-spin"></i>
+            </div>
+
+            <div id="statusLokasi" class="status-box status-loading">
+                <span><i class="fa-solid fa-location-crosshairs me-2"></i>Cek Jarak...</span>
+                <i class="fa-solid fa-spinner fa-spin"></i>
+            </div>
+            
+            <p id="jarakInfo" class="text-center small text-muted mb-4" style="display:none;">
+                Jarak Anda ke Point: <span class="fw-bold" id="jarakMeter">0</span> meter.
+                <br>(Maksimal 25 meter)
+            </p>
+
+            <div class="mb-4">
+                <label class="form-label fw-bold">Foto Selfie</label>
+                <div class="p-3 bg-light rounded text-center border border-dashed" onclick="document.getElementById('fotoSelfie').click()" style="cursor: pointer;">
+                    <i class="fa-solid fa-camera fa-2x text-muted mb-2"></i>
+                    <p class="m-0 small text-muted">Ambil Foto (Wajib)</p>
+                </div>
+                <input type="file" id="fotoSelfie" accept="image/*" capture="user" style="display: none;">
+                <div id="previewContainer" class="mt-2 text-center"></div>
+            </div>
+
+            <input type="hidden" id="geotagInput">
+            <input type="hidden" id="alamatInput">
+
+            <button type="submit" id="btnAbsen" class="btn btn-primary w-100 py-3 fw-bold rounded-3 shadow-sm" disabled>
+                <i class="fa-solid fa-fingerprint me-2"></i> MASUK SEKARANG
+            </button>
+            <p class="text-center mt-2 small text-danger" id="errorMsg"></p>
+
+        </form>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="./js/absensi.js"></script>
+</body>
+</html>
