@@ -139,3 +139,61 @@ a { text-decoration: none; }
     text-align: center; margin-top: 40px;
     font-size: 0.8rem; color: #aaa;
 }
+/* --- STYLE KHUSUS PROFIL --- */
+.profile-section {
+    text-align: center;
+    margin-top: -50px; /* Naik ke atas agar menyatu dengan header */
+    margin-bottom: 20px;
+    position: relative;
+    z-index: 20;
+}
+
+.profile-pic-wrapper {
+    position: relative;
+    width: 110px; height: 110px;
+    margin: 0 auto;
+    border-radius: 50%;
+    background: white;
+    padding: 4px; /* Border putih luar */
+    box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+}
+
+.profile-pic {
+    width: 100%; height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #f0f2f5; /* Border abu tipis dalam */
+    background-color: #ddd;
+}
+
+/* Tombol Kamera Kecil */
+.btn-camera {
+    position: absolute;
+    bottom: 0; right: 0;
+    width: 36px; height: 36px;
+    background: var(--primary);
+    color: white;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    border: 3px solid white;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+.btn-camera:hover { transform: scale(1.1); }
+
+/* Tombol Edit Melayang */
+.fab-edit {
+    position: fixed;
+    bottom: 30px; right: 30px;
+    width: 60px; height: 60px;
+    background: var(--primary);
+    color: white;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem;
+    box-shadow: 0 4px 15px rgba(142, 38, 212, 0.4);
+    border: none; z-index: 100;
+    transition: transform 0.2s;
+}
+.fab-edit:active { transform: scale(0.9); }
