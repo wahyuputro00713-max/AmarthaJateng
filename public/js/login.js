@@ -1,10 +1,7 @@
-// js/login.js
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getDatabase, ref, set, push, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-// --- KONFIGURASI FIREBASE ANDA ---
+// --- CONFIG FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyC8wOUkyZTa4W2hHHGZq_YKnGFqYEGOuH8",
     authDomain: "amarthajatengwebapp.firebaseapp.com",
@@ -17,72 +14,50 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getDatabase(app);
 
-// DOM Elements (Perhatikan ID baru 'idLoginInput')
+// Cek Login
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        window.location.replace("home.html");
+    }
+});
+
 const loginForm = document.getElementById('loginForm');
-const idInput = document.getElementById('idLoginInput'); 
-const passwordInput = document.getElementById('passwordInput');
-const alertBox = document.getElementById('alertMessage');
-const forgotCheck = document.getElementById('forgotPasswordCheck');
-
-function showAlert(message, type) {
-    alertBox.innerHTML = `<div class="alert alert-${type} text-center" role="alert">${message}</div>`;
-}
+const loadingOverlay = document.getElementById('loadingOverlay');
 
 loginForm.addEventListener('submit', (e) => {
-    e.preventDefault(); 
+    e.preventDefault();
+    
+    const idKaryawan = document.getElementById('idKaryawan').value.trim();
+    const password = document.getElementById('password').value;
 
-    const idKaryawan = idInput.value.trim();
-    const password = passwordInput.value;
-
-    if (forgotCheck.checked) {
-        showAlert("Fitur reset password belum tersedia.", "warning");
-        return; 
+    if (!idKaryawan || !password) {
+        alert("Mohon isi ID Karyawan dan Password");
+        return;
     }
 
-    // --- LOGIKA BARU: FORMAT ID KE EMAIL ---
-    // Karena Firebase butuh email, kita ubah ID '12345' jadi '12345@amartha.id'
-    const emailFormat = idKaryawan + "@amartha.id";
+    // MANIPULASI: Ubah ID jadi Email Fake
+    // Contoh: "12345" menjadi "12345@amartha.id"
+    const fakeEmail = idKaryawan + "@amartha.id";
 
-    showAlert("Memproses login...", "info");
+    loadingOverlay.style.display = 'flex';
 
-    signInWithEmailAndPassword(auth, emailFormat, password)
+    signInWithEmailAndPassword(auth, fakeEmail, password)
         .then((userCredential) => {
-            const user = userCredential.user;
-            console.log("Login Berhasil, UID:", user.uid);
-
-            // Simpan log aktivitas ke RTDB
-            const userLoginsRef = ref(db, 'users/' + user.uid + '/logins');
-            push(userLoginsRef, {
-                timestamp: serverTimestamp(),
-                device: 'web-app',
-                method: 'id-login',
-                status: 'success'
-            });
-
-            showAlert("Login Berhasil! Mengalihkan...", "success");
-            
-            // Pindah ke Home
-            setTimeout(() => { 
-                window.location.replace("home.html"); 
-            }, 1000);
+            // Sukses
+            window.location.replace("home.html");
         })
         .catch((error) => {
+            loadingOverlay.style.display = 'none';
             const errorCode = error.code;
-            console.error("Login Gagal:", errorCode);
+            console.error(errorCode);
 
-            let displayError = "ID Karyawan atau Password salah.";
-            
-            // Error handling khusus
-            if(errorCode === 'auth/invalid-email') {
-                displayError = "Format ID Karyawan tidak valid.";
-            } else if (errorCode === 'auth/user-not-found' || errorCode === 'auth/wrong-password' || errorCode === 'auth/invalid-credential') {
-                displayError = "ID Karyawan atau Password salah.";
+            if (errorCode === 'auth/invalid-email' || errorCode === 'auth/user-not-found' || errorCode === 'auth/invalid-credential') {
+                alert("❌ ID Karyawan atau Password salah!");
             } else if (errorCode === 'auth/too-many-requests') {
-                 displayError = "Terlalu banyak percobaan gagal. Coba lagi nanti.";
+                alert("⚠️ Terlalu banyak percobaan. Tunggu sebentar.");
+            } else {
+                alert("Gagal Login: " + error.message);
             }
-            
-            showAlert(displayError, "danger");
         });
 });
