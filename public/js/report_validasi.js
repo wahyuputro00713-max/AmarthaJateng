@@ -14,7 +14,7 @@ const firebaseConfig = {
 };
 
 // Pastikan ini URL Web App Script Anda yang terbaru
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzKSLFYjD2Z8CSW2uT59rTjGMGpaPULVKvAsHKznItHlA8WIYGOveTJEcXcPbVESStN/exec"; 
+const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; 
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
