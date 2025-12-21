@@ -36,8 +36,6 @@ loginForm.addEventListener('submit', (e) => {
         return;
     }
 
-    // MANIPULASI: Ubah ID jadi Email Fake
-    // Contoh: "12345" menjadi "12345@amartha.id"
     const fakeEmail = idKaryawan + "@amartha.id";
 
     loadingOverlay.style.display = 'flex';
