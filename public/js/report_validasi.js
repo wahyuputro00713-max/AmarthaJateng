@@ -142,7 +142,8 @@ fileInput.addEventListener('change', function() {
 });
 
 // --- SUBMIT LOGIC ---
-const form = document.getElementById('validasiForm');
+const form = document.getElementById('validasiForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
 const loadingOverlay = document.getElementById('loadingOverlay');
 
 if (form) {
@@ -160,38 +161,33 @@ if (form) {
         loadingOverlay.style.display = 'flex';
 
         try {
-            // PROSES MULTIPLE FILES
-            const files = Array.from(fileInput.files);
-            const processedFiles = await Promise.all(files.map(async (file) => {
-                const base64 = await toBase64(file);
-                return {
-                    foto: base64.replace(/^data:image\/(png|jpeg|jpg);base64,/, ""),
-                    namaFoto: "Val_" + file.name,
-                    mimeType: file.type
-                };
-            }));
+        const file = document.getElementById('fotoInput').files[0];
+        const base64 = await toBase64(file);
 
-            const formData = {
-                jenisLaporan: "Validasi", 
-                tanggal: document.getElementById('tanggalInput').value,
-                regional: document.getElementById('regionalInput').value,
-                area: areaSelect.value,
-                point: pointSelect.value,
-                jmlMitraVal: document.getElementById('jmlMitraVal').value,
-                amtVal: amtVal,       
-                jmlMitraModal: document.getElementById('jmlMitraModal').value,
-                amtModal: amtModal,   
-                tenor: document.getElementById('tenorSelect').value,
-                
-                // Kirim Array Files, bukan single foto
-                files: processedFiles 
-            };
+        // DATA YANG DIKIRIM KE SPREADSHEET
+        const formData = {
+            jenisLaporan: "Validasi", // KUNCI UTAMA
+            idKaryawan: document.getElementById('idKaryawan').value,
+            namaBP: document.getElementById('namaKaryawan').value,
+            area: document.getElementById('areaKaryawan').value,
+            point: document.getElementById('pointKaryawan').value,
+            
+            // PERHATIKAN NAMA VARIABEL INI (HARUS SAMA DENGAN APP SCRIPT)
+            jmlMitraVal: document.getElementById('jmlMitraVal').value,
+            nominalVal: document.getElementById('amountValReal').value, // Ambil angka murni (bukan Rp)
+            jmlMitraModal: document.getElementById('jmlMitraModal').value,
+            nominalModal: document.getElementById('amountModalReal').value, // Ambil angka murni
+            tenor: document.getElementById('tenorSelect').value,
+            
+            foto: base64.replace(/^data:image\/(png|jpeg|jpg);base64,/, ""),
+            namaFoto: `Validasi_${Date.now()}.jpg`,
+            mimeType: file.type
+        };
 
-            const response = await fetch(SCRIPT_URL, {
-                method: 'POST',
-                body: JSON.stringify(formData)
-            });
-
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify(formData)
+        });
             const result = await response.json();
 
             if (result.result === 'success') {
