@@ -25,15 +25,21 @@
         <form id="loginForm">
             <div class="input-group-modern">
                 <label class="input-label">ID Karyawan</label>
-                <input type="text" class="form-control" id="idKaryawan" placeholder="Contoh: 100234" required autocomplete="off">
-                <i class="fa-solid fa-id-badge input-icon"></i>
+                <div style="position: relative;">
+                    <input type="text" class="form-control" id="idKaryawan" placeholder="Contoh: 100234" required autocomplete="off">
+                    <i class="fa-solid fa-id-badge input-icon"></i>
+                </div>
             </div>
 
             <div class="input-group-modern">
                 <label class="input-label">Kata Sandi</label>
                 <div style="position: relative;">
                     <input type="password" class="form-control" id="password" placeholder="••••••••" required>
-                    <i class="fa-solid fa-lock input-icon"></i> <i class="fa-solid fa-eye toggle-password" id="togglePassword"></i> </div>
+                    
+                    <i class="fa-solid fa-lock input-icon"></i>
+                    
+                    <i class="fa-solid fa-eye toggle-password" id="togglePassword"></i>
+                </div>
             </div>
             
             <button type="submit" class="btn-login">MASUK SEKARANG</button>
