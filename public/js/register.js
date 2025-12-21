@@ -1,10 +1,8 @@
-// js/register.js
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getDatabase, ref, set, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// --- KONFIGURASI FIREBASE ---
+// --- CONFIG FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyC8wOUkyZTa4W2hHHGZq_YKnGFqYEGOuH8",
     authDomain: "amarthajatengwebapp.firebaseapp.com",
@@ -19,92 +17,62 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// DOM Elements
 const registerForm = document.getElementById('registerForm');
-const idKaryawanInput = document.getElementById('idKaryawan');
-const namaInput = document.getElementById('namaInput');
-const emailInput = document.getElementById('emailInput'); // Email ini hanya disimpan di Database sebagai kontak
-const passwordInput = document.getElementById('passwordInput');
-const captchaInput = document.getElementById('captchaInput');
-const captchaPreview = document.getElementById('captchaPreview');
-const refreshCaptchaBtn = document.getElementById('refreshCaptcha');
-const alertBox = document.getElementById('alertMessage');
+const loadingOverlay = document.getElementById('loadingOverlay');
 
-// --- CAPTCHA ---
-let generatedCaptcha = "";
-function generateCaptcha() {
-    const chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    let result = "";
-    for (let i = 0; i < 5; i++) {
-        result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    generatedCaptcha = result;
-    captchaPreview.innerText = result;
-}
-generateCaptcha();
-refreshCaptchaBtn.addEventListener('click', () => {
-    generateCaptcha();
-    captchaInput.value = "";
-});
-
-function showAlert(message, type) {
-    alertBox.innerHTML = `<div class="alert alert-${type} text-center" role="alert">${message}</div>`;
-}
-
-// --- LOGIKA REGISTER (ID KARYAWAN BASED) ---
 registerForm.addEventListener('submit', (e) => {
     e.preventDefault();
 
-    const idKaryawan = idKaryawanInput.value.trim(); // INI YANG JADI USERNAME
-    const nama = namaInput.value.trim();
-    const contactEmail = emailInput.value.trim(); // Email asli user (untuk kontak)
-    const password = passwordInput.value;
-    const userCaptcha = captchaInput.value.trim().toUpperCase();
-
-    if (userCaptcha !== generatedCaptcha) {
-        showAlert("Captcha salah!", "danger");
-        generateCaptcha();
-        return;
-    }
+    const nama = document.getElementById('nama').value;
+    const idKaryawan = document.getElementById('idKaryawan').value.trim();
+    const password = document.getElementById('password').value;
+    const jabatan = document.getElementById('jabatan').value;
+    const regional = document.getElementById('regional').value;
 
     if (password.length < 6) {
-        showAlert("Password minimal 6 karakter.", "warning");
+        alert("Password minimal 6 karakter!");
         return;
     }
 
-    // MEMBUAT EMAIL FORMAT KHUSUS LOGIN
-    // Contoh: ID '123' -> Login pakai '123@amartha.id'
-    const loginEmail = idKaryawan + "@amartha.id";
+    // MANIPULASI: Buat email palsu dari ID
+    const fakeEmail = idKaryawan + "@amartha.id";
 
-    showAlert("Mendaftar...", "info");
+    loadingOverlay.style.display = 'flex';
 
-    // Create User menggunakan Login Email (ID Karyawan)
-    createUserWithEmailAndPassword(auth, loginEmail, password)
+    createUserWithEmailAndPassword(auth, fakeEmail, password)
         .then((userCredential) => {
             const user = userCredential.user;
-
-            updateProfile(user, { displayName: nama })
+            
+            // Simpan data lengkap ke Database (termasuk ID Karyawan asli)
+            set(ref(db, 'users/' + user.uid), {
+                nama: nama,
+                idKaryawan: idKaryawan, // Simpan ID murni
+                email: fakeEmail,       // Email sistem
+                jabatan: jabatan,
+                regional: regional,
+                area: "", // Kosong dulu
+                point: "" // Kosong dulu
+            })
             .then(() => {
-                // Simpan data lengkap ke Database
-                set(ref(db, 'users/' + user.uid), {
-                    idKaryawan: idKaryawan,
-                    nama: nama,
-                    contactEmail: contactEmail, // Email asli disimpan di sini
-                    role: 'user',
-                    createdAt: serverTimestamp()
-                })
-                .then(() => {
-                    showAlert("Pendaftaran Berhasil! Silakan Login dengan ID Karyawan.", "success");
-                    setTimeout(() => { window.location.href = "index.html"; }, 2000);
-                });
+                alert("✅ Pendaftaran Berhasil! Silakan Login.");
+                window.location.href = "index.html";
+            })
+            .catch((error) => {
+                console.error("DB Error:", error);
+                alert("Gagal menyimpan data user.");
+                loadingOverlay.style.display = 'none';
             });
         })
         .catch((error) => {
-            console.error("Register Error:", error.code);
-            let msg = "Gagal mendaftar.";
-            if (error.code === 'auth/email-already-in-use') {
-                msg = "ID Karyawan ini sudah terdaftar.";
+            loadingOverlay.style.display = 'none';
+            const errorCode = error.code;
+            
+            if (errorCode === 'auth/email-already-in-use') {
+                alert("❌ ID Karyawan ini sudah terdaftar!");
+            } else if (errorCode === 'auth/invalid-email') {
+                alert("❌ Format ID Karyawan tidak valid (Gunakan angka/huruf tanpa spasi).");
+            } else {
+                alert("Gagal Daftar: " + error.message);
             }
-            showAlert(msg, "danger");
         });
 });
