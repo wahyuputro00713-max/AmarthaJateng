@@ -68,3 +68,22 @@ loginForm.addEventListener('submit', (e) => {
             }
         });
 });
+// ... (kode login yang sudah ada sebelumnya biarkan saja) ...
+
+// --- LOGIKA TOGGLE PASSWORD (Show/Hide) ---
+const togglePassword = document.querySelector('#togglePassword');
+const passwordInput = document.querySelector('#password');
+
+if (togglePassword && passwordInput) {
+    togglePassword.addEventListener('click', function () {
+        // 1. Cek tipe saat ini (password atau text)
+        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        
+        // 2. Ubah tipe inputnya
+        passwordInput.setAttribute('type', type);
+        
+        // 3. Ganti ikon (Mata Terbuka <-> Mata Dicoret)
+        this.classList.toggle('fa-eye');
+        this.classList.toggle('fa-eye-slash');
+    });
+}
