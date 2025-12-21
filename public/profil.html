@@ -10,45 +10,54 @@
 </head>
 <body>
 
-    <div class="hero-header" style="padding-bottom: 70px;">
-        <div class="top-nav">
-            <a href="home.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
-            <h5 class="page-title">Profil Saya</h5>
-            <div style="width: 40px;"></div> </div>
-        <div class="text-center">
-            <div style="width: 80px; height: 80px; background: rgba(255,255,255,0.2); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 2rem; color: white;">
-                <i class="fa-solid fa-user"></i>
-            </div>
-            <h5 class="mt-2 mb-0 fw-bold" id="displayName">Memuat...</h5>
-            <small class="opacity-75" id="displayId">ID: ...</small>
+    <header class="hero-header" style="padding-bottom: 60px; border-radius: 0 0 30px 30px;">
+        <div class="d-flex align-items-center">
+            <a href="home.html" class="text-white fs-4 me-3"><i class="fa-solid fa-arrow-left"></i></a>
+            <h5 class="m-0 fw-bold">Profil Saya</h5>
         </div>
-    </div>
+    </header>
 
-    <div class="main-container">
-        <div class="form-card">
+    <div class="main-container" style="margin-top: -40px;">
+        
+        <div class="profile-section">
+            <div class="profile-pic-wrapper">
+                <img src="assets/default-avatar.png" id="profileImg" class="profile-pic" 
+                     onerror="this.src='https://ui-avatars.com/api/?name=User&background=random'">
+                
+                <label for="fileInput" class="btn-camera" id="btnCamera" style="display: none;">
+                    <i class="fa-solid fa-camera"></i>
+                </label>
+                <input type="file" id="fileInput" accept="image/*" style="display: none;">
+            </div>
+            <h5 class="mt-3 fw-bold mb-0" id="displayName">Memuat...</h5>
+            <small class="text-muted" id="displayId">ID: ...</small>
+        </div>
+
+        <div class="card-box shadow-sm">
             <form id="profilForm">
+                
                 <div class="mb-3">
-                    <label class="form-label">Nama Lengkap</label>
-                    <input type="text" class="form-control" id="namaInput" readonly>
+                    <label class="form-label text-muted small">NAMA LENGKAP</label>
+                    <input type="text" class="form-control bg-light" id="namaInput" readonly>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label">ID Karyawan</label>
-                    <input type="text" class="form-control" id="idInput" readonly>
-                </div>
+
                 <div class="row">
                     <div class="col-6 mb-3">
-                        <label class="form-label">Jabatan</label>
-                        <input type="text" class="form-control" id="jabatanInput" readonly>
+                        <label class="form-label text-muted small">JABATAN</label>
+                        <input type="text" class="form-control bg-light" id="jabatanInput" readonly>
                     </div>
                     <div class="col-6 mb-3">
-                        <label class="form-label">Regional</label>
-                        <input type="text" class="form-control" id="regionalInput" readonly>
+                        <label class="form-label text-muted small">REGIONAL</label>
+                        <input type="text" class="form-control bg-light" id="regionalInput" readonly>
                     </div>
                 </div>
-                <hr>
+
+                <hr class="my-3">
+                <p class="section-label text-primary mb-3"><i class="fa-solid fa-location-dot me-1"></i> Area Kerja</p>
+
                 <div class="mb-3">
-                    <label class="form-label text-purple fw-bold">Area Kerja (Editable)</label>
-                    <select class="form-select" id="areaSelect">
+                    <label class="form-label text-dark fw-bold">Area</label>
+                    <select class="form-select" id="areaSelect" disabled>
                         <option value="">Pilih Area...</option>
                         <option value="Klaten">Klaten</option>
                         <option value="Magelang">Magelang</option>
@@ -59,21 +68,28 @@
                         <option value="Yogyakarta 2">Yogyakarta 2</option>
                     </select>
                 </div>
+
                 <div class="mb-4">
-                    <label class="form-label text-purple fw-bold">Point</label>
+                    <label class="form-label text-dark fw-bold">Point</label>
                     <select class="form-select" id="pointSelect" disabled>
                         <option value="">Pilih Area Dulu...</option>
                     </select>
                 </div>
-                
-                <button type="submit" class="btn-action">
-                    <i class="fa-solid fa-save me-2"></i> SIMPAN PERUBAHAN
-                </button>
+
+                <div id="actionButtons" class="d-none gap-2">
+                    <button type="button" id="btnBatal" class="btn btn-light w-100 py-2 fw-bold text-muted">Batal</button>
+                    <button type="submit" id="btnSimpan" class="btn btn-primary w-100 py-2 fw-bold" style="background: var(--primary); border:none;">Simpan</button>
+                </div>
+
             </form>
         </div>
     </div>
 
-    <script type="module" src="./js/profil.js"></script>
+    <button id="btnEdit" class="fab-edit">
+        <i class="fa-solid fa-pen"></i>
+    </button>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="./js/profil.js"></script>
 </body>
 </html>
