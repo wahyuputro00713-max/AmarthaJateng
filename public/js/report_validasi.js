@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebas
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// --- KONFIGURASI FIREBASE ---
+// --- CONFIG FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyC8wOUkyZTa4W2hHHGZq_YKnGFqYEGOuH8",
     authDomain: "amarthajatengwebapp.firebaseapp.com",
@@ -13,198 +13,155 @@ const firebaseConfig = {
     appId: "1:22431520744:web:711af76a5335d97179765d"
 };
 
+// Pastikan ini URL Web App Script Anda yang terbaru
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzKSLFYjD2Z8CSW2uT59rTjGMGpaPULVKvAsHKznItHlA8WIYGOveTJEcXcPbVESStN/exec"; 
+
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// ⚠️ PASTE URL SCRIPT BARU ANDA DISINI ⚠️
-const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; 
-
-// Data Dropdown Point
-const dataPoints = {
-    "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucul"],
-    "Magelang": ["Grabag", "Mungkid", "Pakis", "Salam"],
-    "Solo": ["Banjarsari", "Gemolong", "Masaran", "Tangen"],
-    "Solo 2": ["Gatak", "Jumantono", "Karanganyar", "Nguter", "Pasar kliwon"],
-    "Yogyakarta": ["01 Sleman", "Kalasan", "Ngaglik", "Umbulharjo"],
-    "Yogyakarta 2": ["01 Pandak", "01 Pengasih", "01 Pleret", "Kutoarjo", "Purworejo", "Saptosari"],
-    "Wonogiri": ["Jatisrono", "Ngadirojo", "Ngawen 2", "Pracimantoro", "Wonosari"]
-};
-
-const areaSelect = document.getElementById('areaSelect');
-const pointSelect = document.getElementById('pointSelect');
-
-// --- FUNGSI UPDATE DROPDOWN ---
-function updatePointsDropdown(selectedArea) {
-    const points = dataPoints[selectedArea] || [];
-    pointSelect.innerHTML = '<option value="" selected disabled>Pilih Point...</option>';
-    if (points.length > 0) {
-        pointSelect.disabled = false;
-        points.forEach(point => {
-            const option = document.createElement('option');
-            option.value = point;
-            option.textContent = point;
-            pointSelect.appendChild(option);
-        });
-    } else {
-        pointSelect.disabled = true;
-    }
+// --- 1. SET TANGGAL OTOMATIS (PERBAIKAN DISINI) ---
+const today = new Date().toISOString().split('T')[0];
+if(document.getElementById('tanggalInput')) {
+    document.getElementById('tanggalInput').value = today;
 }
 
-if (areaSelect) {
-    areaSelect.addEventListener('change', function() {
-        updatePointsDropdown(this.value);
-    });
-}
-
-// 1. CEK LOGIN & AUTO FILL
+// --- 2. CEK LOGIN & LOAD DATA ---
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        const userRef = ref(db, 'users/' + user.uid);
-        get(userRef).then((snapshot) => {
-            if (snapshot.exists()) {
-                const dataUser = snapshot.val();
-                const jabatan = dataUser.jabatan;
-
-                if (dataUser.area) {
-                    areaSelect.value = dataUser.area;
-                    updatePointsDropdown(dataUser.area);
-                }
-
-                if (jabatan === 'BM' || jabatan === 'BP') {
-                    if (dataUser.area) areaSelect.disabled = true;
-                    if (dataUser.point) {
-                        pointSelect.value = dataUser.point;
-                        pointSelect.disabled = true;
-                    }
-                } else if (jabatan === 'RM' || jabatan === 'AM') {
-                    pointSelect.disabled = false;
-                }
-            }
-        });
+        loadUserData(user.uid);
     } else {
         window.location.replace("index.html");
     }
 });
 
-const dateInput = document.getElementById('tanggalInput');
-if(dateInput) dateInput.value = new Date().toISOString().split('T')[0];
-
-// Format Rupiah
-const rupiahInputs = document.querySelectorAll('.rupiah-input');
-rupiahInputs.forEach(input => {
-    input.addEventListener('keyup', function(e) {
-        input.value = formatRupiah(this.value, 'Rp. ');
-        const realInputId = this.id.replace('Display', 'Real');
-        const realInput = document.getElementById(realInputId);
-        if(realInput) realInput.value = this.value.replace(/[^0-9]/g, '');
+function loadUserData(uid) {
+    const userRef = ref(db, 'users/' + uid);
+    get(userRef).then((snapshot) => {
+        if (snapshot.exists()) {
+            const data = snapshot.val();
+            document.getElementById('namaKaryawan').value = data.nama || "";
+            document.getElementById('idKaryawan').value = data.idKaryawan || "";
+            document.getElementById('areaKaryawan').value = data.area || "";
+            document.getElementById('pointKaryawan').value = data.point || "";
+        }
     });
-});
-
-function formatRupiah(angka, prefix) {
-    let number_string = angka.replace(/[^,\d]/g, '').toString(),
-        split = number_string.split(','),
-        sisa = split[0].length % 3,
-        rupiah = split[0].substr(0, sisa),
-        ribuan = split[0].substr(sisa).match(/\d{3}/gi);
-    if (ribuan) {
-        let separator = sisa ? '.' : '';
-        rupiah += separator + ribuan.join('.');
-    }
-    rupiah = split[1] != undefined ? rupiah + ',' + split[1] : rupiah;
-    return prefix == undefined ? rupiah : (rupiah ? 'Rp. ' + rupiah : '');
 }
 
-// --- LOGIKA PREVIEW BANYAK FOTO ---
-const fileInput = document.getElementById('fotoInput');
+// --- 3. FORMAT RUPIAH (Agar input nominal ada titiknya) ---
+const formatRupiah = (angka) => {
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka);
+};
+
+// Fungsi Helper untuk Input Rupiah
+function setupRupiahInput(displayId, realId) {
+    const display = document.getElementById(displayId);
+    const real = document.getElementById(realId);
+    
+    if (display && real) {
+        display.addEventListener('keyup', function(e) {
+            // Hapus karakter selain angka
+            let value = this.value.replace(/[^0-9]/g, '');
+            real.value = value; // Simpan angka murni ke input hidden
+            
+            // Tampilkan format rupiah
+            if(value) {
+                this.value = formatRupiah(value).replace('Rp', '').trim();
+            } else {
+                this.value = '';
+            }
+        });
+    }
+}
+
+// Pasang formatter untuk input Validasi & Modal
+setupRupiahInput('amountValDisplay', 'amountValReal');
+setupRupiahInput('amountModalDisplay', 'amountModalReal');
+
+
+// --- 4. PREVIEW FOTO ---
+const fotoInput = document.getElementById('fotoInput');
 const previewContainer = document.getElementById('previewContainer');
 
-fileInput.addEventListener('change', function() {
-    previewContainer.innerHTML = ''; // Reset preview
-    const files = Array.from(this.files);
-    
-    if (files.length > 5) {
-        alert("Maksimal 5 foto sekaligus agar upload tidak gagal.");
-        this.value = ""; // Reset input
-        return;
-    }
-
-    files.forEach(file => {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const img = document.createElement('img');
-            img.src = e.target.result;
-            img.className = 'preview-img';
-            previewContainer.appendChild(img);
+if (fotoInput) {
+    fotoInput.addEventListener('change', function() {
+        previewContainer.innerHTML = '';
+        const files = this.files;
+        if (files.length > 0) {
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.style.width = '80px';
+                    img.style.height = '80px';
+                    img.style.objectFit = 'cover';
+                    img.style.borderRadius = '8px';
+                    img.style.border = '1px solid #ddd';
+                    previewContainer.appendChild(img);
+                }
+                reader.readAsDataURL(file);
+            }
         }
-        reader.readAsDataURL(file);
     });
-});
+}
 
-// --- SUBMIT LOGIC ---
-const form = document.getElementById('validasiForm').addEventListener('submit', async (e) => {
+// --- 5. SUBMIT FORM KE SPREADSHEET ---
+document.getElementById('validasiForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-const loadingOverlay = document.getElementById('loadingOverlay');
+    
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    loadingOverlay.style.display = 'flex';
 
-if (form) {
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-
-        const amtVal = document.getElementById('amountValReal').value;
-        const amtModal = document.getElementById('amountModalReal').value;
-        
-        // Cek Foto
-        if (fileInput.files.length === 0) { alert("❌ Wajib upload foto validasi!"); return; }
-        if (!areaSelect.value) { alert("❌ Area belum terpilih!"); return; }
-        if (!pointSelect.value) { alert("❌ Point belum terpilih!"); return; }
-
-        loadingOverlay.style.display = 'flex';
-
-        try {
+    try {
         const file = document.getElementById('fotoInput').files[0];
-        const base64 = await toBase64(file);
+        let base64 = "";
+        
+        if (file) {
+            base64 = await toBase64(file);
+        }
 
-        // DATA YANG DIKIRIM KE SPREADSHEET
         const formData = {
-            jenisLaporan: "Validasi", // KUNCI UTAMA
+            jenisLaporan: "Validasi",
             idKaryawan: document.getElementById('idKaryawan').value,
             namaBP: document.getElementById('namaKaryawan').value,
             area: document.getElementById('areaKaryawan').value,
             point: document.getElementById('pointKaryawan').value,
             
-            // PERHATIKAN NAMA VARIABEL INI (HARUS SAMA DENGAN APP SCRIPT)
+            // Data Input Validasi
             jmlMitraVal: document.getElementById('jmlMitraVal').value,
-            nominalVal: document.getElementById('amountValReal').value, // Ambil angka murni (bukan Rp)
+            nominalVal: document.getElementById('amountValReal').value, // Ambil angka murni
             jmlMitraModal: document.getElementById('jmlMitraModal').value,
             nominalModal: document.getElementById('amountModalReal').value, // Ambil angka murni
             tenor: document.getElementById('tenorSelect').value,
             
+            // Foto
             foto: base64.replace(/^data:image\/(png|jpeg|jpg);base64,/, ""),
             namaFoto: `Validasi_${Date.now()}.jpg`,
-            mimeType: file.type
+            mimeType: file ? file.type : "image/jpeg"
         };
 
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify(formData)
         });
-            const result = await response.json();
-
-            if (result.result === 'success') {
-                alert("✅ Data Validasi Terkirim!");
-                window.location.href = "home.html";
-            } else {
-                throw new Error(result.error);
-            }
-
-        } catch (error) {
-            console.error("Error:", error);
-            alert("❌ Gagal: " + error.message);
-        } finally {
-            loadingOverlay.style.display = 'none';
+        
+        const result = await response.json();
+        
+        if (result.result === 'success') {
+            alert("✅ Laporan Validasi Berhasil Dikirim!");
+            window.location.href = "home.html";
+        } else {
+            throw new Error(result.error);
         }
-    });
-}
+
+    } catch (error) {
+        alert("Gagal: " + error.message);
+    } finally {
+        loadingOverlay.style.display = 'none';
+    }
+});
 
 const toBase64 = file => new Promise((resolve, reject) => {
     const reader = new FileReader();
