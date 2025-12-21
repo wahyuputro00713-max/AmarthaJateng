@@ -15,7 +15,7 @@ const firebaseConfig = {
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzKSLFYjD2Z8CSW2uT59rTjGMGpaPULVKvAsHKznItHlA8WIYGOveTJEcXcPbVESStN/exec"; 
 
-// 1. DATA POINT & AREA
+// DATA POINT (Untuk Dropdown)
 const DATA_POINTS = {
     "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucul"],
     "Magelang": ["Grabag", "Mungkid", "Pakis", "Salam"],
@@ -26,19 +26,19 @@ const DATA_POINTS = {
     "Wonogiri": ["Jatisrono", "Ngadirojo", "Ngawen 2", "Pracimantoro", "Wonosari"]
 };
 
-// Ambil list Area dari keys DATA_POINTS
+// Ambil List Area untuk Dropdown Manual
 const LIST_AREA = Object.keys(DATA_POINTS);
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// Elemen DOM
+// ELEMEN DOM
 const el = {
     tanggal: document.getElementById('tanggalInput'),
     nama: document.getElementById('namaKaryawan'),
     id: document.getElementById('idKaryawan'),
-    areaInput: document.getElementById('areaInput'),   // Textbox Readonly
+    areaInput: document.getElementById('areaInput'),   // Textbox Otomatis
     areaSelect: document.getElementById('areaSelect'), // Dropdown Manual
     pointSelect: document.getElementById('pointKaryawan'),
     loading: document.getElementById('loadingOverlay')
@@ -67,35 +67,32 @@ function loadUserData(uid) {
             el.nama.value = data.nama || "";
             el.id.value = data.idKaryawan || "";
 
-            // LOGIKA AREA (HYBRID)
+            // --- LOGIKA AREA PINTAR (HYBRID) ---
             if (data.area && data.area !== "") {
-                // KASUS A: PROFIL SUDAH ADA AREA
-                // Tampilkan Textbox, Sembunyikan Select
+                // CASE 1: Area Ada di Profil -> Tampilkan Textbox
                 el.areaInput.style.display = "block";
                 el.areaSelect.style.display = "none";
+                el.areaInput.value = data.area;
                 
-                el.areaInput.value = data.area; // Isi otomatis
-                
-                // Langsung update point berdasarkan area profil
-                updatePointDropdown(data.area, data.point);
+                // Isi Dropdown Point berdasarkan Area Profil
+                isiDropdownPoint(data.area, data.point);
             } else {
-                // KASUS B: PROFIL BELUM ADA AREA
-                // Sembunyikan Textbox, Tampilkan Select
+                // CASE 2: Area Kosong -> Tampilkan Dropdown Manual
                 el.areaInput.style.display = "none";
                 el.areaSelect.style.display = "block";
                 
-                // Isi Opsi Area ke Dropdown
+                // Isi Opsi Area
                 el.areaSelect.innerHTML = '<option value="" disabled selected>Pilih Area Manual...</option>';
-                LIST_AREA.forEach(areaName => {
-                    const option = document.createElement('option');
-                    option.value = areaName;
-                    option.textContent = areaName;
-                    el.areaSelect.appendChild(option);
+                LIST_AREA.forEach(area => {
+                    const opt = document.createElement('option');
+                    opt.value = area;
+                    opt.textContent = area;
+                    el.areaSelect.appendChild(opt);
                 });
 
-                // Tambah Event Listener jika User pilih Area Manual
+                // Listener saat pilih Area Manual
                 el.areaSelect.addEventListener('change', function() {
-                    updatePointDropdown(this.value, null);
+                    isiDropdownPoint(this.value, null);
                 });
             }
         }
@@ -103,18 +100,18 @@ function loadUserData(uid) {
 }
 
 // FUNGSI ISI DROPDOWN POINT
-function updatePointDropdown(areaName, defaultPoint) {
+function isiDropdownPoint(namaArea, defaultPoint) {
     el.pointSelect.innerHTML = '<option value="" disabled selected>Pilih Point...</option>';
     
-    if (areaName && DATA_POINTS[areaName]) {
-        el.pointSelect.disabled = false;
+    if (namaArea && DATA_POINTS[namaArea]) {
+        el.pointSelect.disabled = false; // Buka kunci dropdown
         
-        DATA_POINTS[areaName].forEach(pt => {
+        DATA_POINTS[namaArea].forEach(pt => {
             const option = document.createElement('option');
             option.value = pt;
             option.textContent = pt;
             
-            // Jika ada default point (dari profil), pilih otomatis
+            // Jika ada default point (dari profil), auto select
             if (defaultPoint && pt === defaultPoint) {
                 option.selected = true;
             }
@@ -126,10 +123,8 @@ function updatePointDropdown(areaName, defaultPoint) {
     }
 }
 
-// FUNGSI FORMAT RUPIAH
-const formatRupiah = (angka) => {
-    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka);
-};
+// FORMAT RUPIAH
+const formatRupiah = (angka) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka);
 
 function setupRupiahInput(displayId, realId) {
     const display = document.getElementById(displayId);
@@ -147,22 +142,32 @@ function setupRupiahInput(displayId, realId) {
 setupRupiahInput('amountValDisplay', 'amountValReal');
 setupRupiahInput('amountModalDisplay', 'amountModalReal');
 
-// PREVIEW FOTO
+// --- PREVIEW BANYAK FOTO (LOOPING) ---
 const fotoInput = document.getElementById('fotoInput');
 const previewContainer = document.getElementById('previewContainer');
+
 if (fotoInput) {
     fotoInput.addEventListener('change', function() {
-        previewContainer.innerHTML = '';
-        const file = this.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const img = document.createElement('img');
-                img.src = e.target.result;
-                img.style.width = '100px'; img.style.borderRadius = '8px';
-                previewContainer.appendChild(img);
+        previewContainer.innerHTML = ''; // Reset preview lama
+        const files = this.files;
+        
+        // Loop semua file yang dipilih
+        if (files.length > 0) {
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.style.width = '80px';
+                    img.style.height = '80px';
+                    img.style.objectFit = 'cover';
+                    img.style.borderRadius = '8px';
+                    img.style.border = '1px solid #ddd';
+                    previewContainer.appendChild(img);
+                }
+                reader.readAsDataURL(file);
             }
-            reader.readAsDataURL(file);
         }
     });
 }
@@ -173,18 +178,14 @@ document.getElementById('validasiForm').addEventListener('submit', async (e) => 
     el.loading.style.display = 'flex';
 
     try {
-        // Tentukan Area mana yang dipakai (Input Otomatis atau Select Manual)
-        let finalArea = "";
-        if (el.areaInput.style.display !== "none") {
-            finalArea = el.areaInput.value;
-        } else {
-            finalArea = el.areaSelect.value;
-        }
+        // Tentukan Area yang dipakai (Input atau Select)
+        let finalArea = el.areaInput.style.display !== "none" ? el.areaInput.value : el.areaSelect.value;
+        if (!finalArea) throw new Error("Area belum terisi!");
 
-        if (!finalArea) {
-            throw new Error("Area belum terisi/dipilih!");
-        }
-
+        // Ambil Foto Pertama (Untuk dikirim ke Apps Script)
+        // Catatan: Apps Script standar hanya terima 1 string base64. 
+        // User minta "biarkan bisa upload banyak", jadi previewnya banyak, 
+        // tapi yang dikirim file pertama agar sistem tidak error.
         const file = document.getElementById('fotoInput').files[0];
         let base64 = "";
         if (file) base64 = await toBase64(file);
@@ -193,14 +194,15 @@ document.getElementById('validasiForm').addEventListener('submit', async (e) => 
             jenisLaporan: "Validasi",
             idKaryawan: el.id.value,
             namaBP: el.nama.value,
-            area: finalArea, // Pakai Area yang sudah ditentukan di atas
-            point: el.pointSelect.value,
+            area: finalArea,
+            point: el.pointSelect.value, // Ambil Point yang dipilih
             
             jmlMitraVal: document.getElementById('jmlMitraVal').value,
             nominalVal: document.getElementById('amountValReal').value,
             jmlMitraModal: document.getElementById('jmlMitraModal').value,
             nominalModal: document.getElementById('amountModalReal').value,
             tenor: document.getElementById('tenorSelect').value,
+            
             foto: base64.replace(/^data:image\/(png|jpeg|jpg);base64,/, ""),
             namaFoto: `Validasi_${Date.now()}.jpg`,
             mimeType: file ? file.type : "image/jpeg"
