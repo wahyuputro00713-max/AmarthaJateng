@@ -205,7 +205,8 @@ fileInput.addEventListener('change', function() {
 });
 
 // --- 4. SUBMIT LOGIC ---
-const form = document.getElementById('sosialisasiForm');
+const form = document.getElementById('sosialisasiForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
 const loadingOverlay = document.getElementById('loadingOverlay');
 
 form.addEventListener('submit', async (e) => {
