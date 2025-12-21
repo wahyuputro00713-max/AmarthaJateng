@@ -15,31 +15,37 @@ const firebaseConfig = {
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzKSLFYjD2Z8CSW2uT59rTjGMGpaPULVKvAsHKznItHlA8WIYGOveTJEcXcPbVESStN/exec"; 
 
-// =================================================================
-// ⚠️ DATABASE KOORDINAT POINT (WAJIB DIISI KOORDINAT ASLI) ⚠️
-// Buka Google Maps -> Klik Kanan di Kantor Point -> Copy Lat/Lng
-// =================================================================
-const DATABASE_KOORDINAT_POINT = {
-    "01 Wedi":       { lat: -7.755432, lng: 110.567890 }, // CONTOH
-    "Karangnongko":  { lat: -7.712345, lng: 110.123456 }, 
-    "Mojosongo":     { lat: -7.555111, lng: 110.888999 },
-    // ... Tambahkan semua point lain di sini sesuai profil.js ...
-    // Jika user punya point tapi tidak ada disini, absen akan error.
+// 1. DAFTAR POINT PER AREA (Untuk Dropdown)
+const DATA_POINTS = {
+    "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucul"],
+    "Magelang": ["Grabag", "Mungkid", "Pakis", "Salam"],
+    "Solo": ["Banjarsari", "Gemolong", "Masaran", "Tangen"],
+    "Solo 2": ["Gatak", "Jumantono", "Karanganyar", "Nguter", "Pasar kliwon"],
+    "Yogyakarta": ["01 Sleman", "Kalasan", "Ngaglik", "Umbulharjo"],
+    "Yogyakarta 2": ["01 Pandak", "01 Pengasih", "01 Pleret", "Kutoarjo", "Purworejo", "Saptosari"],
+    "Wonogiri": ["Jatisrono", "Ngadirojo", "Ngawen 2", "Pracimantoro", "Wonosari"]
 };
 
-const MAX_JARAK_METER = 25; // Radius Maksimal
-const MAX_JAM_ABSEN = "08:15"; // Batas Waktu
+// 2. DATABASE KOORDINAT (WAJIB DIISI LAT/LNG ASLI)
+const DATABASE_KOORDINAT_POINT = {
+    "01 Wedi":       { lat: -7.755432, lng: 110.567890 }, 
+    "Karangnongko":  { lat: -7.712345, lng: 110.123456 }, 
+    "Mojosongo":     { lat: -7.555111, lng: 110.888999 },
+    // ... Masukkan semua koordinat point disini ...
+};
+
+const MAX_JARAK_METER = 25;
+const MAX_JAM_ABSEN = "08:15";
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// DOM Elements
 const ui = {
     nama: document.getElementById('namaKaryawan'),
     id: document.getElementById('idKaryawan'),
     area: document.getElementById('areaKaryawan'),
-    point: document.getElementById('pointKaryawan'),
+    pointSelect: document.getElementById('pointKaryawan'), // Selector Baru
     jam: document.getElementById('jamRealtime'),
     tanggal: document.getElementById('tanggalHariIni'),
     statusWaktu: document.getElementById('statusWaktu'),
@@ -52,15 +58,31 @@ const ui = {
     preview: document.getElementById('previewContainer')
 };
 
-let userPointData = null; // Menyimpan data point user
+let userPointData = null; // Koordinat Tujuan Absen
 let isValidTime = false;
 let isValidLocation = false;
 
-// 1. CEK LOGIN & LOAD DATA
+// EVENT LISTENER: SAAT GANTI POINT
+ui.pointSelect.addEventListener('change', function() {
+    const selectedPoint = this.value;
+    
+    // Update Koordinat Tujuan
+    if (DATABASE_KOORDINAT_POINT[selectedPoint]) {
+        userPointData = DATABASE_KOORDINAT_POINT[selectedPoint];
+        // Reset Status Lokasi agar dihitung ulang
+        ui.statusLokasi.className = "status-box status-loading";
+        ui.statusLokasi.innerHTML = `<span><i class="fa-solid fa-sync fa-spin me-2"></i>Menghitung Ulang...</span>`;
+    } else {
+        userPointData = null;
+        showErrorLokasi("Koordinat Point ini belum ada di Database.");
+    }
+});
+
 onAuthStateChanged(auth, (user) => {
     if (user) {
         loadUserData(user.uid);
         mulaiJam();
+        cekLokasiUser(); // Start GPS
     } else {
         window.location.replace("index.html");
     }
@@ -72,32 +94,35 @@ function loadUserData(uid) {
         if (snapshot.exists()) {
             const data = snapshot.val();
             
-            // Auto-Fill Form
             ui.nama.value = data.nama || "-";
             ui.id.value = data.idKaryawan || "-";
             ui.area.value = data.area || "-";
             
-            // Cek Point
-            if (!data.point) {
-                alert("⚠️ Anda belum memilih Point di menu Profil! Silakan setting dulu.");
-                window.location.href = "profil.html";
-                return;
-            }
-            ui.point.value = data.point;
-            
-            // Cek Koordinat Point di Database Kita
-            if (DATABASE_KOORDINAT_POINT[data.point]) {
-                userPointData = DATABASE_KOORDINAT_POINT[data.point];
-                cekLokasiUser(); // Mulai Cek GPS
+            // 1. POPULASI DROPDOWN POINT BERDASARKAN AREA
+            if (data.area && DATA_POINTS[data.area]) {
+                ui.pointSelect.innerHTML = '<option value="" disabled selected>Pilih Point...</option>';
+                DATA_POINTS[data.area].forEach(pt => {
+                    const option = document.createElement('option');
+                    option.value = pt;
+                    option.textContent = pt;
+                    ui.pointSelect.appendChild(option);
+                });
+                ui.pointSelect.disabled = false;
             } else {
-                ui.point.value += " (Koordinat Belum Disetting Admin)";
-                showErrorLokasi("Hubungi IT: Koordinat Point ini belum ada.");
+                ui.pointSelect.innerHTML = '<option disabled selected>Area tidak valid</option>';
+            }
+
+            // 2. SET DEFAULT POINT DARI PROFIL
+            if (data.point && DATABASE_KOORDINAT_POINT[data.point]) {
+                ui.pointSelect.value = data.point;
+                userPointData = DATABASE_KOORDINAT_POINT[data.point]; // Set Koordinat Awal
             }
         }
     });
 }
 
-// 2. JAM & VALIDASI WAKTU
+// ... (FUNGSI JAM, LOKASI, dan SUBMIT TETAP SAMA SEPERTI SEBELUMNYA) ...
+
 function mulaiJam() {
     setInterval(() => {
         const now = new Date();
@@ -105,7 +130,6 @@ function mulaiJam() {
         ui.jam.textContent = jamStr;
         ui.tanggal.textContent = now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
-        // Cek Batas Waktu
         if (jamStr <= MAX_JAM_ABSEN) {
             ui.statusWaktu.className = "status-box status-success";
             ui.statusWaktu.innerHTML = `<span><i class="fa-solid fa-check me-2"></i>Waktu Aman</span>`;
@@ -119,21 +143,20 @@ function mulaiJam() {
     }, 1000);
 }
 
-// 3. CEK LOKASI (GPS)
 function cekLokasiUser() {
     if (!navigator.geolocation) {
-        showErrorLokasi("GPS tidak didukung browser ini.");
+        showErrorLokasi("GPS tidak didukung.");
         return;
     }
 
     navigator.geolocation.watchPosition((pos) => {
+        // Jika User belum pilih point, jangan hitung jarak
+        if (!userPointData) return;
+
         const userLat = pos.coords.latitude;
         const userLng = pos.coords.longitude;
-        
-        // Simpan Geotag untuk dikirim
         document.getElementById('geotagInput').value = `${userLat},${userLng}`;
 
-        // Hitung Jarak
         const jarak = hitungJarak(userLat, userLng, userPointData.lat, userPointData.lng);
         const jarakBulat = Math.round(jarak);
 
@@ -152,7 +175,7 @@ function cekLokasiUser() {
         updateTombol();
 
     }, (err) => {
-        showErrorLokasi("Gagal ambil lokasi. Pastikan GPS Aktif!");
+        showErrorLokasi("GPS Error/Mati.");
     }, { enableHighAccuracy: true });
 }
 
@@ -163,23 +186,17 @@ function showErrorLokasi(msg) {
     updateTombol();
 }
 
-// Rumus Haversine (Hitung Jarak Meter)
 function hitungJarak(lat1, lon1, lat2, lon2) {
-    const R = 6371e3; // Radius Bumi (meter)
+    const R = 6371e3;
     const φ1 = lat1 * Math.PI/180;
     const φ2 = lat2 * Math.PI/180;
     const Δφ = (lat2-lat1) * Math.PI/180;
     const Δλ = (lon2-lon1) * Math.PI/180;
-
-    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-              Math.cos(φ1) * Math.cos(φ2) *
-              Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) * Math.sin(Δλ/2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-
-    return R * c; // Hasil dalam meter
+    return R * c;
 }
 
-// 4. UPDATE STATUS TOMBOL
 function updateTombol() {
     if (isValidTime && isValidLocation) {
         ui.btnAbsen.disabled = false;
@@ -189,18 +206,18 @@ function updateTombol() {
         ui.btnAbsen.disabled = true;
         ui.btnAbsen.innerHTML = `<i class="fa-solid fa-ban me-2"></i> ABSEN TERKUNCI`;
         
-        if (!isValidTime) ui.errorMsg.textContent = "Absen ditutup karena sudah lewat jam 08:15.";
-        else if (!isValidLocation) ui.errorMsg.textContent = "Anda berada di luar radius kantor (Maks 25m).";
+        if (!isValidTime) ui.errorMsg.textContent = "Absen ditutup lewat 08:15.";
+        else if (!isValidLocation) ui.errorMsg.textContent = "Di luar radius kantor (Maks 25m).";
     }
 }
 
-// 5. SUBMIT ABSEN
+// Submit Logic
 ui.fotoInput.addEventListener('change', function() {
     const file = this.files[0];
     if(file) {
         const reader = new FileReader();
         reader.onload = function(e) {
-            ui.preview.innerHTML = `<img src="${e.target.result}" style="width:100px; border-radius:10px; border:2px solid #ddd;">`;
+            ui.preview.innerHTML = `<img src="${e.target.result}" style="width:100px; border-radius:10px;">`;
         }
         reader.readAsDataURL(file);
     }
@@ -208,11 +225,7 @@ ui.fotoInput.addEventListener('change', function() {
 
 document.getElementById('absensiForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-
-    if (!ui.fotoInput.files[0]) {
-        alert("⚠️ Wajib ambil foto selfie!");
-        return;
-    }
+    if (!ui.fotoInput.files[0]) { alert("Wajib Foto Selfie!"); return; }
 
     const loadingOverlay = document.getElementById('loadingOverlay');
     loadingOverlay.style.display = 'flex';
@@ -222,39 +235,29 @@ document.getElementById('absensiForm').addEventListener('submit', async (e) => {
         const base64 = await toBase64(file);
 
         const formData = {
-            jenisLaporan: "Absensi", // Pastikan Backend Support ini
+            jenisLaporan: "Absensi",
             idKaryawan: ui.id.value,
             namaBP: ui.nama.value,
             area: ui.area.value,
-            point: ui.point.value,
+            point: ui.pointSelect.value, // Ambil Value dari Select
             tanggal: new Date().toISOString().split('T')[0],
             jamAbsen: ui.jam.textContent,
             geotag: document.getElementById('geotagInput').value,
-            status: "Tepat Waktu",
             foto: base64.replace(/^data:image\/(png|jpeg|jpg);base64,/, ""),
-            namaFoto: `Absen_${ui.nama.value}_${Date.now()}.jpg`,
+            namaFoto: `Absen_${ui.nama.value}.jpg`,
             mimeType: file.type
         };
 
-        const response = await fetch(SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify(formData)
-        });
-        
+        const response = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(formData) });
         const result = await response.json();
         
         if (result.result === 'success') {
-            alert("✅ Absensi Berhasil!");
+            alert("✅ Absen Berhasil!");
             window.location.href = "home.html";
-        } else {
-            throw new Error(result.error);
-        }
+        } else { throw new Error(result.error); }
 
-    } catch (error) {
-        alert("Gagal: " + error.message);
-    } finally {
-        loadingOverlay.style.display = 'none';
-    }
+    } catch (error) { alert("Gagal: " + error.message); } 
+    finally { loadingOverlay.style.display = 'none'; }
 });
 
 const toBase64 = file => new Promise((resolve, reject) => {
