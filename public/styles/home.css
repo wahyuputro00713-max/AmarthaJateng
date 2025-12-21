@@ -1,104 +1,137 @@
 :root {
     --primary-purple: #8e26d4;
-    --dark-purple: #701eb0;
-    --bg-light: #f5f7fa;
+    --dark-purple: #6a1b9a;
+    --bg-color: #f8f9fa;
+    --card-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
 }
 
 body {
-    background-color: var(--bg-light);
-    font-family: 'Segoe UI', sans-serif;
-    padding-bottom: 40px;
-    margin: 0; /* Reset margin */
+    background-color: var(--bg-color);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding-bottom: 80px; /* Ruang untuk scroll bawah */
 }
 
-/* NAVBAR TRANSPARAN DI ATAS HERO */
-.navbar {
-    background: transparent !important; /* Agar menyatu dengan hero */
-    padding-top: 20px;
-    position: absolute;
-    width: 100%;
-    z-index: 100;
-}
-.navbar-brand, .nav-link, .fa-bars {
-    color: white !important;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-/* HERO SECTION (Lengkungan Ungu) */
+/* --- HERO SECTION --- */
 .hero-header {
     background: linear-gradient(135deg, var(--primary-purple) 0%, #5e1891 100%);
     color: white;
-    padding: 80px 20px 100px 20px; /* Padding bawah besar untuk tempat menu melayang */
-    border-radius: 0 0 40px 40px;
-    text-align: center;
+    padding: 30px 20px 90px 20px; /* Padding bawah luas untuk floating menu */
+    border-radius: 0 0 35px 35px;
     position: relative;
-    box-shadow: 0 10px 20px rgba(142, 38, 212, 0.2);
+    box-shadow: 0 4px 10px rgba(142, 38, 212, 0.2);
 }
 
-.welcome-text {
-    font-size: 1.8rem;
-    font-weight: 800;
-    margin-bottom: 5px;
-}
-.sub-text {
-    font-size: 0.95rem;
-    opacity: 0.9;
-    font-weight: 300;
-}
+.navbar-brand { font-size: 1.2rem; text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
 
-/* CONTAINER MENU MELAYANG */
+.welcome-section {
+    margin-top: 20px;
+    text-align: center;
+}
+.welcome-title { font-size: 1.6rem; font-weight: 800; margin-bottom: 5px; }
+.welcome-subtitle { font-size: 0.9rem; opacity: 0.9; font-weight: 400; }
+
+/* --- MENU CONTAINER --- */
 .menu-container {
-    margin-top: -60px; /* Tarik ke atas menutupi Hero */
     padding: 0 20px;
+    margin-top: -60px; /* Efek Melayang di atas Hero */
+    position: relative;
+    z-index: 10;
+}
+
+/* --- KARTU ABSENSI (HIGHLIGHT) --- */
+.card-absensi {
+    background: white;
+    border-radius: 20px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    text-decoration: none;
+    box-shadow: 0 10px 25px rgba(142, 38, 212, 0.15); /* Bayangan Ungu Halus */
+    border: 1px solid rgba(142, 38, 212, 0.05);
+    margin-bottom: 25px;
+    transition: transform 0.2s ease;
+}
+
+.card-absensi:active { transform: scale(0.98); }
+
+.absensi-icon {
+    width: 55px; height: 55px;
+    background: #f3e5f5; /* Ungu Sangat Muda */
+    color: var(--primary-purple);
+    border-radius: 15px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem;
+    margin-right: 15px;
+}
+
+.absensi-text h6 { margin: 0; font-weight: 700; color: #333; font-size: 1.1rem; }
+.absensi-text small { color: #666; font-size: 0.8rem; }
+
+/* --- GRID MENU LAINNYA --- */
+.section-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #555;
+    margin-bottom: 15px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding-left: 5px;
 }
 
 .menu-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr; /* 2 Kolom di HP */
+    grid-template-columns: repeat(2, 1fr); /* 2 Kolom Konsisten */
     gap: 15px;
 }
 
-/* KARTU MENU */
-.tool-card {
+.card-menu {
     background: white;
-    border-radius: 20px;
+    border-radius: 18px;
     padding: 25px 15px;
     text-align: center;
     text-decoration: none;
     color: #444;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.05);
-    transition: transform 0.2s, box-shadow 0.2s;
-    border: 1px solid rgba(0,0,0,0.02);
+    box-shadow: var(--card-shadow);
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%; /* Agar tinggi sama rata */
+    border: 1px solid transparent;
 }
 
-.tool-card:active {
-    transform: scale(0.96);
-    background-color: #fcfcfc;
+.card-menu:active {
+    transform: scale(0.97);
+    background-color: #fafafa;
 }
 
-.icon-box {
-    width: 60px; height: 60px;
+.menu-icon {
+    width: 50px; height: 50px;
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    font-size: 1.6rem;
-    margin: 0 auto 15px auto;
+    font-size: 1.4rem;
+    margin-bottom: 12px;
 }
 
-.menu-title {
-    font-weight: 700;
+.menu-label {
     font-size: 0.9rem;
+    font-weight: 600;
     line-height: 1.3;
 }
 
-/* WARNA IKON */
-.icon-purple { background: #f3e5f5; color: var(--primary-purple); }
-.icon-green  { background: #e8f5e9; color: #2e7d32; }
-.icon-orange { background: #fff3e0; color: #ef6c00; }
-.icon-blue   { background: #e3f2fd; color: #1565c0; }
+/* Warna Ikon Spesifik */
+.icon-validasi { background: #e3f2fd; color: #1976d2; }
+.icon-collection { background: #e8f5e9; color: #2e7d32; }
+.icon-closing { background: #fff3e0; color: #f57c00; }
+.icon-sosialisasi { background: #fce4ec; color: #c2185b; }
 
-/* Desktop Adjustment */
-@media (min-width: 768px) {
-    .menu-grid { grid-template-columns: repeat(4, 1fr); }
-    .hero-header { padding-bottom: 120px; border-radius: 0 0 60px 60px; }
-    .menu-container { max-width: 900px; margin: -80px auto 0 auto; }
+/* Footer */
+.app-footer {
+    text-align: center;
+    margin-top: 40px;
+    font-size: 0.75rem;
+    color: #aaa;
 }
