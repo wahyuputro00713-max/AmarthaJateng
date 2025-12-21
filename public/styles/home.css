@@ -1,5 +1,3 @@
-/* styles/home.css */
-
 :root {
     --primary-purple: #8e26d4;
     --dark-purple: #701eb0;
@@ -8,115 +6,99 @@
 
 body {
     background-color: var(--bg-light);
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    padding-top: 70px; /* Jarak pas untuk Navbar */
+    font-family: 'Segoe UI', sans-serif;
     padding-bottom: 40px;
+    margin: 0; /* Reset margin */
 }
 
-/* --- NAVBAR MODERN --- */
+/* NAVBAR TRANSPARAN DI ATAS HERO */
 .navbar {
-    background: linear-gradient(90deg, var(--primary-purple), var(--dark-purple));
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    padding: 12px 0;
+    background: transparent !important; /* Agar menyatu dengan hero */
+    padding-top: 20px;
+    position: absolute;
+    width: 100%;
+    z-index: 100;
+}
+.navbar-brand, .nav-link, .fa-bars {
+    color: white !important;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.navbar-brand {
-    font-size: 1.1rem; /* Ukuran pas di HP */
-}
-
-/* Perbaikan Menu Hamburger */
-.navbar-toggler {
-    border: none !important;
-    outline: none !important;
-    box-shadow: none !important;
-}
-
-.nav-link {
-    color: rgba(255,255,255,0.9) !important;
-    font-weight: 500;
-    padding: 10px 0; /* Jarak antar menu saat dibuka di HP */
-}
-.nav-link:hover, .nav-link.active {
-    color: #fff !important;
-    font-weight: 700;
-}
-
-/* --- HERO SECTION --- */
-.hero-section {
-    background: linear-gradient(180deg, var(--primary-purple) 0%, #5e1891 100%);
+/* HERO SECTION (Lengkungan Ungu) */
+.hero-header {
+    background: linear-gradient(135deg, var(--primary-purple) 0%, #5e1891 100%);
     color: white;
-    border-radius: 20px;
-    padding: 25px 20px;
-    margin-bottom: 25px;
-    box-shadow: 0 8px 20px rgba(142, 38, 212, 0.25);
-    margin-top: 10px;
+    padding: 80px 20px 100px 20px; /* Padding bawah besar untuk tempat menu melayang */
+    border-radius: 0 0 40px 40px;
+    text-align: center;
+    position: relative;
+    box-shadow: 0 10px 20px rgba(142, 38, 212, 0.2);
 }
 
-/* --- KARTU MENU --- */
+.welcome-text {
+    font-size: 1.8rem;
+    font-weight: 800;
+    margin-bottom: 5px;
+}
+.sub-text {
+    font-size: 0.95rem;
+    opacity: 0.9;
+    font-weight: 300;
+}
+
+/* CONTAINER MENU MELAYANG */
+.menu-container {
+    margin-top: -60px; /* Tarik ke atas menutupi Hero */
+    padding: 0 20px;
+}
+
+.menu-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* 2 Kolom di HP */
+    gap: 15px;
+}
+
+/* KARTU MENU */
 .tool-card {
-    border: none;
-    border-radius: 18px;
     background: white;
+    border-radius: 20px;
+    padding: 25px 15px;
+    text-align: center;
+    text-decoration: none;
+    color: #444;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.05);
     transition: transform 0.2s, box-shadow 0.2s;
-    cursor: pointer;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.03);
-    height: 100%;
-    /* Penting untuk HP: menghilangkan delay klik */
-    touch-action: manipulation; 
+    border: 1px solid rgba(0,0,0,0.02);
 }
 
 .tool-card:active {
     transform: scale(0.96);
-    background-color: #f8f9fa;
+    background-color: #fcfcfc;
 }
 
-/* Ikon Bulat */
-.icon-circle {
-    width: 60px;
-    height: 60px;
+.icon-box {
+    width: 60px; height: 60px;
     border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-    margin-bottom: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.6rem;
+    margin: 0 auto 15px auto;
 }
-
-/* Warna Ikon */
-.bg-light-purple { background-color: #f3e5f5; color: var(--primary-purple); }
-.bg-light-green { background-color: #e8f5e9; color: #2e7d32; }
-.bg-light-orange { background-color: #fff3e0; color: #ef6c00; }
-.bg-light-blue { background-color: #e3f2fd; color: #1565c0; }
-
-.text-purple { color: var(--primary-purple) !important; }
 
 .menu-title {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: #444;
-    line-height: 1.2;
+    font-weight: 700;
+    font-size: 0.9rem;
+    line-height: 1.3;
 }
 
-/* Efek Grayscale untuk menu yg belum aktif */
-.grayscale {
-    opacity: 0.6;
-    filter: grayscale(100%);
-}
+/* WARNA IKON */
+.icon-purple { background: #f3e5f5; color: var(--primary-purple); }
+.icon-green  { background: #e8f5e9; color: #2e7d32; }
+.icon-orange { background: #fff3e0; color: #ef6c00; }
+.icon-blue   { background: #e3f2fd; color: #1565c0; }
 
-/* --- RESPONSIVE FIXES (HP) --- */
-@media (max-width: 991px) {
-    /* Saat menu dibuka di HP, beri background sedikit gelap */
-    .navbar-collapse {
-        background: rgba(0, 0, 0, 0.1);
-        margin-top: 15px;
-        padding: 15px;
-        border-radius: 10px;
-    }
-    
-    .nav-item {
-        border-bottom: 1px solid rgba(255,255,255,0.1);
-    }
-    .nav-item:last-child {
-        border-bottom: none;
-    }
+/* Desktop Adjustment */
+@media (min-width: 768px) {
+    .menu-grid { grid-template-columns: repeat(4, 1fr); }
+    .hero-header { padding-bottom: 120px; border-radius: 0 0 60px 60px; }
+    .menu-container { max-width: 900px; margin: -80px auto 0 auto; }
 }
