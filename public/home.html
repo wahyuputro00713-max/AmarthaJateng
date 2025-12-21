@@ -3,84 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Home - Amartha Jateng</title>
-    
+    <title>Home - Amartha</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="styles/home.css" rel="stylesheet">
+    <link href="styles/style.css" rel="stylesheet">
 </head>
 <body>
 
-    <div class="hero-header">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <span class="navbar-brand fw-bold text-white">
-                <i class="fa-solid fa-layer-group me-2"></i>Amartha
-            </span>
-            <div>
-                <a href="profil.html" class="text-white me-3" style="font-size: 1.3rem;"><i class="fa-regular fa-circle-user"></i></a>
-                <button id="logoutBtn" class="btn btn-sm btn-light rounded-pill px-3 fw-bold text-purple" style="font-size: 0.8rem;">Logout</button>
+    <header class="app-header">
+        <div class="header-top">
+            <span class="fw-bold fs-5"><i class="fa-solid fa-layer-group me-2"></i>Amartha</span>
+            <div class="d-flex gap-2">
+                <a href="profil.html" class="btn-icon-circle"><i class="fa-solid fa-user"></i></a>
+                <button id="logoutBtn" class="btn-icon-circle bg-danger"><i class="fa-solid fa-power-off"></i></button>
             </div>
         </div>
-
-        <div class="welcome-section">
-            <div class="welcome-title">Halo, <span id="userName">User</span></div>
-            <div class="welcome-subtitle">Semoga harimu produktif!</div>
-        </div>
-    </div>
-
-    <div class="menu-container">
         
-        <a href="absensi.html" class="card-absensi">
+        <div class="user-info">
+            <p>Selamat Pagi,</p>
+            <h4 id="userName">Memuat User...</h4>
+        </div>
+    </header>
+
+    <div class="container-main">
+        
+        <a href="absensi.html" class="menu-absensi">
             <div class="d-flex align-items-center">
-                <div class="absensi-icon">
+                <div class="icon-big">
                     <i class="fa-solid fa-fingerprint"></i>
                 </div>
-                <div class="absensi-text">
-                    <h6>Absensi Harian</h6>
-                    <small>Catat kehadiran masuk & pulang</small>
+                <div>
+                    <h6 class="fw-bold m-0 text-dark">Absensi Harian</h6>
+                    <small class="text-muted">Masuk & Pulang Kerja</small>
                 </div>
             </div>
-            <div class="text-muted">
-                <i class="fa-solid fa-chevron-right"></i>
-            </div>
+            <i class="fa-solid fa-chevron-right text-muted"></i>
         </a>
 
-        <div class="section-title">Laporan Kerja</div>
+        <span class="section-label">Laporan Lapangan</span>
         
-        <div class="menu-grid">
-            
-            <a href="report_validasi.html" class="card-menu">
-                <div class="menu-icon icon-validasi">
+        <div class="grid-menu">
+            <a href="report_validasi.html" class="menu-item">
+                <div class="menu-icon bg-blue">
                     <i class="fa-solid fa-clipboard-check"></i>
                 </div>
-                <div class="menu-label">Validasi<br>Lapangan</div>
+                <div class="menu-text">Validasi</div>
             </a>
 
-            <a href="report_collection.html" class="card-menu">
-                <div class="menu-icon icon-collection">
+            <a href="report_collection.html" class="menu-item">
+                <div class="menu-icon bg-green">
                     <i class="fa-solid fa-hand-holding-dollar"></i>
                 </div>
-                <div class="menu-label">Collection<br>Harian</div>
+                <div class="menu-text">Collection</div>
             </a>
 
-            <a href="closing_modal.html" class="card-menu">
-                <div class="menu-icon icon-closing">
+            <a href="closing_modal.html" class="menu-item">
+                <div class="menu-icon bg-orange">
                     <i class="fa-solid fa-file-invoice-dollar"></i>
                 </div>
-                <div class="menu-label">Closing<br>Modal</div>
+                <div class="menu-text">Closing</div>
             </a>
 
-            <a href="report_sosialisasi.html" class="card-menu">
-                <div class="menu-icon icon-sosialisasi">
+            <a href="report_sosialisasi.html" class="menu-item">
+                <div class="menu-icon bg-pink">
                     <i class="fa-solid fa-users-rectangle"></i>
                 </div>
-                <div class="menu-label">Laporan<br>Sosialisasi</div>
+                <div class="menu-text">Sosialisasi</div>
             </a>
-
         </div>
 
-        <div class="app-footer">
-            &copy; 2025 Amartha Microfinance<br>Regional Jawa Tengah
+        <div class="text-center mt-5 text-muted small opacity-50">
+            v1.0.2 &bull; Amartha Jateng 1
         </div>
 
     </div>
