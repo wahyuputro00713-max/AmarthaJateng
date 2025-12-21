@@ -10,70 +10,70 @@
 </head>
 <body>
 
-    <header class="app-header">
-        <div class="header-top">
-            <span class="fw-bold fs-5"><i class="fa-solid fa-layer-group me-2"></i>Amartha</span>
+    <header class="hero-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <span class="brand-logo"><i class="fa-solid fa-building-columns me-2"></i>Amartha</span>
             <div class="d-flex gap-2">
-                <a href="profil.html" class="btn-icon-circle"><i class="fa-solid fa-user"></i></a>
-                <button id="logoutBtn" class="btn-icon-circle bg-danger"><i class="fa-solid fa-power-off"></i></button>
+                <a href="profil.html" class="header-btn"><i class="fa-regular fa-user"></i></a>
+                <button id="logoutBtn" class="header-btn bg-danger border-0"><i class="fa-solid fa-power-off"></i></button>
             </div>
         </div>
-        
-        <div class="user-info">
-            <p>Selamat Pagi,</p>
-            <h4 id="userName">Memuat User...</h4>
+
+        <div class="user-greeting">
+            <p>Selamat Bekerja FO Amartha,</p>
+            <h3 id="userName">Memuat...</h3>
         </div>
     </header>
 
-    <div class="container-main">
+    <div class="main-container">
         
-        <a href="absensi.html" class="menu-absensi">
+        <a href="absensi.html" class="card-absensi text-decoration-none">
             <div class="d-flex align-items-center">
-                <div class="icon-big">
-                    <i class="fa-solid fa-fingerprint"></i>
+                <div class="icon-box-large">
+                    <i class="fa-solid fa-clock"></i>
                 </div>
-                <div>
-                    <h6 class="fw-bold m-0 text-dark">Absensi Harian</h6>
-                    <small class="text-muted">Masuk & Pulang Kerja</small>
+                <div class="absensi-info">
+                    <h5>Absensi Harian</h5>
+                    <span>Catat Masuk & Pulang</span>
                 </div>
             </div>
-            <i class="fa-solid fa-chevron-right text-muted"></i>
+            <i class="fa-solid fa-chevron-right text-secondary"></i>
         </a>
 
-        <span class="section-label">Laporan Lapangan</span>
+        <div class="section-title">Laporan Lapangan</div>
         
-        <div class="grid-menu">
-            <a href="report_validasi.html" class="menu-item">
+        <div class="menu-grid">
+            <a href="report_validasi.html" class="menu-card">
                 <div class="menu-icon bg-blue">
                     <i class="fa-solid fa-clipboard-check"></i>
                 </div>
-                <div class="menu-text">Validasi</div>
+                <div class="menu-title">Validasi<br>Lapangan</div>
             </a>
 
-            <a href="report_collection.html" class="menu-item">
+            <a href="report_collection.html" class="menu-card">
                 <div class="menu-icon bg-green">
                     <i class="fa-solid fa-hand-holding-dollar"></i>
                 </div>
-                <div class="menu-text">Collection</div>
+                <div class="menu-title">Collection<br>Harian</div>
             </a>
 
-            <a href="closing_modal.html" class="menu-item">
+            <a href="closing_modal.html" class="menu-card">
                 <div class="menu-icon bg-orange">
                     <i class="fa-solid fa-file-invoice-dollar"></i>
                 </div>
-                <div class="menu-text">Closing</div>
+                <div class="menu-title">Closing<br>Modal</div>
             </a>
 
-            <a href="report_sosialisasi.html" class="menu-item">
+            <a href="report_sosialisasi.html" class="menu-card">
                 <div class="menu-icon bg-pink">
                     <i class="fa-solid fa-users-rectangle"></i>
                 </div>
-                <div class="menu-text">Sosialisasi</div>
+                <div class="menu-title">Laporan<br>Sosialisasi</div>
             </a>
         </div>
 
         <div class="text-center mt-5 text-muted small opacity-50">
-            v1.0.2 &bull; Amartha Jateng 1
+            &copy; 2025 Amartha Regional Jateng
         </div>
 
     </div>
