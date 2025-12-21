@@ -1,208 +1,109 @@
 :root {
-    --primary: #8e26d4;       /* Ungu Amartha */
-    --primary-dark: #5e1891;  /* Ungu Gelap */
-    --white: #ffffff;
+    --primary: #8e26d4;
+    --primary-dark: #5e1891;
     --text-dark: #2c3e50;
     --text-grey: #95a5a6;
 }
 
 body {
-    /* Background Gradient Premium */
     background: radial-gradient(circle at top right, #9c27b0, transparent 40%),
                 radial-gradient(circle at bottom left, #673ab7, transparent 40%),
                 linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
     background-attachment: fixed;
     font-family: 'Segoe UI', sans-serif;
     min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-    margin: 0;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px; margin: 0;
 }
 
-/* KARTU LOGIN KACA (GLASSMORPHISM) */
 .login-card {
-    background: rgba(255, 255, 255, 0.95); /* Transparan dikit */
-    backdrop-filter: blur(20px);           /* Efek Blur */
-    -webkit-backdrop-filter: blur(20px);
-    border-radius: 24px;
-    padding: 40px 30px;
-    width: 100%;
-    max-width: 380px;
-    text-align: center;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.2); /* Bayangan Halus Lebar */
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border-radius: 24px; padding: 40px 30px;
+    width: 100%; max-width: 380px; text-align: center;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.2);
     border: 1px solid rgba(255, 255, 255, 0.5);
-    position: relative;
-    overflow: hidden;
+    position: relative; overflow: hidden;
 }
 
-/* Garis Hiasan Atas */
 .login-card::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; width: 100%; height: 6px;
+    content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 6px;
     background: linear-gradient(90deg, var(--primary), #d232c9);
 }
 
-.logo-img {
-    width: 160px;
-    margin-bottom: 25px;
-    filter: drop-shadow(0 5px 10px rgba(0,0,0,0.1));
-}
+.logo-img { width: 160px; margin-bottom: 25px; }
+.title-text { font-size: 1.5rem; font-weight: 800; color: var(--text-dark); margin-bottom: 5px; }
+.subtitle-text { font-size: 0.9rem; color: var(--text-grey); margin-bottom: 30px; }
 
-.title-text {
-    font-size: 1.5rem;
-    font-weight: 800;
-    color: var(--text-dark);
-    margin-bottom: 5px;
-    letter-spacing: -0.5px;
-}
-
-.subtitle-text {
-    font-size: 0.9rem;
-    color: var(--text-grey);
-    margin-bottom: 30px;
-}
-
-/* INPUT FORM MODERN */
+/* --- FORM STYLE FIX --- */
 .input-group-modern {
-    position: relative;
-    margin-bottom: 20px;
-    text-align: left;
+    margin-bottom: 20px; text-align: left;
 }
 
 .input-label {
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: var(--text-grey);
-    margin-bottom: 8px;
-    display: block;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    font-size: 0.75rem; font-weight: 700; color: var(--text-grey);
+    margin-bottom: 8px; display: block; text-transform: uppercase;
+}
+
+/* Wrapper Kunci: Menjaga ikon tetap di dalam kotak */
+.input-wrapper {
+    position: relative;
+    width: 100%;
 }
 
 .form-control {
     width: 100%;
-    /* Kiri 45px (Gembok), Kanan 45px (Mata) */
-    padding: 14px 45px 14px 45px; 
+    height: 50px; /* Tinggi Fix */
+    padding: 10px 45px 10px 45px; /* Kiri Kanan lega untuk ikon */
     border-radius: 12px;
     border: 2px solid #f0f2f5;
     background: #f8f9fa;
-    font-size: 1rem;
-    color: var(--text-dark);
-    transition: all 0.3s;
-    box-sizing: border-box; /* Wajib agar padding tidak merusak lebar */
-    height: 50px; /* Pastikan tinggi input konsisten */
+    font-size: 1rem; color: var(--text-dark);
+    box-sizing: border-box;
 }
 
-/* Style Ikon Kiri (Gembok/ID) */
-.input-icon {
+.form-control:focus {
+    background: #fff; border-color: var(--primary); outline: none;
+    box-shadow: 0 0 0 4px rgba(142, 38, 212, 0.1);
+}
+
+/* Ikon Kiri (ID & Gembok) */
+.input-icon-left {
     position: absolute;
-    top: 50%;                    /* Titik tengah vertikal */
-    transform: translateY(-50%); /* Tarik mundur setengah ukuran ikon agar pas tengah */
+    top: 50%;
+    transform: translateY(-50%); /* Center Vertikal Presisi */
     left: 15px;
     color: #b0b3b8;
     font-size: 1.1rem;
-    pointer-events: none;        /* Agar klik tembus ke input */
+    pointer-events: none;
     transition: color 0.3s;
-    z-index: 5;
 }
 
-/* Style Ikon Kanan (Mata) */
+.form-control:focus ~ .input-icon-left { color: var(--primary); }
+
+/* Ikon Kanan (Mata) */
 .toggle-password {
     position: absolute;
-    top: 50%;                    /* Titik tengah vertikal */
-    transform: translateY(-50%); /* Tarik mundur setengah ukuran ikon */
+    top: 50%;
+    transform: translateY(-50%); /* Center Vertikal Presisi */
     right: 15px;
     color: #b0b3b8;
     font-size: 1rem;
     cursor: pointer;
-    z-index: 6;
-    transition: color 0.3s;
+    z-index: 10;
 }
+.toggle-password:hover { color: var(--primary); }
 
-/* Efek Hover Mata */
-.toggle-password:hover {
-    color: var(--primary);
-}
-
-.form-control:focus {
-    background: #fff;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 4px rgba(142, 38, 212, 0.1);
-    outline: none;
-}
-
-/* Ikon di dalam Input */
-.input-icon {
-    position: absolute;
-    top: 42px; /* Sesuaikan dengan tinggi label */
-    left: 15px;
-    color: #b0b3b8;
-    font-size: 1.1rem;
-    transition: color 0.3s;
-}
-
-.form-control:focus + .input-icon, 
-.form-control:not(:placeholder-shown) + .input-icon {
-    color: var(--primary); /* Ikon jadi ungu saat diketik */
-}
-
-/* TOMBOL LOGIN */
+/* Tombol */
 .btn-login {
     background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-    color: white;
-    border: none;
-    border-radius: 12px;
-    padding: 16px;
-    font-weight: 700;
-    font-size: 1rem;
-    width: 100%;
-    cursor: pointer;
+    color: white; border: none; border-radius: 12px;
+    padding: 16px; font-weight: 700; font-size: 1rem; width: 100%;
     box-shadow: 0 10px 20px rgba(142, 38, 212, 0.3);
-    transition: transform 0.2s, box-shadow 0.2s;
-    letter-spacing: 0.5px;
+    cursor: pointer; transition: transform 0.2s;
 }
+.btn-login:active { transform: scale(0.98); }
 
-.btn-login:active {
-    transform: scale(0.98);
-    box-shadow: 0 5px 10px rgba(142, 38, 212, 0.2);
-}
-
-/* FOOTER */
-.footer-link {
-    margin-top: 25px;
-    font-size: 0.9rem;
-    color: var(--text-grey);
-}
-
-.footer-link a {
-    color: var(--primary);
-    text-decoration: none;
-    font-weight: 700;
-}
-
-/* LOADING OVERLAY */
-.spinner-overlay {
-    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(255,255,255,0.9);
-    z-index: 20; border-radius: 24px;
-    display: none; flex-direction: column;
-    align-items: center; justify-content: center;
-}
-
-.toggle-password {
-    position: absolute;
-    top: 42px; /* Sesuaikan tinggi agar sejajar tengah */
-    right: 15px; /* Tempel ke kanan */
-    color: #b0b3b8;
-    font-size: 1rem;
-    cursor: pointer; /* Ubah kursor jadi telunjuk saat diarahkan */
-    z-index: 5;
-    transition: color 0.3s;
-}
-
-.toggle-password:hover {
-    color: var(--primary);
-}
+.footer-link { margin-top: 25px; font-size: 0.9rem; color: var(--text-grey); }
+.footer-link a { color: var(--primary); text-decoration: none; font-weight: 700; }
+.spinner-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.9); z-index: 20; border-radius: 24px; display: none; align-items: center; justify-content: center; flex-direction: column; }
