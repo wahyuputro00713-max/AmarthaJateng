@@ -1,94 +1,160 @@
 :root {
-    --primary-purple: #8e26d4;
-    --dark-purple: #701eb0;
-    --bg-light: #f5f7fa;
+    --primary: #8e26d4;       /* Ungu Amartha */
+    --primary-dark: #5e1891;  /* Ungu Gelap */
+    --white: #ffffff;
+    --text-dark: #2c3e50;
+    --text-grey: #95a5a6;
 }
 
 body {
-    background: linear-gradient(135deg, var(--primary-purple) 0%, #5e1891 100%);
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    /* Background Gradient Premium */
+    background: radial-gradient(circle at top right, #9c27b0, transparent 40%),
+                radial-gradient(circle at bottom left, #673ab7, transparent 40%),
+                linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    background-attachment: fixed;
+    font-family: 'Segoe UI', sans-serif;
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 20px;
+    margin: 0;
 }
 
-/* KARTU LOGIN MELAYANG */
+/* KARTU LOGIN KACA (GLASSMORPHISM) */
 .login-card {
-    background: white;
-    border-radius: 25px;
-    box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+    background: rgba(255, 255, 255, 0.95); /* Transparan dikit */
+    backdrop-filter: blur(20px);           /* Efek Blur */
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 24px;
     padding: 40px 30px;
     width: 100%;
-    max-width: 400px;
+    max-width: 380px;
     text-align: center;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.2); /* Bayangan Halus Lebar */
+    border: 1px solid rgba(255, 255, 255, 0.5);
     position: relative;
     overflow: hidden;
 }
 
-.logo-container img {
-    width: 180px;
-    margin-bottom: 10px;
+/* Garis Hiasan Atas */
+.login-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 6px;
+    background: linear-gradient(90deg, var(--primary), #d232c9);
 }
 
-h4 {
-    color: #444;
-    font-weight: 700;
+.logo-img {
+    width: 160px;
+    margin-bottom: 25px;
+    filter: drop-shadow(0 5px 10px rgba(0,0,0,0.1));
+}
+
+.title-text {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--text-dark);
     margin-bottom: 5px;
+    letter-spacing: -0.5px;
 }
 
-.text-muted {
+.subtitle-text {
     font-size: 0.9rem;
+    color: var(--text-grey);
     margin-bottom: 30px;
-    display: block;
 }
 
-/* INPUT FORM */
+/* INPUT FORM MODERN */
+.input-group-modern {
+    position: relative;
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+.input-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-grey);
+    margin-bottom: 8px;
+    display: block;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
 .form-control {
+    width: 100%;
+    padding: 14px 15px 14px 45px; /* Padding kiri untuk ikon */
     border-radius: 12px;
-    padding: 15px;
-    border: 1px solid #ddd;
-    background-color: #f8f9fa;
+    border: 2px solid #f0f2f5;
+    background: #f8f9fa;
     font-size: 1rem;
-    margin-bottom: 15px;
+    color: var(--text-dark);
     transition: all 0.3s;
+    box-sizing: border-box; /* Agar padding tidak merusak lebar */
 }
 
 .form-control:focus {
-    background-color: #fff;
-    border-color: var(--primary-purple);
+    background: #fff;
+    border-color: var(--primary);
     box-shadow: 0 0 0 4px rgba(142, 38, 212, 0.1);
+    outline: none;
 }
 
-/* TOMBOL */
-.btn-primary {
-    background: var(--primary-purple);
+/* Ikon di dalam Input */
+.input-icon {
+    position: absolute;
+    top: 42px; /* Sesuaikan dengan tinggi label */
+    left: 15px;
+    color: #b0b3b8;
+    font-size: 1.1rem;
+    transition: color 0.3s;
+}
+
+.form-control:focus + .input-icon, 
+.form-control:not(:placeholder-shown) + .input-icon {
+    color: var(--primary); /* Ikon jadi ungu saat diketik */
+}
+
+/* TOMBOL LOGIN */
+.btn-login {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: white;
     border: none;
     border-radius: 12px;
-    padding: 15px;
-    font-weight: bold;
+    padding: 16px;
+    font-weight: 700;
     font-size: 1rem;
     width: 100%;
-    margin-top: 10px;
-    box-shadow: 0 5px 15px rgba(142, 38, 212, 0.3);
+    cursor: pointer;
+    box-shadow: 0 10px 20px rgba(142, 38, 212, 0.3);
+    transition: transform 0.2s, box-shadow 0.2s;
+    letter-spacing: 0.5px;
 }
 
-.footer-text {
-    margin-top: 20px;
-    font-size: 0.85rem;
-    color: #888;
+.btn-login:active {
+    transform: scale(0.98);
+    box-shadow: 0 5px 10px rgba(142, 38, 212, 0.2);
 }
 
-.btn-link {
-    color: var(--primary-purple);
+/* FOOTER */
+.footer-link {
+    margin-top: 25px;
+    font-size: 0.9rem;
+    color: var(--text-grey);
+}
+
+.footer-link a {
+    color: var(--primary);
     text-decoration: none;
-    font-weight: 600;
+    font-weight: 700;
 }
 
+/* LOADING OVERLAY */
 .spinner-overlay {
     position: absolute; top: 0; left: 0; right: 0; bottom: 0;
     background: rgba(255,255,255,0.9);
-    display: none; align-items: center; justify-content: center;
-    z-index: 10; border-radius: 25px;
+    z-index: 20; border-radius: 24px;
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center;
 }
