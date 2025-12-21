@@ -84,14 +84,15 @@ body {
 
 .form-control {
     width: 100%;
-    padding: 14px 15px 14px 45px; /* Padding kiri untuk ikon */
+    /* Padding kiri 45px (untuk ikon gembok), Padding Kanan 45px (untuk ikon mata) */
+    padding: 14px 45px 14px 45px; 
     border-radius: 12px;
     border: 2px solid #f0f2f5;
     background: #f8f9fa;
     font-size: 1rem;
     color: var(--text-dark);
     transition: all 0.3s;
-    box-sizing: border-box; /* Agar padding tidak merusak lebar */
+    box-sizing: border-box;
 }
 
 .form-control:focus {
@@ -157,4 +158,19 @@ body {
     z-index: 20; border-radius: 24px;
     display: none; flex-direction: column;
     align-items: center; justify-content: center;
+}
+
+.toggle-password {
+    position: absolute;
+    top: 42px; /* Sesuaikan tinggi agar sejajar tengah */
+    right: 15px; /* Tempel ke kanan */
+    color: #b0b3b8;
+    font-size: 1rem;
+    cursor: pointer; /* Ubah kursor jadi telunjuk saat diarahkan */
+    z-index: 5;
+    transition: color 0.3s;
+}
+
+.toggle-password:hover {
+    color: var(--primary);
 }
