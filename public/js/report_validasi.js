@@ -18,7 +18,7 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 // ⚠️ PASTE URL SCRIPT BARU ANDA DISINI ⚠️
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyS_Sv3SM72NtvtwtXOTr-46H2DdGjgp_2V9ImOt6pqjuLX20Nb9FNg-AV88eomcFT1/exec"; 
+const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; 
 
 // Data Dropdown Point
 const dataPoints = {
