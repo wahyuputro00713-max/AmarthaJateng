@@ -84,7 +84,7 @@ body {
 
 .form-control {
     width: 100%;
-    /* Padding kiri 45px (untuk ikon gembok), Padding Kanan 45px (untuk ikon mata) */
+    /* Kiri 45px (Gembok), Kanan 45px (Mata) */
     padding: 14px 45px 14px 45px; 
     border-radius: 12px;
     border: 2px solid #f0f2f5;
@@ -92,7 +92,39 @@ body {
     font-size: 1rem;
     color: var(--text-dark);
     transition: all 0.3s;
-    box-sizing: border-box;
+    box-sizing: border-box; /* Wajib agar padding tidak merusak lebar */
+    height: 50px; /* Pastikan tinggi input konsisten */
+}
+
+/* Style Ikon Kiri (Gembok/ID) */
+.input-icon {
+    position: absolute;
+    top: 50%;                    /* Titik tengah vertikal */
+    transform: translateY(-50%); /* Tarik mundur setengah ukuran ikon agar pas tengah */
+    left: 15px;
+    color: #b0b3b8;
+    font-size: 1.1rem;
+    pointer-events: none;        /* Agar klik tembus ke input */
+    transition: color 0.3s;
+    z-index: 5;
+}
+
+/* Style Ikon Kanan (Mata) */
+.toggle-password {
+    position: absolute;
+    top: 50%;                    /* Titik tengah vertikal */
+    transform: translateY(-50%); /* Tarik mundur setengah ukuran ikon */
+    right: 15px;
+    color: #b0b3b8;
+    font-size: 1rem;
+    cursor: pointer;
+    z-index: 6;
+    transition: color 0.3s;
+}
+
+/* Efek Hover Mata */
+.toggle-password:hover {
+    color: var(--primary);
 }
 
 .form-control:focus {
