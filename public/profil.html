@@ -6,88 +6,103 @@
     <title>Profil Saya</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="styles/home.css" rel="stylesheet">
+    <style>
+        :root { --primary-purple: #8e26d4; --dark-purple: #701eb0; --bg-light: #f5f7fa; }
+        body { background-color: var(--bg-light); font-family: 'Segoe UI', sans-serif; padding-top: 80px; padding-bottom: 40px; }
+        .navbar { background: linear-gradient(90deg, var(--primary-purple), var(--dark-purple)); box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .profile-card { border: none; border-radius: 15px; background: white; padding: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); text-align: center; margin-bottom: 20px; }
+        .profile-img { width: 100px; height: 100px; background: #e0e0e0; border-radius: 50%; object-fit: cover; margin-bottom: 15px; border: 3px solid var(--primary-purple); }
+        .form-control:disabled, .form-control[readonly] { background-color: #f8f9fa; border-color: #eee; color: #6c757d; }
+        .btn-purple { background-color: var(--primary-purple); color: white; border: none; }
+        .btn-purple:hover { background-color: var(--dark-purple); color: white; }
+    </style>
 </head>
 <body>
 
-    <header class="hero-header" style="padding-bottom: 60px; border-radius: 0 0 30px 30px;">
-        <div class="d-flex align-items-center">
-            <a href="home.html" class="text-white fs-4 me-3"><i class="fa-solid fa-arrow-left"></i></a>
-            <h5 class="m-0 fw-bold">Profil Saya</h5>
+    <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="home.html">
+                <i class="fa-solid fa-chevron-left me-2"></i> Profil Saya
+            </a>
+            <button class="btn btn-sm btn-outline-light" id="btnLogout">
+                <i class="fa-solid fa-right-from-bracket"></i> Keluar
+            </button>
         </div>
-    </header>
+    </nav>
 
-    <div class="main-container" style="margin-top: -40px;">
-        
-        <div class="profile-section">
-            <div class="profile-pic-wrapper">
-                <img src="assets/default-avatar.png" id="profileImg" class="profile-pic" 
-                     onerror="this.src='https://ui-avatars.com/api/?name=User&background=random'">
+    <div class="container">
+        <div class="profile-card">
+            <img src="https://ui-avatars.com/api/?name=User&background=8e26d4&color=fff" id="profilePic" class="profile-img" alt="Profile">
+            <h5 class="fw-bold mb-1" id="displayName">Memuat...</h5>
+            <p class="text-muted small" id="displayEmail">user@email.com</p>
+        </div>
+
+        <div class="card border-0 shadow-sm rounded-4 p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h6 class="fw-bold text-purple m-0"><i class="fa-solid fa-user-gear me-2"></i>Informasi Akun</h6>
                 
-                <label for="fileInput" class="btn-camera" id="btnCamera" style="display: none;">
-                    <i class="fa-solid fa-camera"></i>
-                </label>
-                <input type="file" id="fileInput" accept="image/*" style="display: none;">
+                <button class="btn btn-sm btn-outline-primary" id="btnEdit">
+                    <i class="fa-solid fa-pen"></i> Edit
+                </button>
+                
+                <button class="btn btn-sm btn-success d-none" id="btnSave">
+                    <i class="fa-solid fa-check"></i> Simpan
+                </button>
             </div>
-            <h5 class="mt-3 fw-bold mb-0" id="displayName">Memuat...</h5>
-            <small class="text-muted" id="displayId">ID: ...</small>
-        </div>
 
-        <div class="card-box shadow-sm">
-            <form id="profilForm">
-                
+            <form id="profileForm">
                 <div class="mb-3">
-                    <label class="form-label text-muted small">NAMA LENGKAP</label>
-                    <input type="text" class="form-control bg-light" id="namaInput" readonly>
+                    <label class="form-label small text-muted">Nama Lengkap</label>
+                    <input type="text" class="form-control editable-input" id="namaInput" readonly>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small text-muted">ID Karyawan</label>
+                    <input type="text" class="form-control editable-input" id="idKaryawanInput" readonly>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small text-muted">Nomor HP</label>
+                    <input type="tel" class="form-control editable-input" id="hpInput" readonly>
                 </div>
 
                 <div class="row">
                     <div class="col-6 mb-3">
-                        <label class="form-label text-muted small">JABATAN</label>
-                        <input type="text" class="form-control bg-light" id="jabatanInput" readonly>
+                        <label class="form-label small text-muted">Jabatan</label>
+                        <select class="form-select editable-input" id="jabatanInput" disabled>
+                            <option value="BM">BM</option>
+                            <option value="BP">BP</option>
+                            <option value="RM">RM</option>
+                            <option value="AM">AM</option>
+                        </select>
                     </div>
                     <div class="col-6 mb-3">
-                        <label class="form-label text-muted small">REGIONAL</label>
-                        <input type="text" class="form-control bg-light" id="regionalInput" readonly>
+                        <label class="form-label small text-muted">Regional</label>
+                        <select class="form-select editable-input" id="regionalInput" disabled>
+                            <option value="Jawa Tengah 1">Jawa Tengah 1</option>
+                            <option value="Jawa Tengah 2">Jawa Tengah 2</option>
+                        </select>
                     </div>
                 </div>
 
-                <hr class="my-3">
-                <p class="section-label text-primary mb-3"><i class="fa-solid fa-location-dot me-1"></i> Area Kerja</p>
+                <div class="mb-3">
+                    <label class="form-label small text-muted">Area</label>
+                    <input type="text" class="form-control editable-input" id="areaInput" readonly placeholder="Contoh: Klaten">
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label small text-muted">Point</label>
+                    <input type="text" class="form-control editable-input" id="pointInput" readonly placeholder="Contoh: 01 Wedi">
+                </div>
 
                 <div class="mb-3">
-                    <label class="form-label text-dark fw-bold">Area</label>
-                    <select class="form-select" id="areaSelect" disabled>
-                        <option value="">Pilih Area...</option>
-                        <option value="Klaten">Klaten</option>
-                        <option value="Magelang">Magelang</option>
-                        <option value="Solo">Solo</option>
-                        <option value="Solo 2">Solo 2</option>
-                        <option value="Wonogiri">Wonogiri</option>
-                        <option value="Yogyakarta">Yogyakarta</option>
-                        <option value="Yogyakarta 2">Yogyakarta 2</option>
-                    </select>
-                </div>
-
-                <div class="mb-4">
-                    <label class="form-label text-dark fw-bold">Point</label>
-                    <select class="form-select" id="pointSelect" disabled>
-                        <option value="">Pilih Area Dulu...</option>
-                    </select>
-                </div>
-
-                <div id="actionButtons" class="d-none gap-2">
-                    <button type="button" id="btnBatal" class="btn btn-light w-100 py-2 fw-bold text-muted">Batal</button>
-                    <button type="submit" id="btnSimpan" class="btn btn-primary w-100 py-2 fw-bold" style="background: var(--primary); border:none;">Simpan</button>
+                    <label class="form-label small text-muted">Email (Tidak Bisa Diedit)</label>
+                    <input type="email" class="form-control bg-light" id="emailInput" readonly disabled>
                 </div>
 
             </form>
         </div>
     </div>
-
-    <button id="btnEdit" class="fab-edit">
-        <i class="fa-solid fa-pen"></i>
-    </button>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script type="module" src="./js/profil.js"></script>
