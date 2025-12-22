@@ -2,6 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebas
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
+// --- KONFIGURASI FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyC8wOUkyZTa4W2hHHGZq_YKnGFqYEGOuH8",
     authDomain: "amarthajatengwebapp.firebaseapp.com",
@@ -34,12 +35,80 @@ const pointSelect = document.getElementById('pointSelect');
 const btnGetLoc = document.getElementById('btnGetLoc');
 const statusLokasi = document.getElementById('statusLokasi');
 
-// --- 1. SET TANGGAL ---
+// --- 1. SET TANGGAL OTOMATIS ---
 if(document.getElementById('tanggalInput')) {
     document.getElementById('tanggalInput').value = new Date().toISOString().split('T')[0];
 }
 
-// --- 2. FORMAT NO HP ---
+// --- 2. JALANKAN LOKASI OTOMATIS SAAT LOAD ---
+window.addEventListener('load', () => {
+    // Langsung cari lokasi saat halaman terbuka
+    getLokasiOtomatis();
+});
+
+// Fungsi Pencari Lokasi (Bisa dipanggil tombol / otomatis)
+function getLokasiOtomatis() {
+    if (navigator.geolocation) {
+        if(statusLokasi) {
+            statusLokasi.textContent = "Sedang mendeteksi lokasi...";
+            statusLokasi.className = "text-warning text-center mt-1";
+        }
+        
+        navigator.geolocation.getCurrentPosition(async (position) => {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            
+            // ISI GEOTAG LANGSUNG
+            const geotagInput = document.getElementById('geotagInput');
+            if(geotagInput) geotagInput.value = `${lat}, ${lng}`;
+            
+            // AMBIL ALAMAT
+            await getAddressFromCoordinates(lat, lng);
+
+        }, (error) => {
+            console.error(error);
+            if(statusLokasi) {
+                statusLokasi.textContent = "Gagal deteksi otomatis. Pastikan GPS Aktif.";
+                statusLokasi.className = "text-danger text-center mt-1";
+            }
+        });
+    } else {
+        alert("Browser tidak support GPS.");
+    }
+}
+
+// Tetap pasang event di tombol (untuk refresh lokasi manual)
+if (btnGetLoc) {
+    btnGetLoc.addEventListener('click', getLokasiOtomatis);
+}
+
+// --- 3. REVERSE GEOCODING (KOORDINAT -> ALAMAT) ---
+async function getAddressFromCoordinates(lat, lng) {
+    try {
+        if(statusLokasi) statusLokasi.textContent = "Mengambil nama daerah...";
+        
+        const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`);
+        const data = await response.json();
+        const addr = data.address;
+        
+        document.getElementById('desaInput').value = addr.village || addr.suburb || addr.hamlet || "";
+        document.getElementById('kecamatanInput').value = addr.county || addr.town || addr.municipality || "";
+        document.getElementById('kabupatenInput').value = addr.city || addr.regency || addr.state_district || "";
+        
+        if(statusLokasi) {
+            statusLokasi.textContent = "Lokasi Terkunci: " + (addr.village || addr.suburb || "Desa tidak dikenal");
+            statusLokasi.className = "text-success text-center mt-1 fw-bold";
+        }
+
+    } catch (error) {
+        if(statusLokasi) {
+            statusLokasi.textContent = "Gagal ambil nama alamat, tapi Geotag aman.";
+            statusLokasi.className = "text-warning text-center mt-1";
+        }
+    }
+}
+
+// --- 4. FORMAT NO HP (AUTO 62) ---
 const hpInput = document.getElementById('noHpInput');
 const hpClean = document.getElementById('noHpClean');
 if (hpInput) {
@@ -51,7 +120,7 @@ if (hpInput) {
     });
 }
 
-// --- 3. AREA & POINT ---
+// --- 5. LOGIKA AREA & POINT ---
 function updatePointsDropdown(selectedArea) {
     const points = dataPoints[selectedArea] || [];
     pointSelect.innerHTML = '<option value="" selected disabled>Pilih Point...</option>';
@@ -73,7 +142,7 @@ if (areaSelect) {
     });
 }
 
-// --- 4. LOAD PROFIL ---
+// --- 6. LOAD PROFIL ---
 onAuthStateChanged(auth, (user) => {
     if (user) {
         const userRef = ref(db, 'users/' + user.uid);
@@ -112,51 +181,7 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
-// --- 5. LOKASI OTOMATIS + GEOTAG ---
-if (btnGetLoc) {
-    btnGetLoc.addEventListener('click', () => {
-        if (navigator.geolocation) {
-            statusLokasi.textContent = "Mencari titik GPS...";
-            statusLokasi.className = "text-warning text-center mt-1";
-            
-            navigator.geolocation.getCurrentPosition(async (position) => {
-                const lat = position.coords.latitude;
-                const lng = position.coords.longitude;
-                
-                // ISI GEOTAG
-                document.getElementById('geotagInput').value = `${lat}, ${lng}`;
-                
-                await getAddressFromCoordinates(lat, lng);
-            }, (error) => {
-                statusLokasi.textContent = "Gagal. Aktifkan GPS Anda.";
-                statusLokasi.className = "text-danger text-center mt-1";
-            });
-        } else {
-            alert("Browser tidak support GPS.");
-        }
-    });
-}
-
-async function getAddressFromCoordinates(lat, lng) {
-    try {
-        statusLokasi.textContent = "Mengambil data alamat...";
-        const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`);
-        const data = await response.json();
-        const addr = data.address;
-        
-        document.getElementById('desaInput').value = addr.village || addr.suburb || addr.hamlet || "";
-        document.getElementById('kecamatanInput').value = addr.county || addr.town || addr.municipality || "";
-        document.getElementById('kabupatenInput').value = addr.city || addr.regency || addr.state_district || "";
-        
-        statusLokasi.textContent = "Lokasi & Geotag ditemukan!";
-        statusLokasi.className = "text-success text-center mt-1 fw-bold";
-    } catch (error) {
-        statusLokasi.textContent = "Gagal ambil alamat, tapi Geotag tersimpan.";
-        statusLokasi.className = "text-warning text-center mt-1";
-    }
-}
-
-// --- 6. PREVIEW FOTO ---
+// --- 7. PREVIEW FOTO ---
 const fileInput = document.getElementById('fotoInput');
 const previewContainer = document.getElementById('previewContainer');
 if (fileInput) {
@@ -178,7 +203,7 @@ if (fileInput) {
     });
 }
 
-// --- 7. SUBMIT FORM ---
+// --- 8. SUBMIT FORM ---
 document.getElementById('sosialisasiForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     
@@ -193,7 +218,7 @@ document.getElementById('sosialisasiForm').addEventListener('submit', async (e) 
     if (!areaSelect.value) { alert("❌ Area belum terpilih!"); return; }
     if (!pointSelect.value) { alert("❌ Point belum terpilih!"); return; }
     if (fileInput.files.length === 0) { alert("❌ Wajib upload foto!"); return; }
-    if (!document.getElementById('geotagInput').value) { alert("❌ Wajib ambil lokasi (Geotag)!"); return; }
+    if (!document.getElementById('geotagInput').value) { alert("❌ Sedang mengambil lokasi... Tunggu sebentar."); return; }
 
     const loadingOverlay = document.getElementById('loadingOverlay');
     loadingOverlay.style.display = 'flex';
@@ -218,7 +243,7 @@ document.getElementById('sosialisasiForm').addEventListener('submit', async (e) 
             desa: document.getElementById('desaInput').value,
             kecamatan: document.getElementById('kecamatanInput').value,
             kabupaten: document.getElementById('kabupatenInput').value,
-            geotag: document.getElementById('geotagInput').value, // KIRIM GEOTAG
+            geotag: document.getElementById('geotagInput').value,
             
             foto: base64.replace(/^data:image\/(png|jpeg|jpg);base64,/, ""),
             namaFoto: "Sos_" + file.name,
