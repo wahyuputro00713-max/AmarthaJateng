@@ -19,7 +19,7 @@ const db = getDatabase(app);
 
 // Data Point (Referensi Area)
 const dataPoints = {
-    "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucul"],
+    "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucuk"],
     "Magelang": ["Grabag", "Mungkid", "Pakis", "Salam"],
     "Solo": ["Banjarsari", "Gemolong", "Masaran", "Tangen"],
     "Solo 2": ["Gatak", "Jumantono", "Karanganyar", "Nguter", "Pasar kliwon"],
