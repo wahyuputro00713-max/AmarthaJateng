@@ -17,7 +17,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// Data Point (Sama seperti sebelumnya)
+// Data Point
 const dataPoints = {
     "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucul"],
     "Magelang": ["Grabag", "Mungkid", "Pakis", "Salam"],
@@ -47,7 +47,7 @@ const elements = {
 };
 
 let currentUserUid = null;
-let newPhotoBase64 = null; // Menyimpan foto baru sementara
+let newPhotoBase64 = null; 
 
 // 1. CEK LOGIN & LOAD DATA
 onAuthStateChanged(auth, (user) => {
@@ -73,7 +73,7 @@ function loadUserData(uid) {
             elements.displayNama.textContent = data.nama || "User";
             elements.displayId.textContent = "ID: " + (data.idKaryawan || "-");
 
-            // Isi Foto (Jika ada)
+            // Isi Foto
             if (data.fotoProfil) {
                 elements.img.src = data.fotoProfil;
             }
@@ -98,38 +98,49 @@ function updatePointsDropdown(selectedArea) {
         option.textContent = point;
         elements.point.appendChild(option);
     });
-    elements.point.disabled = false;
+    // Jika sedang mode edit, buka dropdown point
+    if(!elements.area.disabled) {
+        elements.point.disabled = false;
+    }
 }
 
 elements.area.addEventListener('change', function() {
     updatePointsDropdown(this.value);
 });
 
-// 3. MODE EDIT
+// 3. MODE EDIT (PERBAIKAN UTAMA)
 elements.btnEdit.addEventListener('click', () => {
-    // Buka Input
+    // A. Buka Kunci SEMUA Textbox (Hapus readonly & background abu-abu)
+    [elements.nama, elements.jabatan, elements.regional].forEach(input => {
+        input.removeAttribute('readonly');  // Hapus kunci
+        input.classList.remove('bg-light'); // Hapus warna abu
+        input.classList.add('bg-white');    // Ganti warna putih
+    });
+
+    // B. Buka Dropdown Area & Point
     elements.area.disabled = false;
     elements.point.disabled = false;
     
-    // Tampilkan Tombol Aksi
+    // C. Tampilkan Tombol Simpan & Kamera
     elements.btnEdit.style.display = 'none';
     elements.actionButtons.classList.remove('d-none');
     elements.actionButtons.classList.add('d-flex');
+    elements.btnCamera.style.display = 'flex'; // Munculkan ikon kamera
     
-    // Tampilkan Kamera Upload
-    elements.btnCamera.style.display = 'flex';
+    // D. Fokus ke nama
+    elements.nama.focus();
+    alert("Mode Edit Aktif. Silakan ubah data.");
 });
 
 // 4. BATAL EDIT
 elements.btnBatal.addEventListener('click', () => {
-    location.reload(); // Refresh halaman untuk reset data
+    location.reload(); 
 });
 
-// 5. PREVIEW FOTO (Saat pilih file)
+// 5. PREVIEW FOTO
 elements.fileInput.addEventListener('change', function() {
     const file = this.files[0];
     if (file) {
-        // Cek Ukuran (Maks 2MB)
         if (file.size > 2 * 1024 * 1024) {
             alert("⚠️ Ukuran foto terlalu besar! Maksimal 2MB.");
             return;
@@ -137,23 +148,26 @@ elements.fileInput.addEventListener('change', function() {
 
         const reader = new FileReader();
         reader.onload = function(e) {
-            elements.img.src = e.target.result; // Ganti gambar di layar
-            newPhotoBase64 = e.target.result;   // Simpan string Base64
+            elements.img.src = e.target.result; 
+            newPhotoBase64 = e.target.result;   
         };
         reader.readAsDataURL(file);
     }
 });
 
-// 6. SIMPAN DATA
+// 6. SIMPAN DATA (PERBAIKAN SIMPAN SEMUA)
 elements.form.addEventListener('submit', async (e) => {
     e.preventDefault();
     
+    // Masukkan data NAMA, JABATAN, REGIONAL ke update
     const updates = {
+        nama: elements.nama.value,       // <-- Data Baru
+        jabatan: elements.jabatan.value, // <-- Data Baru
+        regional: elements.regional.value,// <-- Data Baru
         area: elements.area.value,
         point: elements.point.value
     };
 
-    // Jika ada foto baru, ikut disimpan
     if (newPhotoBase64) {
         updates.fotoProfil = newPhotoBase64;
     }
@@ -161,7 +175,7 @@ elements.form.addEventListener('submit', async (e) => {
     try {
         await update(ref(db, 'users/' + currentUserUid), updates);
         alert("✅ Profil Berhasil Diupdate!");
-        location.reload();
+        location.reload(); // Refresh halaman agar terkunci kembali
     } catch (error) {
         console.error(error);
         alert("Gagal update profil: " + error.message);
