@@ -2,7 +2,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebas
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// --- KONFIGURASI FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyC8wOUkyZTa4W2hHHGZq_YKnGFqYEGOuH8",
     authDomain: "amarthajatengwebapp.firebaseapp.com",
@@ -20,7 +19,6 @@ const db = getDatabase(app);
 // 🔴 PASTE URL CLOUDFLARE ANDA DI SINI 🔴
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzKSLFYjD2Z8CSW2uT59rTjGMGpaPULVKvAsHKznItHlA8WIYGOveTJEcXcPbVESStN/exec"; 
 
-// Data Point
 const dataPoints = {
     "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucul"],
     "Magelang": ["Grabag", "Mungkid", "Pakis", "Salam"],
@@ -36,33 +34,24 @@ const pointSelect = document.getElementById('pointSelect');
 const btnGetLoc = document.getElementById('btnGetLoc');
 const statusLokasi = document.getElementById('statusLokasi');
 
-// --- 1. SET TANGGAL OTOMATIS ---
+// --- 1. SET TANGGAL ---
 if(document.getElementById('tanggalInput')) {
     document.getElementById('tanggalInput').value = new Date().toISOString().split('T')[0];
 }
 
-// --- 2. LOGIKA FORMAT NO HP (AUTO 62) ---
+// --- 2. FORMAT NO HP ---
 const hpInput = document.getElementById('noHpInput');
 const hpClean = document.getElementById('noHpClean');
-
 if (hpInput) {
     hpInput.addEventListener('input', function() {
-        // Ambil angka saja
         let raw = this.value.replace(/[^0-9]/g, '');
-        
-        // Logika konversi ke 62
-        if (raw.startsWith('0')) {
-            raw = '62' + raw.substring(1); // Ganti 0 depan jadi 62
-        } else if (raw.startsWith('8')) {
-            raw = '62' + raw; // Tambah 62 jika langsung angka 8
-        }
-        // Jika sudah 62, biarkan
-        
-        hpClean.value = raw; // Simpan di input hidden untuk dikirim
+        if (raw.startsWith('0')) raw = '62' + raw.substring(1);
+        else if (raw.startsWith('8')) raw = '62' + raw;
+        hpClean.value = raw;
     });
 }
 
-// --- 3. LOGIKA AREA ---
+// --- 3. AREA & POINT ---
 function updatePointsDropdown(selectedArea) {
     const points = dataPoints[selectedArea] || [];
     pointSelect.innerHTML = '<option value="" selected disabled>Pilih Point...</option>';
@@ -78,7 +67,6 @@ function updatePointsDropdown(selectedArea) {
         pointSelect.disabled = true;
     }
 }
-
 if (areaSelect) {
     areaSelect.addEventListener('change', function() {
         updatePointsDropdown(this.value);
@@ -97,7 +85,6 @@ onAuthStateChanged(auth, (user) => {
                 document.getElementById('idKaryawan').value = data.idKaryawan || "-";
                 if(document.getElementById('regionalInput')) document.getElementById('regionalInput').value = data.regional || "Jawa Tengah 1";
 
-                // Isi Dropdown Area
                 areaSelect.innerHTML = '<option value="" selected disabled>Pilih Area...</option>';
                 Object.keys(dataPoints).forEach(area => {
                     const option = document.createElement('option');
@@ -125,7 +112,7 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
-// --- 5. LOKASI OTOMATIS (REVERSE GEOCODING) ---
+// --- 5. LOKASI OTOMATIS + GEOTAG ---
 if (btnGetLoc) {
     btnGetLoc.addEventListener('click', () => {
         if (navigator.geolocation) {
@@ -135,6 +122,10 @@ if (btnGetLoc) {
             navigator.geolocation.getCurrentPosition(async (position) => {
                 const lat = position.coords.latitude;
                 const lng = position.coords.longitude;
+                
+                // ISI GEOTAG
+                document.getElementById('geotagInput').value = `${lat}, ${lng}`;
+                
                 await getAddressFromCoordinates(lat, lng);
             }, (error) => {
                 statusLokasi.textContent = "Gagal. Aktifkan GPS Anda.";
@@ -148,31 +139,26 @@ if (btnGetLoc) {
 
 async function getAddressFromCoordinates(lat, lng) {
     try {
-        statusLokasi.textContent = "Mengambil data Desa/Kecamatan...";
+        statusLokasi.textContent = "Mengambil data alamat...";
         const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`);
         const data = await response.json();
         const addr = data.address;
         
-        const desa = addr.village || addr.suburb || addr.hamlet || "";
-        const kec = addr.county || addr.town || addr.municipality || "";
-        const kab = addr.city || addr.regency || addr.state_district || "";
-
-        document.getElementById('desaInput').value = desa;
-        document.getElementById('kecamatanInput').value = kec;
-        document.getElementById('kabupatenInput').value = kab;
+        document.getElementById('desaInput').value = addr.village || addr.suburb || addr.hamlet || "";
+        document.getElementById('kecamatanInput').value = addr.county || addr.town || addr.municipality || "";
+        document.getElementById('kabupatenInput').value = addr.city || addr.regency || addr.state_district || "";
         
-        statusLokasi.textContent = "Lokasi ditemukan: " + desa;
+        statusLokasi.textContent = "Lokasi & Geotag ditemukan!";
         statusLokasi.className = "text-success text-center mt-1 fw-bold";
     } catch (error) {
-        statusLokasi.textContent = "Gagal mengambil nama daerah.";
-        statusLokasi.className = "text-danger text-center mt-1";
+        statusLokasi.textContent = "Gagal ambil alamat, tapi Geotag tersimpan.";
+        statusLokasi.className = "text-warning text-center mt-1";
     }
 }
 
 // --- 6. PREVIEW FOTO ---
 const fileInput = document.getElementById('fotoInput');
 const previewContainer = document.getElementById('previewContainer');
-
 if (fileInput) {
     fileInput.addEventListener('change', function() {
         previewContainer.innerHTML = '';
@@ -196,9 +182,7 @@ if (fileInput) {
 document.getElementById('sosialisasiForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     
-    // Ambil No HP Bersih
     let finalHp = document.getElementById('noHpClean').value;
-    // Backup: jika hidden kosong, ambil manual dari input
     if (!finalHp) {
         let raw = document.getElementById('noHpInput').value.replace(/[^0-9]/g, '');
         if (raw.startsWith('0')) finalHp = '62' + raw.substring(1);
@@ -209,6 +193,7 @@ document.getElementById('sosialisasiForm').addEventListener('submit', async (e) 
     if (!areaSelect.value) { alert("❌ Area belum terpilih!"); return; }
     if (!pointSelect.value) { alert("❌ Point belum terpilih!"); return; }
     if (fileInput.files.length === 0) { alert("❌ Wajib upload foto!"); return; }
+    if (!document.getElementById('geotagInput').value) { alert("❌ Wajib ambil lokasi (Geotag)!"); return; }
 
     const loadingOverlay = document.getElementById('loadingOverlay');
     loadingOverlay.style.display = 'flex';
@@ -227,13 +212,13 @@ document.getElementById('sosialisasiForm').addEventListener('submit', async (e) 
             area: areaSelect.value,
             point: pointSelect.value,
             
-            // DATA BARU
             namaMitra: document.getElementById('namaMitra').value,
-            noHp: finalHp, // Kirim No HP format 62...
+            noHp: finalHp,
             
             desa: document.getElementById('desaInput').value,
             kecamatan: document.getElementById('kecamatanInput').value,
             kabupaten: document.getElementById('kabupatenInput').value,
+            geotag: document.getElementById('geotagInput').value, // KIRIM GEOTAG
             
             foto: base64.replace(/^data:image\/(png|jpeg|jpg);base64,/, ""),
             namaFoto: "Sos_" + file.name,
@@ -248,7 +233,7 @@ document.getElementById('sosialisasiForm').addEventListener('submit', async (e) 
         const result = await response.json();
 
         if (result.result === 'success') {
-            alert("✅ Data Mitra Berhasil Disimpan!");
+            alert("✅ Laporan Sosialisasi Terkirim!");
             window.location.href = "home.html";
         } else {
             throw new Error(result.error);
