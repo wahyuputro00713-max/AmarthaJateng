@@ -35,22 +35,21 @@ const pointSelect = document.getElementById('pointSelect');
 const btnGetLoc = document.getElementById('btnGetLoc');
 const statusLokasi = document.getElementById('statusLokasi');
 
-// --- 1. SET TANGGAL OTOMATIS ---
+// 1. AUTO TANGGAL
 if(document.getElementById('tanggalInput')) {
     document.getElementById('tanggalInput').value = new Date().toISOString().split('T')[0];
 }
 
-// --- 2. JALANKAN LOKASI OTOMATIS SAAT LOAD ---
+// 2. AUTO LOAD LOKASI SAAT HALAMAN DIBUKA
 window.addEventListener('load', () => {
-    // Langsung cari lokasi saat halaman terbuka
     getLokasiOtomatis();
 });
 
-// Fungsi Pencari Lokasi (Bisa dipanggil tombol / otomatis)
+// FUNGSI UTAMA PENCARI LOKASI
 function getLokasiOtomatis() {
     if (navigator.geolocation) {
         if(statusLokasi) {
-            statusLokasi.textContent = "Sedang mendeteksi lokasi...";
+            statusLokasi.textContent = "Mendeteksi Geotag...";
             statusLokasi.className = "text-warning text-center mt-1";
         }
         
@@ -58,17 +57,17 @@ function getLokasiOtomatis() {
             const lat = position.coords.latitude;
             const lng = position.coords.longitude;
             
-            // ISI GEOTAG LANGSUNG
+            // ISI GEOTAG (PENTING)
             const geotagInput = document.getElementById('geotagInput');
             if(geotagInput) geotagInput.value = `${lat}, ${lng}`;
             
-            // AMBIL ALAMAT
+            // ISI ALAMAT (Jika gagal, user bisa ketik manual)
             await getAddressFromCoordinates(lat, lng);
 
         }, (error) => {
             console.error(error);
             if(statusLokasi) {
-                statusLokasi.textContent = "Gagal deteksi otomatis. Pastikan GPS Aktif.";
+                statusLokasi.textContent = "Gagal deteksi GPS. Pastikan Izin Lokasi aktif.";
                 statusLokasi.className = "text-danger text-center mt-1";
             }
         });
@@ -77,38 +76,43 @@ function getLokasiOtomatis() {
     }
 }
 
-// Tetap pasang event di tombol (untuk refresh lokasi manual)
+// Tombol Manual untuk Refresh Lokasi
 if (btnGetLoc) {
     btnGetLoc.addEventListener('click', getLokasiOtomatis);
 }
 
-// --- 3. REVERSE GEOCODING (KOORDINAT -> ALAMAT) ---
+// REVERSE GEOCODING (Mencoba isi alamat, tapi tidak mengunci kolom)
 async function getAddressFromCoordinates(lat, lng) {
     try {
-        if(statusLokasi) statusLokasi.textContent = "Mengambil nama daerah...";
+        if(statusLokasi) statusLokasi.textContent = "Mencari Nama Daerah...";
         
         const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`);
         const data = await response.json();
         const addr = data.address;
         
-        document.getElementById('desaInput').value = addr.village || addr.suburb || addr.hamlet || "";
-        document.getElementById('kecamatanInput').value = addr.county || addr.town || addr.municipality || "";
-        document.getElementById('kabupatenInput').value = addr.city || addr.regency || addr.state_district || "";
+        // Isi jika kolom masih kosong atau mau diupdate
+        const desaField = document.getElementById('desaInput');
+        const kecField = document.getElementById('kecamatanInput');
+        const kabField = document.getElementById('kabupatenInput');
+
+        if(desaField) desaField.value = addr.village || addr.suburb || addr.hamlet || "";
+        if(kecField) kecField.value = addr.county || addr.town || addr.municipality || "";
+        if(kabField) kabField.value = addr.city || addr.regency || addr.state_district || "";
         
         if(statusLokasi) {
-            statusLokasi.textContent = "Lokasi Terkunci: " + (addr.village || addr.suburb || "Desa tidak dikenal");
+            statusLokasi.textContent = "Geotag Terkunci. Alamat bisa diedit jika salah.";
             statusLokasi.className = "text-success text-center mt-1 fw-bold";
         }
 
     } catch (error) {
         if(statusLokasi) {
-            statusLokasi.textContent = "Gagal ambil nama alamat, tapi Geotag aman.";
+            statusLokasi.textContent = "Gagal ambil nama daerah. Silakan ketik manual.";
             statusLokasi.className = "text-warning text-center mt-1";
         }
     }
 }
 
-// --- 4. FORMAT NO HP (AUTO 62) ---
+// 3. FORMAT HP AUTO 62
 const hpInput = document.getElementById('noHpInput');
 const hpClean = document.getElementById('noHpClean');
 if (hpInput) {
@@ -120,7 +124,7 @@ if (hpInput) {
     });
 }
 
-// --- 5. LOGIKA AREA & POINT ---
+// 4. AREA & POINT
 function updatePointsDropdown(selectedArea) {
     const points = dataPoints[selectedArea] || [];
     pointSelect.innerHTML = '<option value="" selected disabled>Pilih Point...</option>';
@@ -142,7 +146,7 @@ if (areaSelect) {
     });
 }
 
-// --- 6. LOAD PROFIL ---
+// 5. LOAD PROFIL
 onAuthStateChanged(auth, (user) => {
     if (user) {
         const userRef = ref(db, 'users/' + user.uid);
@@ -181,7 +185,7 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
-// --- 7. PREVIEW FOTO ---
+// 6. PREVIEW FOTO
 const fileInput = document.getElementById('fotoInput');
 const previewContainer = document.getElementById('previewContainer');
 if (fileInput) {
@@ -203,7 +207,7 @@ if (fileInput) {
     });
 }
 
-// --- 8. SUBMIT FORM ---
+// 7. SUBMIT FORM
 document.getElementById('sosialisasiForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     
@@ -218,7 +222,7 @@ document.getElementById('sosialisasiForm').addEventListener('submit', async (e) 
     if (!areaSelect.value) { alert("❌ Area belum terpilih!"); return; }
     if (!pointSelect.value) { alert("❌ Point belum terpilih!"); return; }
     if (fileInput.files.length === 0) { alert("❌ Wajib upload foto!"); return; }
-    if (!document.getElementById('geotagInput').value) { alert("❌ Sedang mengambil lokasi... Tunggu sebentar."); return; }
+    if (!document.getElementById('geotagInput').value) { alert("❌ Geotag belum muncul. Pastikan GPS aktif!"); return; }
 
     const loadingOverlay = document.getElementById('loadingOverlay');
     loadingOverlay.style.display = 'flex';
@@ -240,6 +244,7 @@ document.getElementById('sosialisasiForm').addEventListener('submit', async (e) 
             namaMitra: document.getElementById('namaMitra').value,
             noHp: finalHp,
             
+            // Ambil value dari Textbox (Entah itu hasil otomatis atau ketikan manual)
             desa: document.getElementById('desaInput').value,
             kecamatan: document.getElementById('kecamatanInput').value,
             kabupaten: document.getElementById('kabupatenInput').value,
