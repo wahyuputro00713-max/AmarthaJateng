@@ -18,7 +18,7 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 // ⚠️ PASTE URL APP SCRIPT ANDA DI SINI ⚠️
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxPgiHG1DCLBt8hq8Y8XCpr_pMjQiRhfWcG0L_X9hahB4qFPniptJw9AK1i8BoAOXLU/exec"; 
+const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; 
 
 // Data Point
 const dataPoints = {
