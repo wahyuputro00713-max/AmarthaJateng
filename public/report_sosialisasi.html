@@ -23,7 +23,7 @@
 
     <div id="loadingOverlay">
         <div class="spinner-border text-primary" role="status"></div>
-        <p class="mt-2 fw-bold text-primary">Mengirim Laporan...</p>
+        <p class="mt-2 fw-bold text-primary">Mengirim Data...</p>
     </div>
 
     <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
@@ -37,7 +37,7 @@
     <div class="container">
         <form id="sosialisasiForm">
             <div class="form-card">
-                <h5 class="mb-4 text-purple fw-bold"><i class="fa-solid fa-users me-2"></i>Data Sosialisasi</h5>
+                <h5 class="mb-4 text-purple fw-bold"><i class="fa-solid fa-user-plus me-2"></i>Data Mitra Baru</h5>
 
                 <div class="mb-3">
                     <label class="form-label">Tanggal</label>
@@ -49,7 +49,8 @@
                         <label class="form-label">Nama Petugas</label>
                         <input type="text" class="form-control bg-light" id="namaKaryawan" readonly placeholder="Loading...">
                         <input type="hidden" id="idKaryawan">
-                        <input type="hidden" id="regionalInput"> </div>
+                        <input type="hidden" id="regionalInput">
+                    </div>
                     <div class="col-md-6 mb-3">
                         <label class="form-label">Area</label>
                         <select class="form-select" id="areaSelect">
@@ -67,51 +68,56 @@
 
                 <hr class="my-4">
 
-                <h6 class="text-purple fw-bold mb-3"><i class="fa-solid fa-map-location-dot me-2"></i>Lokasi Sosialisasi</h6>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Nama Calon Mitra</label>
+                    <input type="text" class="form-control" id="namaMitra" placeholder="Masukkan nama lengkap..." required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Nomor HP / WhatsApp</label>
+                    <div class="input-group">
+                        <span class="input-group-text fw-bold bg-light">+62</span>
+                        <input type="tel" class="form-control" id="noHpInput" placeholder="812xxxxxxx" required>
+                        <input type="hidden" id="noHpClean">
+                    </div>
+                    <div class="form-text small">Contoh: 81234567890 (Tanpa nol di depan)</div>
+                </div>
+
+                <hr class="my-4">
+
+                <h6 class="text-purple fw-bold mb-3"><i class="fa-solid fa-map-pin me-2"></i>Lokasi Mitra</h6>
                 
                 <div class="d-grid mb-3">
                     <button type="button" class="btn btn-outline-primary btn-sm" id="btnGetLoc">
-                        <i class="fa-solid fa-location-crosshairs me-2"></i> Ambil Lokasi Otomatis
+                        <i class="fa-solid fa-location-crosshairs me-2"></i> Ambil Alamat Otomatis
                     </button>
-                    <small class="text-muted text-center mt-1" id="statusLokasi">Klik tombol untuk isi alamat otomatis</small>
+                    <small class="text-muted text-center mt-1" id="statusLokasi">Wajib ambil lokasi untuk validasi</small>
                 </div>
 
                 <div class="row">
                     <div class="col-6 mb-3">
                         <label class="form-label small">Desa / Kelurahan</label>
-                        <input type="text" class="form-control" id="desaInput" placeholder="Otomatis" readonly>
+                        <input type="text" class="form-control" id="desaInput" readonly>
                     </div>
                     <div class="col-6 mb-3">
                         <label class="form-label small">Kecamatan</label>
-                        <input type="text" class="form-control" id="kecamatanInput" placeholder="Otomatis" readonly>
+                        <input type="text" class="form-control" id="kecamatanInput" readonly>
                     </div>
                     <div class="col-12 mb-3">
                         <label class="form-label small">Kabupaten / Kota</label>
-                        <input type="text" class="form-control" id="kabupatenInput" placeholder="Otomatis" readonly>
+                        <input type="text" class="form-control" id="kabupatenInput" readonly>
                     </div>
                 </div>
 
-                <hr class="my-4">
-
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Jumlah Peserta</label>
-                    <input type="number" class="form-control" id="jmlPeserta" placeholder="0" required>
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Hasil / Keterangan</label>
-                    <textarea class="form-control" id="keterangan" rows="3" placeholder="Catatan hasil sosialisasi..." required></textarea>
-                </div>
-
                 <div class="mb-4">
-                    <label class="form-label fw-bold">Foto Kegiatan</label>
+                    <label class="form-label fw-bold">Foto Lokasi / Mitra</label>
                     <input type="file" class="form-control" id="fotoInput" accept="image/*" multiple required>
                     <div id="previewContainer" class="preview-container"></div>
                 </div>
 
                 <div class="d-grid gap-2">
                     <button type="submit" class="btn btn-purple btn-lg shadow-sm">
-                        <i class="fa-solid fa-paper-plane me-2"></i> Kirim Laporan
+                        <i class="fa-solid fa-paper-plane me-2"></i> Kirim Data
                     </button>
                     <a href="home.html" class="btn btn-outline-secondary">Kembali</a>
                 </div>
