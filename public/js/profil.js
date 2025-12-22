@@ -1,8 +1,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getDatabase, ref, get, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// CONFIG FIREBASE
+// --- KONFIGURASI FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyC8wOUkyZTa4W2hHHGZq_YKnGFqYEGOuH8",
     authDomain: "amarthajatengwebapp.firebaseapp.com",
@@ -17,7 +17,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// Data Point
+// Data Point (Referensi Area)
 const dataPoints = {
     "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucul"],
     "Magelang": ["Grabag", "Mungkid", "Pakis", "Salam"],
@@ -28,8 +28,8 @@ const dataPoints = {
     "Wonogiri": ["Jatisrono", "Ngadirojo", "Ngawen 2", "Pracimantoro", "Wonosari"]
 };
 
-// DOM Elements
-const elements = {
+// --- DOM ELEMENTS (Pastikan ID ini ada di HTML) ---
+const el = {
     nama: document.getElementById('namaInput'),
     jabatan: document.getElementById('jabatanInput'),
     regional: document.getElementById('regionalInput'),
@@ -49,7 +49,7 @@ const elements = {
 };
 
 let currentUserUid = null;
-let newPhotoBase64 = null; 
+let newPhotoBase64 = null;
 
 // 1. CEK LOGIN & LOAD DATA
 onAuthStateChanged(auth, (user) => {
@@ -67,125 +67,142 @@ function loadUserData(uid) {
         if (snapshot.exists()) {
             const data = snapshot.val();
             
-            // Isi Input Text
-            elements.nama.value = data.nama || "";
-            elements.jabatan.value = data.jabatan || "";
-            elements.regional.value = data.regional || "";
+            // Isi Textbox
+            if(el.nama) el.nama.value = data.nama || "";
+            if(el.jabatan) el.jabatan.value = data.jabatan || "";
+            if(el.regional) el.regional.value = data.regional || "";
             
-            // Isi Tampilan Header Profil
-            elements.displayNama.textContent = data.nama || "User";
-            elements.displayId.textContent = "ID: " + (data.idKaryawan || "-");
+            // Isi Info Header
+            if(el.displayNama) el.displayNama.textContent = data.nama || "User";
+            if(el.displayId) el.displayId.textContent = "ID: " + (data.idKaryawan || "-");
 
-            // Isi Foto Profil
-            if (data.fotoProfil) {
-                elements.img.src = data.fotoProfil;
+            // Isi Foto
+            if (data.fotoProfil && el.img) {
+                el.img.src = data.fotoProfil;
             }
 
             // Setup Dropdown Area & Point
-            if (data.area) {
-                elements.area.value = data.area;
+            if (data.area && el.area) {
+                el.area.value = data.area;
                 updatePointsDropdown(data.area);
-                if (data.point) elements.point.value = data.point;
+                if (data.point && el.point) el.point.value = data.point;
             }
         }
     });
 }
 
-// 2. LOGIKA DROPDOWN POINT
+// 2. FUNGSI UPDATE DROPDOWN POINT
 function updatePointsDropdown(selectedArea) {
+    if(!el.point) return;
+    
     const points = dataPoints[selectedArea] || [];
-    elements.point.innerHTML = '<option value="" selected disabled>Pilih Point...</option>';
+    el.point.innerHTML = '<option value="" selected disabled>Pilih Point...</option>';
     points.forEach(point => {
         const option = document.createElement('option');
         option.value = point;
         option.textContent = point;
-        elements.point.appendChild(option);
+        el.point.appendChild(option);
     });
-    // Jika area ada isinya dan mode edit aktif, buka point
-    if(points.length > 0 && !elements.area.disabled) {
-        elements.point.disabled = false;
-    }
+    
+    // Buka kunci point jika area tidak terkunci
+    if (!el.area.disabled) el.point.disabled = false;
 }
 
-elements.area.addEventListener('change', function() {
-    updatePointsDropdown(this.value);
-});
-
-// 3. MODE EDIT (PERBAIKAN UTAMA: UNLOCK SEMUA KOLOM)
-elements.btnEdit.addEventListener('click', () => {
-    // A. Buka Kunci Textbox (Nama, Jabatan, Regional)
-    const inputsToUnlock = [elements.nama, elements.jabatan, elements.regional];
-    
-    inputsToUnlock.forEach(input => {
-        input.removeAttribute('readonly'); // Hapus atribut readonly
-        input.classList.remove('bg-light'); // Hapus warna abu-abu
-        input.classList.add('bg-white'); // Tambah warna putih (biar jelas bisa diedit)
-        input.style.border = "1px solid #8e26d4"; // (Opsional) Beri border ungu biar makin jelas
+if(el.area) {
+    el.area.addEventListener('change', function() {
+        updatePointsDropdown(this.value);
     });
+}
 
-    // B. Buka Kunci Dropdown (Area & Point)
-    elements.area.disabled = false;
-    if(elements.area.value) elements.point.disabled = false;
-    
-    // C. Tampilkan Tombol Aksi (Simpan & Batal)
-    elements.btnEdit.style.display = 'none';
-    elements.actionButtons.classList.remove('d-none');
-    elements.actionButtons.classList.add('d-flex');
-    
-    // D. Tampilkan Tombol Kamera
-    elements.btnCamera.style.display = 'flex';
+// 3. LOGIKA TOMBOL EDIT (BAGIAN PENTING!)
+if(el.btnEdit) {
+    el.btnEdit.addEventListener('click', () => {
+        console.log("Tombol Edit Diklik - Membuka Kunci Form...");
 
-    // E. Fokus ke nama
-    elements.nama.focus();
-    // alert("Mode Edit Aktif. Silakan ubah data."); // Opsional
-});
+        // A. BUKA KUNCI INPUT TEXT (Nama, Jabatan, Regional)
+        // Kita gunakan property .readOnly = false agar lebih kuat daripada removeAttribute
+        const textInputs = [el.nama, el.jabatan, el.regional];
+        
+        textInputs.forEach(input => {
+            if(input) {
+                input.readOnly = false;           // Buka Kunci Readonly
+                input.disabled = false;           // Buka Kunci Disabled (jaga-jaga)
+                input.classList.remove('bg-light'); // Hapus warna abu-abu
+                input.classList.add('bg-white');    // Ubah jadi putih
+                input.style.border = "1px solid #0d6efd"; // Beri border biru biar terlihat aktif
+            }
+        });
 
-// 4. BATAL EDIT
-elements.btnBatal.addEventListener('click', () => {
-    location.reload(); // Refresh halaman untuk mengembalikan data awal
-});
+        // B. BUKA KUNCI DROPDOWN (Area & Point)
+        if(el.area) el.area.disabled = false;
+        if(el.point && el.area.value) el.point.disabled = false;
+
+        // C. TAMPILKAN TOMBOL SIMPAN & BATAL
+        el.btnEdit.style.display = 'none'; // Sembunyikan tombol pensil
+        if(el.actionButtons) {
+            el.actionButtons.classList.remove('d-none');
+            el.actionButtons.classList.add('d-flex');
+        }
+
+        // D. TAMPILKAN TOMBOL KAMERA
+        if(el.btnCamera) el.btnCamera.style.display = 'flex';
+
+        // E. FOKUS KE NAMA
+        if(el.nama) el.nama.focus();
+    });
+}
+
+// 4. TOMBOL BATAL
+if(el.btnBatal) {
+    el.btnBatal.addEventListener('click', () => {
+        location.reload(); // Refresh halaman untuk reset
+    });
+}
 
 // 5. PREVIEW FOTO
-elements.fileInput.addEventListener('change', function() {
-    const file = this.files[0];
-    if (file) {
-        if (file.size > 2 * 1024 * 1024) { // Maks 2MB
-            alert("⚠️ Ukuran foto terlalu besar! Maksimal 2MB.");
-            return;
+if(el.fileInput) {
+    el.fileInput.addEventListener('change', function() {
+        const file = this.files[0];
+        if (file) {
+            if (file.size > 2 * 1024 * 1024) {
+                alert("⚠️ Foto terlalu besar! Maksimal 2MB.");
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                if(el.img) el.img.src = e.target.result;
+                newPhotoBase64 = e.target.result;
+            };
+            reader.readAsDataURL(file);
         }
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            elements.img.src = e.target.result; // Ubah gambar di layar
-            newPhotoBase64 = e.target.result;   // Simpan untuk diupload nanti
+    });
+}
+
+// 6. SIMPAN DATA (KIRIM SEMUA PERUBAHAN)
+if(el.form) {
+    el.form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        // Ambil semua nilai terbaru dari form
+        const updates = {
+            nama: el.nama.value,
+            jabatan: el.jabatan.value,
+            regional: el.regional.value,
+            area: el.area.value,
+            point: el.point.value
         };
-        reader.readAsDataURL(file);
-    }
-});
 
-// 6. SIMPAN DATA (UPDATE SEMUA FIELD)
-elements.form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    // Siapkan data update
-    const updates = {
-        nama: elements.nama.value,       // Simpan Nama Baru
-        jabatan: elements.jabatan.value, // Simpan Jabatan Baru
-        regional: elements.regional.value,// Simpan Regional Baru
-        area: elements.area.value,       // Simpan Area Baru
-        point: elements.point.value      // Simpan Point Baru
-    };
+        if (newPhotoBase64) {
+            updates.fotoProfil = newPhotoBase64;
+        }
 
-    // Jika ada foto baru, masukkan ke update
-    if (newPhotoBase64) {
-        updates.fotoProfil = newPhotoBase64;
-    }
-
-    try {
-        await update(ref(db, 'users/' + currentUserUid), updates);
-        alert("✅ Profil Berhasil Diperbarui!");
-        location.reload(); // Refresh agar halaman kembali terkunci (Read-Only)
-    } catch (error) {
-        console.error(error);
-        alert("Gagal update profil: " + error.message);
-    }
-});
+        try {
+            await update(ref(db, 'users/' + currentUserUid), updates);
+            alert("✅ Profil Berhasil Disimpan!");
+            location.reload();
+        } catch (error) {
+            console.error(error);
+            alert("Gagal menyimpan: " + error.message);
+        }
+    });
+}
