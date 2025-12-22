@@ -14,7 +14,6 @@
         .btn-purple { background-color: var(--primary-purple); color: white; border: none; font-weight: bold; }
         .btn-purple:hover { background-color: var(--dark-purple); color: white; }
         #loadingOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 9999; align-items: center; justify-content: center; flex-direction: column; }
-        
         .preview-container { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 15px; }
         .preview-img { width: 100px; height: 100px; object-fit: cover; border-radius: 8px; border: 1px solid #ddd; }
     </style>
@@ -89,7 +88,7 @@
                 
                 <div class="d-grid mb-3">
                     <button type="button" class="btn btn-outline-primary btn-sm" id="btnGetLoc">
-                        <i class="fa-solid fa-location-crosshairs me-2"></i> Ambil Alamat Otomatis
+                        <i class="fa-solid fa-location-crosshairs me-2"></i> Ambil Alamat & Geotag
                     </button>
                     <small class="text-muted text-center mt-1" id="statusLokasi">Wajib ambil lokasi untuk validasi</small>
                 </div>
@@ -106,6 +105,10 @@
                     <div class="col-12 mb-3">
                         <label class="form-label small">Kabupaten / Kota</label>
                         <input type="text" class="form-control" id="kabupatenInput" readonly>
+                    </div>
+                    <div class="col-12 mb-3">
+                        <label class="form-label small">Geotag (Koordinat)</label>
+                        <input type="text" class="form-control bg-light" id="geotagInput" readonly placeholder="-7.xxxxx, 110.xxxxx">
                     </div>
                 </div>
 
