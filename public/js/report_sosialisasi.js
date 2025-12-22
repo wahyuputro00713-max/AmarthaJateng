@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebas
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// --- CONFIG FIREBASE ---
+// --- KONFIGURASI FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyC8wOUkyZTa4W2hHHGZq_YKnGFqYEGOuH8",
     authDomain: "amarthajatengwebapp.firebaseapp.com",
@@ -17,10 +17,10 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// ⚠️ PASTE URL APPS SCRIPT ANDA DI SINI ⚠️
-const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; 
+// 🔴 PASTE URL CLOUDFLARE/APPS SCRIPT ANDA DI SINI 🔴
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzKSLFYjD2Z8CSW2uT59rTjGMGpaPULVKvAsHKznItHlA8WIYGOveTJEcXcPbVESStN/exec"; 
 
-// Data Points
+// Data Point per Area
 const dataPoints = {
     "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucul"],
     "Magelang": ["Grabag", "Mungkid", "Pakis", "Salam"],
@@ -31,13 +31,40 @@ const dataPoints = {
     "Wonogiri": ["Jatisrono", "Ngadirojo", "Ngawen 2", "Pracimantoro", "Wonosari"]
 };
 
+// Elemen DOM
 const areaSelect = document.getElementById('areaSelect');
 const pointSelect = document.getElementById('pointSelect');
+const btnGetLoc = document.getElementById('btnGetLoc');
+const statusLokasi = document.getElementById('statusLokasi');
 
-// --- 1. AUTO FILL PROFIL ---
+// --- 1. SET TANGGAL OTOMATIS ---
+const dateInput = document.getElementById('tanggalInput');
+if(dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+
+// --- 2. LOGIKA AREA & POINT ---
+function populateAreaDropdown(selectedArea = null) {
+    areaSelect.innerHTML = '<option value="" selected disabled>Pilih Area...</option>';
+    // Isi opsi area dari kunci dataPoints
+    Object.keys(dataPoints).forEach(area => {
+        const option = document.createElement('option');
+        option.value = area;
+        option.textContent = area;
+        if (selectedArea && area === selectedArea) {
+            option.selected = true;
+        }
+        areaSelect.appendChild(option);
+    });
+
+    // Jika area sudah terpilih, load point
+    if (selectedArea) {
+        updatePointsDropdown(selectedArea);
+    }
+}
+
 function updatePointsDropdown(selectedArea) {
     const points = dataPoints[selectedArea] || [];
     pointSelect.innerHTML = '<option value="" selected disabled>Pilih Point...</option>';
+    
     if (points.length > 0) {
         pointSelect.disabled = false;
         points.forEach(point => {
@@ -51,200 +78,167 @@ function updatePointsDropdown(selectedArea) {
     }
 }
 
-if (areaSelect) {
-    areaSelect.addEventListener('change', function() {
-        updatePointsDropdown(this.value);
-    });
-}
+// Event Listener jika Area diganti manual
+areaSelect.addEventListener('change', function() {
+    updatePointsDropdown(this.value);
+});
 
+// --- 3. LOAD PROFIL USER (AUTO FILL) ---
 onAuthStateChanged(auth, (user) => {
     if (user) {
         const userRef = ref(db, 'users/' + user.uid);
         get(userRef).then((snapshot) => {
             if (snapshot.exists()) {
-                const dataUser = snapshot.val();
-                document.getElementById('idKaryawan').value = dataUser.idKaryawan || "-";
-                document.getElementById('namaBP').value = dataUser.nama || "-";
+                const data = snapshot.val();
+                
+                // Isi Nama & ID
+                document.getElementById('namaKaryawan').value = data.nama || "-";
+                document.getElementById('idKaryawan').value = data.idKaryawan || "-";
+                if(document.getElementById('regionalInput')) document.getElementById('regionalInput').value = data.regional || "Jawa Tengah 1";
 
-                // Auto Fill Area/Point sesuai jabatan
-                if (dataUser.area) {
-                    areaSelect.value = dataUser.area;
-                    updatePointsDropdown(dataUser.area);
-                }
-                if (dataUser.jabatan === 'BM' || dataUser.jabatan === 'BP') {
-                    if(dataUser.area) areaSelect.disabled = true;
-                    if(dataUser.point) {
-                        pointSelect.value = dataUser.point;
-                        pointSelect.disabled = true;
+                // Isi Area
+                if (data.area) {
+                    // Jika user punya area, kunci dropdown dan isi otomatis
+                    populateAreaDropdown(data.area);
+                    
+                    // Cek Jabatan (Optional: kunci area jika BM/BP)
+                    const jabatan = data.jabatan;
+                    if (jabatan === 'BM' || jabatan === 'BP') {
+                        areaSelect.disabled = true;
+                        if(data.point) {
+                            pointSelect.value = data.point;
+                            pointSelect.disabled = true;
+                        }
                     }
+                } else {
+                    // Jika tidak punya area, biarkan user memilih
+                    populateAreaDropdown();
+                    areaSelect.disabled = false;
                 }
             }
         });
-        ambilLokasiDanAlamat(); // Jalankan GPS
     } else {
         window.location.replace("index.html");
     }
 });
 
-// Set Tanggal
-document.getElementById('tanggalInput').value = new Date().toISOString().split('T')[0];
-
-// --- 2. LOGIKA GPS & ALAMAT OTOMATIS (DIPERBAIKI) ---
-const geoInput = document.getElementById('geotagInput');
-const geoStatus = document.getElementById('geoStatus');
-const btnRefreshLoc = document.getElementById('btnRefreshLoc');
-
-// Input Alamat
-const desaInput = document.getElementById('desaInput');
-const kecInput = document.getElementById('kecInput');
-const kabInput = document.getElementById('kabInput');
-
-function ambilLokasiDanAlamat() {
-    geoInput.value = "Mencari...";
-    desaInput.value = "Mengambil data...";
-    desaInput.readOnly = true; 
-    kecInput.readOnly = true;
-    kabInput.readOnly = true;
-
+// --- 4. GEOTAG & ALAMAT OTOMATIS (REVERSE GEOCODING) ---
+btnGetLoc.addEventListener('click', () => {
     if (navigator.geolocation) {
+        statusLokasi.textContent = "Sedang mencari lokasi...";
+        statusLokasi.className = "text-warning text-center mt-1";
+        
         navigator.geolocation.getCurrentPosition(async (position) => {
             const lat = position.coords.latitude;
-            const long = position.coords.longitude;
-            const akurasi = Math.round(position.coords.accuracy);
-
-            // 1. Set Geotag Google Maps
-            geoInput.value = `https://www.google.com/maps?q=${lat},${long}`;
-            geoStatus.innerHTML = `✅ Terkunci (Akurasi: ${akurasi}m)`;
-            geoStatus.className = "form-text small text-success fw-bold";
-
-            // 2. Ambil Nama Alamat dari API OpenStreetMap
-            try {
-                // Menggunakan zoom=18 untuk detail maksimal
-                const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${long}&zoom=18&addressdetails=1`, {
-                    headers: { 'User-Agent': 'AmarthaJatengApp/1.0' }
-                });
-                
-                if (!response.ok) throw new Error("Gagal fetch alamat");
-                
-                const data = await response.json();
-                const addr = data.address;
-
-                // --- LOGIKA CERDAS PEMETAAN ALAMAT ---
-                
-                // 1. DESA / KELURAHAN
-                // Prioritas: village (desa) -> suburb (kelurahan) -> hamlet -> neighbourhood
-                let desa = addr.village || addr.suburb || addr.hamlet || addr.neighbourhood || "";
-
-                // 2. KECAMATAN
-                // Prioritas: city_district -> district -> county (hati-hati, county kadang kecamatan di data OSM Indo)
-                let kec = addr.city_district || addr.district || addr.county || "";
-
-                // 3. KABUPATEN / KOTA (PERBAIKAN UTAMA DISINI)
-                // Prioritas: regency (kabupaten) -> city (kota) -> municipality -> state_district
-                let kab = addr.regency || addr.city || addr.municipality || addr.state_district || "";
-
-                // PEMBERSIHAN DATA (Opsional: Hapus kata "Kecamatan" dst jika dobel, tapi dibiarkan dulu agar jelas)
-                
-                // ISI KE FORM
-                desaInput.value = desa;
-                kecInput.value = kec;
-                kabInput.value = kab;
-
-                // JIKA MASIH KOSONG, BUKA KUNCI AGAR BISA DIISI MANUAL
-                if(!desa) desaInput.readOnly = false;
-                if(!kec) kecInput.readOnly = false;
-                if(!kab) kabInput.readOnly = false;
-
-            } catch (error) {
-                console.error("Gagal Reverse Geocode:", error);
-                // Jika error (sinyal hancur), reset jadi kosong dan buka kunci
-                desaInput.value = ""; 
-                kecInput.value = "";
-                kabInput.value = "";
-                
-                desaInput.placeholder = "Ketik Manual";
-                kecInput.placeholder = "Ketik Manual";
-                kabInput.placeholder = "Ketik Manual";
-
-                desaInput.readOnly = false;
-                kecInput.readOnly = false;
-                kabInput.readOnly = false;
-            }
+            const lng = position.coords.longitude;
+            
+            // Panggil Fungsi Cari Alamat
+            await getAddressFromCoordinates(lat, lng);
 
         }, (error) => {
-            console.error("GPS Error:", error);
-            geoInput.value = "Lokasi Gagal";
-            geoStatus.innerText = "❌ Pastikan GPS aktif.";
-            
-            // Buka input manual jika GPS gagal total
-            desaInput.readOnly = false;
-            kecInput.readOnly = false;
-            kabInput.readOnly = false;
-        }, { enableHighAccuracy: true, timeout: 20000 });
+            statusLokasi.textContent = "Gagal mengambil lokasi. Pastikan GPS aktif.";
+            statusLokasi.className = "text-danger text-center mt-1";
+            console.error(error);
+        });
     } else {
-        geoInput.value = "Tidak Support";
-    }
-}
-
-btnRefreshLoc.addEventListener('click', ambilLokasiDanAlamat);
-
-// --- 3. PREVIEW FOTO ---
-const fileInput = document.getElementById('fotoInput');
-const previewFoto = document.getElementById('previewFoto');
-
-fileInput.addEventListener('change', function() {
-    const file = this.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            previewFoto.src = e.target.result;
-            previewFoto.style.display = 'block';
-        }
-        reader.readAsDataURL(file);
+        alert("Browser tidak support Geolocation.");
     }
 });
 
-// --- 4. SUBMIT LOGIC ---
-const form = document.getElementById('sosialisasiForm').addEventListener('submit', async (e) => {
+async function getAddressFromCoordinates(lat, lng) {
+    try {
+        statusLokasi.textContent = "Mengambil data alamat...";
+        
+        // Gunakan API OpenStreetMap (Nominatim) - GRATIS
+        const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`);
+        const data = await response.json();
+        
+        const addr = data.address;
+        
+        // Mapping Alamat (Logika Indo)
+        // Desa bisa bernama: village, suburb, atau hamlet
+        const desa = addr.village || addr.suburb || addr.hamlet || "";
+        
+        // Kecamatan biasanya: county, town, atau municipality
+        const kec = addr.county || addr.town || addr.municipality || "";
+        
+        // Kabupaten biasanya: city, state_district, atau region
+        const kab = addr.city || addr.regency || addr.state_district || "";
+
+        // Isi ke Input Form
+        document.getElementById('desaInput').value = desa;
+        document.getElementById('kecamatanInput').value = kec;
+        document.getElementById('kabupatenInput').value = kab;
+        
+        statusLokasi.textContent = "Lokasi berhasil ditemukan!";
+        statusLokasi.className = "text-success text-center mt-1 fw-bold";
+
+    } catch (error) {
+        console.error("Gagal reverse geocode:", error);
+        statusLokasi.textContent = "Gagal konversi koordinat ke alamat.";
+        statusLokasi.className = "text-danger text-center mt-1";
+    }
+}
+
+// --- 5. PREVIEW FOTO ---
+const fileInput = document.getElementById('fotoInput');
+const previewContainer = document.getElementById('previewContainer');
+
+fileInput.addEventListener('change', function() {
+    previewContainer.innerHTML = '';
+    const files = Array.from(this.files);
+    
+    if (files.length > 5) {
+        alert("Maksimal 5 foto!");
+        this.value = ""; return;
+    }
+
+    files.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = document.createElement('img');
+            img.src = e.target.result;
+            img.className = 'preview-img';
+            previewContainer.appendChild(img);
+        }
+        reader.readAsDataURL(file);
+    });
+});
+
+// --- 6. SUBMIT FORM ---
+document.getElementById('sosialisasiForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-const loadingOverlay = document.getElementById('loadingOverlay');
+    
+    if (!areaSelect.value) { alert("❌ Area belum terpilih!"); return; }
+    if (!pointSelect.value) { alert("❌ Point belum terpilih!"); return; }
+    if (fileInput.files.length === 0) { alert("❌ Wajib upload foto!"); return; }
 
-form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    // Validasi
-    const file = fileInput.files[0];
-    const geotag = geoInput.value;
-    const noHp = document.getElementById('noHpInput').value;
-
-    if (!file) { alert("❌ Foto wajib diupload!"); return; }
-    if (!geotag || geotag.includes("Menunggu")) { alert("❌ Lokasi belum terkunci! Klik refresh."); return; }
-    if (!noHp) { alert("❌ Nomor HP wajib diisi!"); return; }
-
+    const loadingOverlay = document.getElementById('loadingOverlay');
     loadingOverlay.style.display = 'flex';
 
     try {
-        const base64File = await toBase64(file);
-        const cleanBase64 = base64File.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
+        const files = Array.from(fileInput.files);
+        const file = files[0]; // Kirim foto pertama
+        const base64 = await toBase64(file);
 
         const formData = {
             jenisLaporan: "Sosialisasi",
             
             tanggal: document.getElementById('tanggalInput').value,
             idKaryawan: document.getElementById('idKaryawan').value,
-            namaBP: document.getElementById('namaBP').value,
-            area: areaSelect.value, 
-            point: pointSelect.value, 
+            namaBP: document.getElementById('namaKaryawan').value,
+            area: areaSelect.value,
+            point: pointSelect.value,
             
-            desa: desaInput.value,
-            kecamatan: kecInput.value,
-            kabupaten: kabInput.value,
-            dusun: document.getElementById('dusunInput').value,
-            calonMitra: document.getElementById('calonMitraInput').value,
-            noHp: "+62" + noHp, 
+            // Data Lokasi Otomatis
+            desa: document.getElementById('desaInput').value,
+            kecamatan: document.getElementById('kecamatanInput').value,
+            kabupaten: document.getElementById('kabupatenInput').value,
+
+            jmlPeserta: document.getElementById('jmlPeserta').value,
+            keterangan: document.getElementById('keterangan').value,
             
-            geotag: geotag,
-            foto: cleanBase64,
+            foto: base64.replace(/^data:image\/(png|jpeg|jpg);base64,/, ""),
             namaFoto: "Sos_" + file.name,
             mimeType: file.type
         };
@@ -257,14 +251,14 @@ form.addEventListener('submit', async (e) => {
         const result = await response.json();
 
         if (result.result === 'success') {
-            alert("✅ Laporan Sosialisasi Berhasil!");
+            alert("✅ Laporan Sosialisasi Terkirim!");
             window.location.href = "home.html";
         } else {
             throw new Error(result.error);
         }
 
     } catch (error) {
-        console.error(error);
+        console.error("Error:", error);
         alert("❌ Gagal: " + error.message);
     } finally {
         loadingOverlay.style.display = 'none';
