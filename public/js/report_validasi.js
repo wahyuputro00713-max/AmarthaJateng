@@ -163,7 +163,7 @@ if (fileInput) {
     });
 }
 
-// 5. SUBMIT FORM
+// 5. SUBMIT FORM (REVISI TOTAL)
 const form = document.getElementById('validasiForm');
 const loadingOverlay = document.getElementById('loadingOverlay');
 
@@ -171,15 +171,21 @@ if (form) {
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
-        // AMBIL ANGKA MURNI DARI INPUT HIDDEN
-        let amtVal = document.getElementById('amountValReal').value;
-        let amtModal = document.getElementById('amountModalReal').value;
-        
-        // Backup: Jika Hidden Kosong, coba bersihkan manual dari Display
-        if(!amtVal) amtVal = document.getElementById('amountValDisplay').value.replace(/[^0-9]/g, '');
-        if(!amtModal) amtModal = document.getElementById('amountModalDisplay').value.replace(/[^0-9]/g, '');
+        // --- LANGKAH 1: AMBIL DATA & BERSIHKAN MANUAL ---
+        // Ambil teks mentah, misal: "Rp. 5.000.000"
+        const rawVal = document.getElementById('amountValDisplay').value;
+        const rawModal = document.getElementById('amountModalDisplay').value;
 
-        if (!amtVal || amtVal == "0") { alert("❌ Nominal Validasi Kosong/Nol!"); return; }
+        // Bersihkan semua karakter KECUALI angka (0-9)
+        // Hasilnya: "5000000" (String angka murni)
+        const cleanVal = rawVal.replace(/[^0-9]/g, '');
+        const cleanModal = rawModal.replace(/[^0-9]/g, '');
+
+        console.log("Nominal Validasi:", cleanVal); // Cek di Console Browser (F12)
+        console.log("Nominal Modal:", cleanModal);  // Cek di Console Browser (F12)
+
+        // Validasi
+        if (!cleanVal) { alert("❌ Nominal Validasi Kosong!"); return; }
         if (fileInput.files.length === 0) { alert("❌ Wajib upload foto!"); return; }
         if (!areaSelect.value) { alert("❌ Area belum terpilih!"); return; }
         if (!pointSelect.value) { alert("❌ Point belum terpilih!"); return; }
@@ -202,11 +208,16 @@ if (form) {
                 regional: document.getElementById('regionalInput') ? document.getElementById('regionalInput').value : "Jawa Tengah 1",
 
                 jmlMitraVal: document.getElementById('jmlMitraVal').value,
-                nominalVal: amtVal,       // Kirim Angka Murni
-                jmlMitraModal: document.getElementById('jmlMitraModal').value,
-                nominalModal: amtModal,   // Kirim Angka Murni
-                tenor: document.getElementById('tenorSelect').value,
                 
+                // KIRIM DATA BERSIH
+                nominalVal: cleanVal,     
+                
+                jmlMitraModal: document.getElementById('jmlMitraModal').value,
+                
+                // KIRIM DATA BERSIH
+                nominalModal: cleanModal, 
+                
+                tenor: document.getElementById('tenorSelect').value,
                 foto: base64.replace(/^data:image\/(png|jpeg|jpg);base64,/, ""),
                 namaFoto: "Val_" + file.name,
                 mimeType: file.type
@@ -234,10 +245,3 @@ if (form) {
         }
     });
 }
-
-const toBase64 = file => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = error => reject(error);
-});
