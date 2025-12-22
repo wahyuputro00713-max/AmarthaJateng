@@ -17,7 +17,7 @@ const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev";
 
 // 1. DAFTAR POINT PER AREA (Untuk Dropdown)
 const DATA_POINTS = {
-    "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucul"],
+    "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucuk"],
     "Magelang": ["Grabag", "Mungkid", "Pakis", "Salam"],
     "Solo": ["Banjarsari", "Gemolong", "Masaran", "Tangen"],
     "Solo 2": ["Gatak", "Jumantono", "Karanganyar", "Nguter", "Pasar kliwon"],
