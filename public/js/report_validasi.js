@@ -69,8 +69,10 @@ onAuthStateChanged(auth, (user) => {
                 document.getElementById('namaKaryawan').value = dataUser.nama || "-";
                 document.getElementById('idKaryawan').value = dataUser.idKaryawan || "-";
                 
-                // Isi Regional (PENTING)
-                document.getElementById('regionalInput').value = dataUser.regional || "Jawa Tengah 1";
+                // Isi Regional
+                if(document.getElementById('regionalInput')) {
+                    document.getElementById('regionalInput').value = dataUser.regional || "Jawa Tengah 1";
+                }
 
                 const jabatan = dataUser.jabatan;
 
@@ -80,7 +82,7 @@ onAuthStateChanged(auth, (user) => {
                     updatePointsDropdown(dataUser.area);
                 }
 
-                // Logika Kunci Form Berdasarkan Jabatan
+                // Logika Kunci Form
                 if (jabatan === 'BM' || jabatan === 'BP') {
                     if (dataUser.area) areaSelect.disabled = true;
                     if (dataUser.point) {
@@ -101,19 +103,13 @@ onAuthStateChanged(auth, (user) => {
 const dateInput = document.getElementById('tanggalInput');
 if(dateInput) dateInput.value = new Date().toISOString().split('T')[0];
 
-// 3. FORMAT RUPIAH
+// 3. FORMAT RUPIAH (VISUAL SAJA)
+// Kita gunakan event 'input' agar lebih responsif daripada 'keyup'
 const rupiahInputs = document.querySelectorAll('.rupiah-input');
 rupiahInputs.forEach(input => {
-    input.addEventListener('keyup', function(e) {
-        // Tampilkan format Rp di layar
-        input.value = formatRupiah(this.value, 'Rp. ');
-        
-        // Simpan angka murni di hidden input
-        const realInputId = this.id.replace('Display', 'Real');
-        const realInput = document.getElementById(realInputId);
-        if(realInput) {
-            realInput.value = this.value.replace(/[^0-9]/g, '');
-        }
+    input.addEventListener('input', function(e) {
+        // Hanya format tampilan biar ada Rp dan Titik
+        this.value = formatRupiah(this.value, 'Rp. ');
     });
 });
 
@@ -123,10 +119,12 @@ function formatRupiah(angka, prefix) {
         sisa = split[0].length % 3,
         rupiah = split[0].substr(0, sisa),
         ribuan = split[0].substr(sisa).match(/\d{3}/gi);
+
     if (ribuan) {
         let separator = sisa ? '.' : '';
         rupiah += separator + ribuan.join('.');
     }
+
     rupiah = split[1] != undefined ? rupiah + ',' + split[1] : rupiah;
     return prefix == undefined ? rupiah : (rupiah ? 'Rp. ' + rupiah : '');
 }
@@ -135,29 +133,35 @@ function formatRupiah(angka, prefix) {
 const fileInput = document.getElementById('fotoInput');
 const previewContainer = document.getElementById('previewContainer');
 
-fileInput.addEventListener('change', function() {
-    previewContainer.innerHTML = ''; 
-    const files = Array.from(this.files);
-    
-    if (files.length > 5) {
-        alert("Maksimal 5 foto sekaligus.");
-        this.value = ""; 
-        return;
-    }
-
-    files.forEach(file => {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const img = document.createElement('img');
-            img.src = e.target.result;
-            img.className = 'preview-img';
-            previewContainer.appendChild(img);
+if (fileInput) {
+    fileInput.addEventListener('change', function() {
+        previewContainer.innerHTML = ''; 
+        const files = Array.from(this.files);
+        
+        if (files.length > 5) {
+            alert("Maksimal 5 foto sekaligus.");
+            this.value = ""; 
+            return;
         }
-        reader.readAsDataURL(file);
-    });
-});
 
-// 5. SUBMIT FORM (BAGIAN PENTING)
+        files.forEach(file => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.className = 'preview-img'; // Pastikan CSS class ini ada di HTML
+                img.style.width = '80px';    // Fallback style
+                img.style.height = '80px';   // Fallback style
+                img.style.margin = '5px';    // Fallback style
+                img.style.borderRadius = '5px'; // Fallback style
+                previewContainer.appendChild(img);
+            }
+            reader.readAsDataURL(file);
+        });
+    });
+}
+
+// 5. SUBMIT FORM (BAGIAN PERBAIKAN UTAMA)
 const form = document.getElementById('validasiForm');
 const loadingOverlay = document.getElementById('loadingOverlay');
 
@@ -165,9 +169,17 @@ if (form) {
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
-        // Ambil Value Angka Murni
-        const amtVal = document.getElementById('amountValReal').value;
-        const amtModal = document.getElementById('amountModalReal').value;
+        // --- PERBAIKAN LOGIKA NOMINAL ---
+        // Kita ambil nilai langsung dari kolom Display, lalu kita bersihkan "Rp" dan "Titik"-nya disini.
+        // Ini menjamin nilai yang dikirim adalah angka murni.
+        const rawVal = document.getElementById('amountValDisplay').value;
+        const cleanVal = rawVal.replace(/[^0-9]/g, ''); // Hapus Rp dan Titik
+
+        const rawModal = document.getElementById('amountModalDisplay').value;
+        const cleanModal = rawModal.replace(/[^0-9]/g, ''); // Hapus Rp dan Titik
+
+        // Validasi Sederhana
+        if (!cleanVal || cleanVal === "0") { alert("❌ Nominal Validasi belum diisi!"); return; }
         
         if (fileInput.files.length === 0) { alert("❌ Wajib upload foto validasi!"); return; }
         if (!areaSelect.value) { alert("❌ Area belum terpilih!"); return; }
@@ -176,34 +188,29 @@ if (form) {
         loadingOverlay.style.display = 'flex';
 
         try {
-            // Proses Foto Banyak
             const files = Array.from(fileInput.files);
-            // Kita ambil foto pertama saja untuk dikirim ke script standar
-            // (Agar kompatibel dengan script yang hanya terima 1 fileUrl)
-            // Jika mau support banyak, script backend perlu dirombak total.
-            const file = files[0]; 
+            const file = files[0]; // Kirim foto pertama
             const base64 = await toBase64(file);
 
             // DATA YANG DIKIRIM KE APPS SCRIPT
             const formData = {
                 jenisLaporan: "Validasi", 
                 
-                // Header Laporan
                 tanggal: document.getElementById('tanggalInput').value,
                 idKaryawan: document.getElementById('idKaryawan').value,
-                namaBP: document.getElementById('namaKaryawan').value, // Matches script data.namaBP
+                namaBP: document.getElementById('namaKaryawan').value,
                 area: areaSelect.value,
                 point: pointSelect.value,
-                regional: document.getElementById('regionalInput').value,
+                // Pastikan elemen regionalInput ada di HTML
+                regional: document.getElementById('regionalInput') ? document.getElementById('regionalInput').value : "Jawa Tengah 1",
 
-                // Detail Validasi (NAMA VARIABEL DISESUAIKAN DENGAN APPS SCRIPT)
+                // DATA PENTING (GUNAKAN VERSI CLEAN)
                 jmlMitraVal: document.getElementById('jmlMitraVal').value,
-                nominalVal: amtVal,       // Matches script data.nominalVal
+                nominalVal: cleanVal,       // <--- INI SUDAH PASTI ANGKA MURNI
                 jmlMitraModal: document.getElementById('jmlMitraModal').value,
-                nominalModal: amtModal,   // Matches script data.nominalModal
+                nominalModal: cleanModal,   // <--- INI SUDAH PASTI ANGKA MURNI
                 tenor: document.getElementById('tenorSelect').value,
                 
-                // Foto
                 foto: base64.replace(/^data:image\/(png|jpeg|jpg);base64,/, ""),
                 namaFoto: "Val_" + file.name,
                 mimeType: file.type
