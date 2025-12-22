@@ -17,10 +17,10 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// ⚠️ PASTE URL SCRIPT ANDA DISINI ⚠️
+// ⚠️ PASTE URL APP SCRIPT ANDA DI SINI ⚠️
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzKSLFYjD2Z8CSW2uT59rTjGMGpaPULVKvAsHKznItHlA8WIYGOveTJEcXcPbVESStN/exec"; 
 
-// Data Dropdown Point
+// Data Point
 const dataPoints = {
     "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucul"],
     "Magelang": ["Grabag", "Mungkid", "Pakis", "Salam"],
@@ -31,13 +31,17 @@ const dataPoints = {
     "Wonogiri": ["Jatisrono", "Ngadirojo", "Ngawen 2", "Pracimantoro", "Wonosari"]
 };
 
+// ELEMEN HTML (Dengan Pengecekan Aman)
 const areaSelect = document.getElementById('areaSelect');
 const pointSelect = document.getElementById('pointSelect');
 
-// --- FUNGSI UPDATE DROPDOWN ---
+// FUNGSI ISI DROPDOWN
 function updatePointsDropdown(selectedArea) {
+    if (!pointSelect) return;
+    
     const points = dataPoints[selectedArea] || [];
     pointSelect.innerHTML = '<option value="" selected disabled>Pilih Point...</option>';
+    
     if (points.length > 0) {
         pointSelect.disabled = false;
         points.forEach(point => {
@@ -57,36 +61,34 @@ if (areaSelect) {
     });
 }
 
-// 1. CEK LOGIN & AUTO FILL DATA
+// 1. CEK LOGIN
 onAuthStateChanged(auth, (user) => {
     if (user) {
         const userRef = ref(db, 'users/' + user.uid);
         get(userRef).then((snapshot) => {
             if (snapshot.exists()) {
-                const dataUser = snapshot.val();
+                const data = snapshot.val();
                 
-                document.getElementById('namaKaryawan').value = dataUser.nama || "-";
-                document.getElementById('idKaryawan').value = dataUser.idKaryawan || "-";
-                if(document.getElementById('regionalInput')) {
-                    document.getElementById('regionalInput').value = dataUser.regional || "Jawa Tengah 1";
-                }
+                // Isi Form Aman
+                if(document.getElementById('namaKaryawan')) document.getElementById('namaKaryawan').value = data.nama || "-";
+                if(document.getElementById('idKaryawan')) document.getElementById('idKaryawan').value = data.idKaryawan || "-";
+                if(document.getElementById('regionalInput')) document.getElementById('regionalInput').value = data.regional || "Jawa Tengah 1";
 
-                if (dataUser.area) {
-                    areaSelect.value = dataUser.area;
-                    updatePointsDropdown(dataUser.area);
+                // Auto Fill Area
+                if (data.area && areaSelect) {
+                    areaSelect.value = data.area;
+                    updatePointsDropdown(data.area);
                 }
 
                 // Logika Jabatan
-                const jabatan = dataUser.jabatan;
-                if (jabatan === 'BM' || jabatan === 'BP') {
-                    if (dataUser.area) areaSelect.disabled = true;
-                    if (dataUser.point) {
-                        pointSelect.value = dataUser.point;
+                const jabatan = data.jabatan;
+                if ((jabatan === 'BM' || jabatan === 'BP') && areaSelect && pointSelect) {
+                    if (data.area) areaSelect.disabled = true;
+                    if (data.point) {
+                        pointSelect.value = data.point;
                         pointSelect.disabled = true;
                     }
-                } else if (jabatan === 'RM' || jabatan === 'AM') {
-                    pointSelect.disabled = false;
-                }
+                } 
             }
         });
     } else {
@@ -98,22 +100,9 @@ onAuthStateChanged(auth, (user) => {
 const dateInput = document.getElementById('tanggalInput');
 if(dateInput) dateInput.value = new Date().toISOString().split('T')[0];
 
-// 3. FORMAT RUPIAH & SIMPAN REAL VALUE (PERBAIKAN UTAMA)
-const rupiahInputs = document.querySelectorAll('.rupiah-input');
-rupiahInputs.forEach(input => {
+// 3. FORMAT RUPIAH
+document.querySelectorAll('.rupiah-input').forEach(input => {
     input.addEventListener('input', function(e) {
-        // Ambil ID Input Hidden pasangannya
-        // Contoh: amountValDisplay -> amountValReal
-        const realInputId = this.id.replace('Display', 'Real');
-        const realInput = document.getElementById(realInputId);
-
-        // 1. Bersihkan karakter selain angka (simpan ke Hidden Input)
-        let cleanValue = this.value.replace(/[^0-9]/g, '');
-        if(realInput) {
-            realInput.value = cleanValue;
-        }
-
-        // 2. Format Tampilan (tambah Rp dan Titik)
         this.value = formatRupiah(this.value, 'Rp. ');
     });
 });
@@ -133,37 +122,37 @@ function formatRupiah(angka, prefix) {
     return prefix == undefined ? rupiah : (rupiah ? 'Rp. ' + rupiah : '');
 }
 
-// 4. PREVIEW BANYAK FOTO
+// 4. PREVIEW FOTO
 const fileInput = document.getElementById('fotoInput');
 const previewContainer = document.getElementById('previewContainer');
 
-if (fileInput) {
+if(fileInput) {
     fileInput.addEventListener('change', function() {
-        previewContainer.innerHTML = ''; 
+        if(previewContainer) previewContainer.innerHTML = ''; 
         const files = Array.from(this.files);
+        
         if (files.length > 5) {
-            alert("Maksimal 5 foto sekaligus.");
+            alert("Maksimal 5 foto!");
             this.value = ""; return;
         }
+
         files.forEach(file => {
             const reader = new FileReader();
             reader.onload = function(e) {
                 const img = document.createElement('img');
                 img.src = e.target.result;
-                img.className = 'preview-img';
-                img.style.width = '80px'; 
-                img.style.height = '80px'; 
-                img.style.margin = '5px'; 
-                img.style.borderRadius = '5px';
-                img.style.border = '1px solid #ccc';
-                previewContainer.appendChild(img);
+                img.className = 'preview-img'; // Pastikan ada CSS ini
+                img.style.width = '80px';
+                img.style.height = '80px';
+                img.style.margin = '5px';
+                if(previewContainer) previewContainer.appendChild(img);
             }
             reader.readAsDataURL(file);
         });
     });
 }
 
-// 5. SUBMIT FORM (REVISI TOTAL)
+// 5. SUBMIT FORM (REVISI AMAN)
 const form = document.getElementById('validasiForm');
 const loadingOverlay = document.getElementById('loadingOverlay');
 
@@ -171,32 +160,30 @@ if (form) {
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
-        // --- LANGKAH 1: AMBIL DATA & BERSIHKAN MANUAL ---
-        // Ambil teks mentah, misal: "Rp. 5.000.000"
-        const rawVal = document.getElementById('amountValDisplay').value;
-        const rawModal = document.getElementById('amountModalDisplay').value;
+        // AMBIL & BERSIHKAN DATA (Error Handling)
+        const displayVal = document.getElementById('amountValDisplay');
+        const displayModal = document.getElementById('amountModalDisplay');
+        
+        // Ambil value hanya jika elemennya ada
+        const rawVal = displayVal ? displayVal.value : "0";
+        const rawModal = displayModal ? displayModal.value : "0";
 
-        // Bersihkan semua karakter KECUALI angka (0-9)
-        // Hasilnya: "5000000" (String angka murni)
         const cleanVal = rawVal.replace(/[^0-9]/g, '');
         const cleanModal = rawModal.replace(/[^0-9]/g, '');
 
-        console.log("Nominal Validasi:", cleanVal); // Cek di Console Browser (F12)
-        console.log("Nominal Modal:", cleanModal);  // Cek di Console Browser (F12)
-
-        // Validasi
-        if (!cleanVal) { alert("❌ Nominal Validasi Kosong!"); return; }
-        if (fileInput.files.length === 0) { alert("❌ Wajib upload foto!"); return; }
+        if (!cleanVal || cleanVal == "0") { alert("❌ Nominal Validasi Kosong!"); return; }
+        if (!fileInput || fileInput.files.length === 0) { alert("❌ Wajib upload foto!"); return; }
         if (!areaSelect.value) { alert("❌ Area belum terpilih!"); return; }
         if (!pointSelect.value) { alert("❌ Point belum terpilih!"); return; }
 
-        loadingOverlay.style.display = 'flex';
+        if(loadingOverlay) loadingOverlay.style.display = 'flex';
 
         try {
             const files = Array.from(fileInput.files);
             const file = files[0];
             const base64 = await toBase64(file);
 
+            // DATA FORM
             const formData = {
                 jenisLaporan: "Validasi",
                 
@@ -209,12 +196,9 @@ if (form) {
 
                 jmlMitraVal: document.getElementById('jmlMitraVal').value,
                 
-                // KIRIM DATA BERSIH
+                // DATA BERSIH
                 nominalVal: cleanVal,     
-                
                 jmlMitraModal: document.getElementById('jmlMitraModal').value,
-                
-                // KIRIM DATA BERSIH
                 nominalModal: cleanModal, 
                 
                 tenor: document.getElementById('tenorSelect').value,
@@ -241,7 +225,14 @@ if (form) {
             console.error("Error:", error);
             alert("❌ Gagal: " + error.message);
         } finally {
-            loadingOverlay.style.display = 'none';
+            if(loadingOverlay) loadingOverlay.style.display = 'none';
         }
     });
 }
+
+const toBase64 = file => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = error => reject(error);
+});
