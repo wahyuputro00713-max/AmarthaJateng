@@ -28,7 +28,7 @@ const DATA_POINTS = {
 
 // 2. DATABASE KOORDINAT (WAJIB DIISI LAT/LNG ASLI)
 const DATABASE_KOORDINAT_POINT = {
-    "01 Wedi":       { lat: -7.684436, lng: 110.3347691 }, 
+    "01 Wedi":       { lat: -7.7166853, lng: 110.586997 }, 
     "Karangnongko":  { lat: -7.673078, lng: 110.56044 }, 
     "Mojosongo":     { lat: -7.5403421, lng: 110.6208683 },
     "Polanharjo":     { lat: -7.620437, lng: 110.696366 },
