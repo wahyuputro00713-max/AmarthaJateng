@@ -1,8 +1,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getDatabase, ref, get, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// --- KONFIGURASI FIREBASE ---
+// CONFIG FIREBASE
 const firebaseConfig = {
     apiKey: "AIzaSyC8wOUkyZTa4W2hHHGZq_YKnGFqYEGOuH8",
     authDomain: "amarthajatengwebapp.firebaseapp.com",
@@ -17,13 +17,37 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// Elemen DOM
-const btnEdit = document.getElementById('btnEdit');
-const btnSave = document.getElementById('btnSave');
-const btnLogout = document.getElementById('btnLogout');
-const inputs = document.querySelectorAll('.editable-input'); // Ambil semua input yg bisa diedit
+// Data Point (Sama seperti sebelumnya)
+const dataPoints = {
+    "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucul"],
+    "Magelang": ["Grabag", "Mungkid", "Pakis", "Salam"],
+    "Solo": ["Banjarsari", "Gemolong", "Masaran", "Tangen"],
+    "Solo 2": ["Gatak", "Jumantono", "Karanganyar", "Nguter", "Pasar kliwon"],
+    "Yogyakarta": ["01 Sleman", "Kalasan", "Ngaglik", "Umbulharjo"],
+    "Yogyakarta 2": ["01 Pandak", "01 Pengasih", "01 Pleret", "Kutoarjo", "Purworejo", "Saptosari"],
+    "Wonogiri": ["Jatisrono", "Ngadirojo", "Ngawen 2", "Pracimantoro", "Wonosari"]
+};
+
+// DOM Elements
+const elements = {
+    nama: document.getElementById('namaInput'),
+    jabatan: document.getElementById('jabatanInput'),
+    regional: document.getElementById('regionalInput'),
+    area: document.getElementById('areaSelect'),
+    point: document.getElementById('pointSelect'),
+    displayNama: document.getElementById('displayName'),
+    displayId: document.getElementById('displayId'),
+    img: document.getElementById('profileImg'),
+    fileInput: document.getElementById('fileInput'),
+    btnEdit: document.getElementById('btnEdit'),
+    btnCamera: document.getElementById('btnCamera'),
+    actionButtons: document.getElementById('actionButtons'),
+    btnBatal: document.getElementById('btnBatal'),
+    form: document.getElementById('profilForm')
+};
 
 let currentUserUid = null;
+let newPhotoBase64 = null; // Menyimpan foto baru sementara
 
 // 1. CEK LOGIN & LOAD DATA
 onAuthStateChanged(auth, (user) => {
@@ -41,92 +65,105 @@ function loadUserData(uid) {
         if (snapshot.exists()) {
             const data = snapshot.val();
             
-            // Isi Header Profil
-            document.getElementById('displayName').textContent = data.nama || "User";
-            document.getElementById('displayEmail').textContent = data.email || "-";
-            document.getElementById('profilePic').src = `https://ui-avatars.com/api/?name=${data.nama}&background=8e26d4&color=fff`;
+            // Isi Text Input
+            elements.nama.value = data.nama || "";
+            elements.jabatan.value = data.jabatan || "";
+            elements.regional.value = data.regional || "";
+            
+            elements.displayNama.textContent = data.nama || "User";
+            elements.displayId.textContent = "ID: " + (data.idKaryawan || "-");
 
-            // Isi Form
-            document.getElementById('namaInput').value = data.nama || "";
-            document.getElementById('idKaryawanInput').value = data.idKaryawan || "";
-            document.getElementById('hpInput').value = data.noHp || "";
-            document.getElementById('jabatanInput').value = data.jabatan || "BM";
-            document.getElementById('regionalInput').value = data.regional || "Jawa Tengah 1";
-            document.getElementById('areaInput').value = data.area || "";
-            document.getElementById('pointInput').value = data.point || "";
-            document.getElementById('emailInput').value = data.email || ""; // Email readonly permanen
+            // Isi Foto (Jika ada)
+            if (data.fotoProfil) {
+                elements.img.src = data.fotoProfil;
+            }
+
+            // Setup Dropdown
+            if (data.area) {
+                elements.area.value = data.area;
+                updatePointsDropdown(data.area);
+                if (data.point) elements.point.value = data.point;
+            }
         }
     });
 }
 
-// 2. TOMBOL EDIT (BUKA KUNCI)
-if (btnEdit) {
-    btnEdit.addEventListener('click', () => {
-        // Tampilkan tombol Simpan, Sembunyikan tombol Edit
-        btnEdit.classList.add('d-none');
-        btnSave.classList.remove('d-none');
-        
-        // Buka semua inputan
-        inputs.forEach(input => {
-            input.removeAttribute('readonly');
-            input.removeAttribute('disabled');
-            input.classList.remove('bg-light'); // Biar kelihatan putih (aktif)
-        });
-        
-        // Fokus ke nama
-        document.getElementById('namaInput').focus();
-        alert("Silakan ubah data, lalu klik Simpan.");
+// 2. LOGIKA DROPDOWN POINT
+function updatePointsDropdown(selectedArea) {
+    const points = dataPoints[selectedArea] || [];
+    elements.point.innerHTML = '<option value="" selected disabled>Pilih Point...</option>';
+    points.forEach(point => {
+        const option = document.createElement('option');
+        option.value = point;
+        option.textContent = point;
+        elements.point.appendChild(option);
     });
+    elements.point.disabled = false;
 }
 
-// 3. TOMBOL SIMPAN (UPDATE FIREBASE)
-if (btnSave) {
-    btnSave.addEventListener('click', async () => {
-        if (!currentUserUid) return;
+elements.area.addEventListener('change', function() {
+    updatePointsDropdown(this.value);
+});
 
-        const newData = {
-            nama: document.getElementById('namaInput').value,
-            idKaryawan: document.getElementById('idKaryawanInput').value,
-            noHp: document.getElementById('hpInput').value,
-            jabatan: document.getElementById('jabatanInput').value,
-            regional: document.getElementById('regionalInput').value,
-            area: document.getElementById('areaInput').value,
-            point: document.getElementById('pointInput').value
+// 3. MODE EDIT
+elements.btnEdit.addEventListener('click', () => {
+    // Buka Input
+    elements.area.disabled = false;
+    elements.point.disabled = false;
+    
+    // Tampilkan Tombol Aksi
+    elements.btnEdit.style.display = 'none';
+    elements.actionButtons.classList.remove('d-none');
+    elements.actionButtons.classList.add('d-flex');
+    
+    // Tampilkan Kamera Upload
+    elements.btnCamera.style.display = 'flex';
+});
+
+// 4. BATAL EDIT
+elements.btnBatal.addEventListener('click', () => {
+    location.reload(); // Refresh halaman untuk reset data
+});
+
+// 5. PREVIEW FOTO (Saat pilih file)
+elements.fileInput.addEventListener('change', function() {
+    const file = this.files[0];
+    if (file) {
+        // Cek Ukuran (Maks 2MB)
+        if (file.size > 2 * 1024 * 1024) {
+            alert("⚠️ Ukuran foto terlalu besar! Maksimal 2MB.");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            elements.img.src = e.target.result; // Ganti gambar di layar
+            newPhotoBase64 = e.target.result;   // Simpan string Base64
         };
+        reader.readAsDataURL(file);
+    }
+});
 
-        try {
-            // Update ke Database Realtime
-            await update(ref(db, 'users/' + currentUserUid), newData);
-            
-            alert("✅ Data Berhasil Diperbarui!");
-            
-            // Kunci Kembali Form
-            inputs.forEach(input => {
-                // Kecuali jabatan & regional yg select, pake disabled
-                if(input.tagName === 'SELECT') input.setAttribute('disabled', true);
-                else input.setAttribute('readonly', true);
-            });
+// 6. SIMPAN DATA
+elements.form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const updates = {
+        area: elements.area.value,
+        point: elements.point.value
+    };
 
-            // Kembalikan Tombol
-            btnSave.classList.add('d-none');
-            btnEdit.classList.remove('d-none');
-            
-            // Refresh tampilan nama di atas
-            document.getElementById('displayName').textContent = newData.nama;
-            document.getElementById('profilePic').src = `https://ui-avatars.com/api/?name=${newData.nama}&background=8e26d4&color=fff`;
+    // Jika ada foto baru, ikut disimpan
+    if (newPhotoBase64) {
+        updates.fotoProfil = newPhotoBase64;
+    }
 
-        } catch (error) {
-            console.error(error);
-            alert("❌ Gagal menyimpan: " + error.message);
-        }
-    });
-}
-
-// 4. LOGOUT
-if (btnLogout) {
-    btnLogout.addEventListener('click', () => {
-        if(confirm("Yakin ingin keluar akun?")) {
-            signOut(auth).then(() => window.location.replace("index.html"));
-        }
-    });
-}
+    try {
+        await update(ref(db, 'users/' + currentUserUid), updates);
+        alert("✅ Profil Berhasil Diupdate!");
+        location.reload();
+    } catch (error) {
+        console.error(error);
+        alert("Gagal update profil: " + error.message);
+    }
+});
