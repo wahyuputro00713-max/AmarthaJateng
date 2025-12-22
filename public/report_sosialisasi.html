@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Report Sosialisasi - Amartha Jateng</title>
+    <title>Laporan Sosialisasi</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -13,19 +13,23 @@
         .form-card { border: none; border-radius: 15px; background: white; padding: 25px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         .btn-purple { background-color: var(--primary-purple); color: white; border: none; font-weight: bold; }
         .btn-purple:hover { background-color: var(--dark-purple); color: white; }
-        #loadingOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); z-index: 9999; align-items: center; justify-content: center; flex-direction: column; }
+        #loadingOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 9999; align-items: center; justify-content: center; flex-direction: column; }
+        
+        .preview-container { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 15px; }
+        .preview-img { width: 100px; height: 100px; object-fit: cover; border-radius: 8px; border: 1px solid #ddd; }
     </style>
 </head>
 <body>
+
     <div id="loadingOverlay">
         <div class="spinner-border text-primary" role="status"></div>
-        <p class="mt-3 fw-bold text-dark fs-5">Mengirim Laporan...</p>
+        <p class="mt-2 fw-bold text-primary">Mengirim Laporan...</p>
     </div>
- 
+
     <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
         <div class="container">
             <a class="navbar-brand fw-bold" href="home.html">
-                <i class="fa-solid fa-chevron-left me-2"></i> Report Sosialisasi
+                <i class="fa-solid fa-chevron-left me-2"></i> Sosialisasi
             </a>
         </div>
     </nav>
@@ -33,36 +37,25 @@
     <div class="container">
         <form id="sosialisasiForm">
             <div class="form-card">
-                <h5 class="mb-4 text-purple fw-bold"><i class="fa-solid fa-users-rectangle me-2"></i>Data Sosialisasi</h5>
-                
+                <h5 class="mb-4 text-purple fw-bold"><i class="fa-solid fa-users me-2"></i>Data Sosialisasi</h5>
+
                 <div class="mb-3">
                     <label class="form-label">Tanggal</label>
-                    <input type="date" class="form-control" id="tanggalInput" readonly required>
+                    <input type="date" class="form-control" id="tanggalInput" readonly>
                 </div>
 
                 <div class="row">
                     <div class="col-md-6 mb-3">
-                        <label class="form-label">ID Karyawan</label>
-                        <input type="text" class="form-control bg-light" id="idKaryawan" readonly placeholder="...">
-                    </div>
-                    <div class="col-md-6 mb-3">
                         <label class="form-label">Nama Petugas</label>
-                        <input type="text" class="form-control bg-light" id="namaBP" readonly placeholder="...">
+                        <input type="text" class="form-control bg-light" id="namaKaryawan" readonly placeholder="Loading...">
+                        <input type="hidden" id="idKaryawan">
+                        <input type="hidden" id="regionalInput"> </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Area</label>
+                        <select class="form-select" id="areaSelect">
+                            <option value="" selected disabled>Loading Area...</option>
+                        </select>
                     </div>
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label">Area</label>
-                    <select class="form-select" id="areaSelect" required>
-                        <option value="" selected disabled>Pilih Area...</option>
-                        <option value="Klaten">Klaten</option>
-                        <option value="Magelang">Magelang</option>
-                        <option value="Solo">Solo</option>
-                        <option value="Solo 2">Solo 2</option>
-                        <option value="Wonogiri">Wonogiri</option>
-                        <option value="Yogyakarta">Yogyakarta</option>
-                        <option value="Yogyakarta 2">Yogyakarta 2</option>
-                    </select>
                 </div>
 
                 <div class="mb-3">
@@ -74,69 +67,51 @@
 
                 <hr class="my-4">
 
-                <div class="alert alert-info py-2 small">
-                    <i class="fa-solid fa-satellite-dish me-1"></i>
-                    Lokasi Desa/Kec/Kab akan terisi otomatis dari GPS.
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label">Desa / Kelurahan</label>
-                    <input type="text" class="form-control" id="desaInput" placeholder="Menunggu GPS..." readonly required>
+                <h6 class="text-purple fw-bold mb-3"><i class="fa-solid fa-map-location-dot me-2"></i>Lokasi Sosialisasi</h6>
+                
+                <div class="d-grid mb-3">
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="btnGetLoc">
+                        <i class="fa-solid fa-location-crosshairs me-2"></i> Ambil Lokasi Otomatis
+                    </button>
+                    <small class="text-muted text-center mt-1" id="statusLokasi">Klik tombol untuk isi alamat otomatis</small>
                 </div>
 
                 <div class="row">
                     <div class="col-6 mb-3">
-                        <label class="form-label">Kecamatan</label>
-                        <input type="text" class="form-control" id="kecInput" placeholder="Otomatis" readonly required>
+                        <label class="form-label small">Desa / Kelurahan</label>
+                        <input type="text" class="form-control" id="desaInput" placeholder="Otomatis" readonly>
                     </div>
                     <div class="col-6 mb-3">
-                        <label class="form-label">Kabupaten</label>
-                        <input type="text" class="form-control" id="kabInput" placeholder="Otomatis" readonly required>
+                        <label class="form-label small">Kecamatan</label>
+                        <input type="text" class="form-control" id="kecamatanInput" placeholder="Otomatis" readonly>
+                    </div>
+                    <div class="col-12 mb-3">
+                        <label class="form-label small">Kabupaten / Kota</label>
+                        <input type="text" class="form-control" id="kabupatenInput" placeholder="Otomatis" readonly>
                     </div>
                 </div>
 
+                <hr class="my-4">
+
                 <div class="mb-3">
-                    <label class="form-label">Dusun</label>
-                    <input type="text" class="form-control" id="dusunInput" placeholder="Nama Dusun" required>
+                    <label class="form-label fw-bold">Jumlah Peserta</label>
+                    <input type="number" class="form-control" id="jmlPeserta" placeholder="0" required>
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">Nama Calon Mitra</label>
-                    <input type="text" class="form-control" id="calonMitraInput" placeholder="Nama Lengkap" required>
+                    <label class="form-label fw-bold">Hasil / Keterangan</label>
+                    <textarea class="form-control" id="keterangan" rows="3" placeholder="Catatan hasil sosialisasi..." required></textarea>
                 </div>
 
-                <div class="mb-3">
-                    <label class="form-label">Nomor HP</label>
-                    <div class="input-group">
-                        <span class="input-group-text fw-bold bg-light">+62</span>
-                        <input type="number" class="form-control" id="noHpInput" placeholder="81234567890" required>
-                    </div>
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label">Lokasi (Geotag)</label>
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="fa-solid fa-location-dot text-danger"></i></span>
-                        <input type="text" class="form-control" id="geotagInput" readonly placeholder="Menunggu lokasi..." required>
-                        <button class="btn btn-outline-secondary" type="button" id="btnRefreshLoc" title="Ambil Ulang Lokasi">
-                            <i class="fa-solid fa-arrows-rotate"></i>
-                        </button>
-                    </div>
-                    <div class="form-text small" id="geoStatus">Aktifkan GPS.</div>
-                </div>
-                
                 <div class="mb-4">
-                    <label class="form-label fw-bold">Foto Kegiatan (Kamera)</label>
-                    <input type="file" class="form-control" id="fotoInput" accept="image/*" capture="environment" required>
-                    
-                    <div class="mt-3 text-center">
-                        <img id="previewFoto" src="#" alt="Preview Foto" class="img-fluid rounded shadow-sm" style="display: none; max-height: 250px; border: 2px dashed #ccc;">
-                    </div>
+                    <label class="form-label fw-bold">Foto Kegiatan</label>
+                    <input type="file" class="form-control" id="fotoInput" accept="image/*" multiple required>
+                    <div id="previewContainer" class="preview-container"></div>
                 </div>
 
                 <div class="d-grid gap-2">
                     <button type="submit" class="btn btn-purple btn-lg shadow-sm">
-                        <i class="fa-solid fa-paper-plane me-2"></i> Submit Sosialisasi
+                        <i class="fa-solid fa-paper-plane me-2"></i> Kirim Laporan
                     </button>
                     <a href="home.html" class="btn btn-outline-secondary">Kembali</a>
                 </div>
