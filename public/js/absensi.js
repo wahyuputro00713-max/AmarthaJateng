@@ -66,7 +66,7 @@ const DATABASE_KOORDINAT_POINT = {
 };
 
 const MAX_JARAK_METER = 25;
-const MAX_JAM_ABSEN = "08:15";
+const MAX_JAM_ABSEN = "13:00";
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
