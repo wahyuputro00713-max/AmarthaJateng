@@ -1,9 +1,9 @@
-// js/home.js
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+// TAMBAHKAN IMPORT DATABASE
+import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// --- KONFIGURASI FIREBASE ANDA ---
+// --- KONFIGURASI FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyC8wOUkyZTa4W2hHHGZq_YKnGFqYEGOuH8",
     authDomain: "amarthajatengwebapp.firebaseapp.com",
@@ -17,26 +17,40 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+const db = getDatabase(app); // Inisialisasi Database
 
 // Elemen DOM
-const userNameSpan = document.getElementById('userName');
+// Pastikan di HTML ID-nya adalah 'userName' atau 'welcomeName'
+// Sesuaikan baris di bawah ini dengan ID di home.html Anda
+const userNameSpan = document.getElementById('userName') || document.getElementById('welcomeName'); 
 const logoutBtn = document.getElementById('logoutBtn');
 
-// 1. Cek Status Login (Security Check)
+// 1. Cek Status Login & Ambil Data Database
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        // User sedang login
-        console.log("User terdeteksi:", user.email);
+        // Ambil Data Detail dari Database (Bukan cuma dari Auth)
+        const userRef = ref(db, 'users/' + user.uid);
         
-        // Tampilkan nama user (atau email jika nama tidak ada)
-        const displayName = user.displayName ? user.displayName : user.email.split('@')[0];
-        if (userNameSpan) {
-            userNameSpan.textContent = displayName;
-        }
+        get(userRef).then((snapshot) => {
+            if (snapshot.exists()) {
+                const data = snapshot.val();
+                
+                // Prioritas: Nama Asli -> ID Karyawan -> Email
+                const realName = data.nama || data.idKaryawan || user.email;
+
+                if (userNameSpan) {
+                    userNameSpan.textContent = realName;
+                }
+            } else {
+                // Jika data database belum ada
+                if (userNameSpan) userNameSpan.textContent = user.email;
+            }
+        }).catch((error) => {
+            console.error("Gagal ambil data user:", error);
+        });
         
     } else {
         // User tidak login -> Tendang ke halaman login
-        console.log("User tidak login, redirecting...");
         window.location.replace("index.html");
     }
 });
@@ -44,19 +58,10 @@ onAuthStateChanged(auth, (user) => {
 // 2. Fungsi Logout
 if (logoutBtn) {
     logoutBtn.addEventListener('click', () => {
-        // Konfirmasi sebelum logout
         if(confirm("Apakah Anda yakin ingin keluar?")) {
             signOut(auth).then(() => {
-                // Logout berhasil
-                console.log("Logout Berhasil");
                 window.location.replace("index.html");
-            }).catch((error) => {
-                // Error saat logout
-                console.error("Logout Error:", error);
-                alert("Gagal logout. Coba lagi.");
             });
         }
     });
-} else {
-    console.error("Tombol Logout tidak ditemukan! Cek ID 'logoutBtn' di HTML.");
 }
