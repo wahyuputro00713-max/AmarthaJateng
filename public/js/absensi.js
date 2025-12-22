@@ -65,7 +65,7 @@ const DATABASE_KOORDINAT_POINT = {
     // ... Masukkan semua koordinat point disini ...
 };
 
-const MAX_JARAK_METER = 300;
+const MAX_JARAK_METER = 300m;
 const MAX_JAM_ABSEN = "13:00";
 
 const app = initializeApp(firebaseConfig);
