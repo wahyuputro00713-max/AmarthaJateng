@@ -17,10 +17,10 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// 🔴 PASTE URL CLOUDFLARE/APPS SCRIPT ANDA DI SINI 🔴
+// 🔴 PASTE URL CLOUDFLARE ANDA DI SINI 🔴
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzKSLFYjD2Z8CSW2uT59rTjGMGpaPULVKvAsHKznItHlA8WIYGOveTJEcXcPbVESStN/exec"; 
 
-// Data Point per Area
+// Data Point
 const dataPoints = {
     "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucul"],
     "Magelang": ["Grabag", "Mungkid", "Pakis", "Salam"],
@@ -31,40 +31,41 @@ const dataPoints = {
     "Wonogiri": ["Jatisrono", "Ngadirojo", "Ngawen 2", "Pracimantoro", "Wonosari"]
 };
 
-// Elemen DOM
 const areaSelect = document.getElementById('areaSelect');
 const pointSelect = document.getElementById('pointSelect');
 const btnGetLoc = document.getElementById('btnGetLoc');
 const statusLokasi = document.getElementById('statusLokasi');
 
 // --- 1. SET TANGGAL OTOMATIS ---
-const dateInput = document.getElementById('tanggalInput');
-if(dateInput) dateInput.value = new Date().toISOString().split('T')[0];
-
-// --- 2. LOGIKA AREA & POINT ---
-function populateAreaDropdown(selectedArea = null) {
-    areaSelect.innerHTML = '<option value="" selected disabled>Pilih Area...</option>';
-    // Isi opsi area dari kunci dataPoints
-    Object.keys(dataPoints).forEach(area => {
-        const option = document.createElement('option');
-        option.value = area;
-        option.textContent = area;
-        if (selectedArea && area === selectedArea) {
-            option.selected = true;
-        }
-        areaSelect.appendChild(option);
-    });
-
-    // Jika area sudah terpilih, load point
-    if (selectedArea) {
-        updatePointsDropdown(selectedArea);
-    }
+if(document.getElementById('tanggalInput')) {
+    document.getElementById('tanggalInput').value = new Date().toISOString().split('T')[0];
 }
 
+// --- 2. LOGIKA FORMAT NO HP (AUTO 62) ---
+const hpInput = document.getElementById('noHpInput');
+const hpClean = document.getElementById('noHpClean');
+
+if (hpInput) {
+    hpInput.addEventListener('input', function() {
+        // Ambil angka saja
+        let raw = this.value.replace(/[^0-9]/g, '');
+        
+        // Logika konversi ke 62
+        if (raw.startsWith('0')) {
+            raw = '62' + raw.substring(1); // Ganti 0 depan jadi 62
+        } else if (raw.startsWith('8')) {
+            raw = '62' + raw; // Tambah 62 jika langsung angka 8
+        }
+        // Jika sudah 62, biarkan
+        
+        hpClean.value = raw; // Simpan di input hidden untuk dikirim
+    });
+}
+
+// --- 3. LOGIKA AREA ---
 function updatePointsDropdown(selectedArea) {
     const points = dataPoints[selectedArea] || [];
     pointSelect.innerHTML = '<option value="" selected disabled>Pilih Point...</option>';
-    
     if (points.length > 0) {
         pointSelect.disabled = false;
         points.forEach(point => {
@@ -78,12 +79,13 @@ function updatePointsDropdown(selectedArea) {
     }
 }
 
-// Event Listener jika Area diganti manual
-areaSelect.addEventListener('change', function() {
-    updatePointsDropdown(this.value);
-});
+if (areaSelect) {
+    areaSelect.addEventListener('change', function() {
+        updatePointsDropdown(this.value);
+    });
+}
 
-// --- 3. LOAD PROFIL USER (AUTO FILL) ---
+// --- 4. LOAD PROFIL ---
 onAuthStateChanged(auth, (user) => {
     if (user) {
         const userRef = ref(db, 'users/' + user.uid);
@@ -91,17 +93,22 @@ onAuthStateChanged(auth, (user) => {
             if (snapshot.exists()) {
                 const data = snapshot.val();
                 
-                // Isi Nama & ID
                 document.getElementById('namaKaryawan').value = data.nama || "-";
                 document.getElementById('idKaryawan').value = data.idKaryawan || "-";
                 if(document.getElementById('regionalInput')) document.getElementById('regionalInput').value = data.regional || "Jawa Tengah 1";
 
-                // Isi Area
+                // Isi Dropdown Area
+                areaSelect.innerHTML = '<option value="" selected disabled>Pilih Area...</option>';
+                Object.keys(dataPoints).forEach(area => {
+                    const option = document.createElement('option');
+                    option.value = area;
+                    option.textContent = area;
+                    if (data.area && area === data.area) option.selected = true;
+                    areaSelect.appendChild(option);
+                });
+
                 if (data.area) {
-                    // Jika user punya area, kunci dropdown dan isi otomatis
-                    populateAreaDropdown(data.area);
-                    
-                    // Cek Jabatan (Optional: kunci area jika BM/BP)
+                    updatePointsDropdown(data.area);
                     const jabatan = data.jabatan;
                     if (jabatan === 'BM' || jabatan === 'BP') {
                         areaSelect.disabled = true;
@@ -110,10 +117,6 @@ onAuthStateChanged(auth, (user) => {
                             pointSelect.disabled = true;
                         }
                     }
-                } else {
-                    // Jika tidak punya area, biarkan user memilih
-                    populateAreaDropdown();
-                    areaSelect.disabled = false;
                 }
             }
         });
@@ -122,93 +125,87 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
-// --- 4. GEOTAG & ALAMAT OTOMATIS (REVERSE GEOCODING) ---
-btnGetLoc.addEventListener('click', () => {
-    if (navigator.geolocation) {
-        statusLokasi.textContent = "Sedang mencari lokasi...";
-        statusLokasi.className = "text-warning text-center mt-1";
-        
-        navigator.geolocation.getCurrentPosition(async (position) => {
-            const lat = position.coords.latitude;
-            const lng = position.coords.longitude;
+// --- 5. LOKASI OTOMATIS (REVERSE GEOCODING) ---
+if (btnGetLoc) {
+    btnGetLoc.addEventListener('click', () => {
+        if (navigator.geolocation) {
+            statusLokasi.textContent = "Mencari titik GPS...";
+            statusLokasi.className = "text-warning text-center mt-1";
             
-            // Panggil Fungsi Cari Alamat
-            await getAddressFromCoordinates(lat, lng);
-
-        }, (error) => {
-            statusLokasi.textContent = "Gagal mengambil lokasi. Pastikan GPS aktif.";
-            statusLokasi.className = "text-danger text-center mt-1";
-            console.error(error);
-        });
-    } else {
-        alert("Browser tidak support Geolocation.");
-    }
-});
+            navigator.geolocation.getCurrentPosition(async (position) => {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                await getAddressFromCoordinates(lat, lng);
+            }, (error) => {
+                statusLokasi.textContent = "Gagal. Aktifkan GPS Anda.";
+                statusLokasi.className = "text-danger text-center mt-1";
+            });
+        } else {
+            alert("Browser tidak support GPS.");
+        }
+    });
+}
 
 async function getAddressFromCoordinates(lat, lng) {
     try {
-        statusLokasi.textContent = "Mengambil data alamat...";
-        
-        // Gunakan API OpenStreetMap (Nominatim) - GRATIS
+        statusLokasi.textContent = "Mengambil data Desa/Kecamatan...";
         const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`);
         const data = await response.json();
-        
         const addr = data.address;
         
-        // Mapping Alamat (Logika Indo)
-        // Desa bisa bernama: village, suburb, atau hamlet
         const desa = addr.village || addr.suburb || addr.hamlet || "";
-        
-        // Kecamatan biasanya: county, town, atau municipality
         const kec = addr.county || addr.town || addr.municipality || "";
-        
-        // Kabupaten biasanya: city, state_district, atau region
         const kab = addr.city || addr.regency || addr.state_district || "";
 
-        // Isi ke Input Form
         document.getElementById('desaInput').value = desa;
         document.getElementById('kecamatanInput').value = kec;
         document.getElementById('kabupatenInput').value = kab;
         
-        statusLokasi.textContent = "Lokasi berhasil ditemukan!";
+        statusLokasi.textContent = "Lokasi ditemukan: " + desa;
         statusLokasi.className = "text-success text-center mt-1 fw-bold";
-
     } catch (error) {
-        console.error("Gagal reverse geocode:", error);
-        statusLokasi.textContent = "Gagal konversi koordinat ke alamat.";
+        statusLokasi.textContent = "Gagal mengambil nama daerah.";
         statusLokasi.className = "text-danger text-center mt-1";
     }
 }
 
-// --- 5. PREVIEW FOTO ---
+// --- 6. PREVIEW FOTO ---
 const fileInput = document.getElementById('fotoInput');
 const previewContainer = document.getElementById('previewContainer');
 
-fileInput.addEventListener('change', function() {
-    previewContainer.innerHTML = '';
-    const files = Array.from(this.files);
-    
-    if (files.length > 5) {
-        alert("Maksimal 5 foto!");
-        this.value = ""; return;
-    }
-
-    files.forEach(file => {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const img = document.createElement('img');
-            img.src = e.target.result;
-            img.className = 'preview-img';
-            previewContainer.appendChild(img);
-        }
-        reader.readAsDataURL(file);
+if (fileInput) {
+    fileInput.addEventListener('change', function() {
+        previewContainer.innerHTML = '';
+        const files = Array.from(this.files);
+        if (files.length > 5) { alert("Maks 5 foto"); this.value=""; return; }
+        files.forEach(file => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.className = 'preview-img';
+                img.style.width = '80px'; img.style.height = '80px'; img.style.margin = '5px';
+                previewContainer.appendChild(img);
+            }
+            reader.readAsDataURL(file);
+        });
     });
-});
+}
 
-// --- 6. SUBMIT FORM ---
+// --- 7. SUBMIT FORM ---
 document.getElementById('sosialisasiForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     
+    // Ambil No HP Bersih
+    let finalHp = document.getElementById('noHpClean').value;
+    // Backup: jika hidden kosong, ambil manual dari input
+    if (!finalHp) {
+        let raw = document.getElementById('noHpInput').value.replace(/[^0-9]/g, '');
+        if (raw.startsWith('0')) finalHp = '62' + raw.substring(1);
+        else if (raw.startsWith('8')) finalHp = '62' + raw;
+        else finalHp = raw;
+    }
+
     if (!areaSelect.value) { alert("❌ Area belum terpilih!"); return; }
     if (!pointSelect.value) { alert("❌ Point belum terpilih!"); return; }
     if (fileInput.files.length === 0) { alert("❌ Wajib upload foto!"); return; }
@@ -218,7 +215,7 @@ document.getElementById('sosialisasiForm').addEventListener('submit', async (e) 
 
     try {
         const files = Array.from(fileInput.files);
-        const file = files[0]; // Kirim foto pertama
+        const file = files[0];
         const base64 = await toBase64(file);
 
         const formData = {
@@ -230,13 +227,13 @@ document.getElementById('sosialisasiForm').addEventListener('submit', async (e) 
             area: areaSelect.value,
             point: pointSelect.value,
             
-            // Data Lokasi Otomatis
+            // DATA BARU
+            namaMitra: document.getElementById('namaMitra').value,
+            noHp: finalHp, // Kirim No HP format 62...
+            
             desa: document.getElementById('desaInput').value,
             kecamatan: document.getElementById('kecamatanInput').value,
             kabupaten: document.getElementById('kabupatenInput').value,
-
-            jmlPeserta: document.getElementById('jmlPeserta').value,
-            keterangan: document.getElementById('keterangan').value,
             
             foto: base64.replace(/^data:image\/(png|jpeg|jpg);base64,/, ""),
             namaFoto: "Sos_" + file.name,
@@ -251,7 +248,7 @@ document.getElementById('sosialisasiForm').addEventListener('submit', async (e) 
         const result = await response.json();
 
         if (result.result === 'success') {
-            alert("✅ Laporan Sosialisasi Terkirim!");
+            alert("✅ Data Mitra Berhasil Disimpan!");
             window.location.href = "home.html";
         } else {
             throw new Error(result.error);
