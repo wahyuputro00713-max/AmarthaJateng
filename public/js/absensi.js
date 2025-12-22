@@ -31,6 +31,9 @@ const DATABASE_KOORDINAT_POINT = {
     "01 Wedi":       { lat: -7.755432, lng: 110.567890 }, 
     "Karangnongko":  { lat: -7.712345, lng: 110.123456 }, 
     "Mojosongo":     { lat: -7.555111, lng: 110.888999 },
+    "Polanharjo":     { lat: -7.555111, lng: 110.888999 },
+    "Trucuk":     { lat: -7.555111, lng: 110.888999 },
+    "Grabag":     { lat: -7.369339, lng: 110.308800 },
     // ... Masukkan semua koordinat point disini ...
 };
 
