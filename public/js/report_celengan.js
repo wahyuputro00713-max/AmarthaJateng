@@ -45,7 +45,7 @@ window.addEventListener('DOMContentLoaded', () => {
     setupScanner();
 });
 
-// === STEP 1: PRE-PROCESSING (MEMPERTAJAM GAMBAR) ===
+// === STEP 1: PRE-PROCESSING SUPER TAJAM ===
 function preprocessImage(imageFile) {
     return new Promise((resolve) => {
         const img = new Image();
@@ -57,27 +57,37 @@ function preprocessImage(imageFile) {
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
                 
-                // Perbesar 3x agar teks kecil tidak pecah
-                const scale = 3; 
+                // 1. ZOOM EKSTREM 4x
+                // Agar detail kecil (ekor 9, lengkungan 0) terlihat jelas
+                const scale = 4; 
                 canvas.width = img.width * scale;
                 canvas.height = img.height * scale;
                 
+                // Matikan smoothing agar pixel tajam
                 ctx.imageSmoothingEnabled = false; 
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
                 const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 const data = imgData.data;
 
-                // Binarization (Hitam Putih Pekat)
+                // 2. HIGH SENSITIVITY THRESHOLDING
+                // Kita naikkan ambang batas ke 190.
+                // Artinya: Abu-abu muda sekalipun akan dipaksa jadi HITAM.
+                // Ini akan menyelamatkan ekor angka 9 yang pudar.
                 for (let i = 0; i < data.length; i += 4) {
+                    // Rumus Luminance standar
                     const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-                    // Threshold sedikit dinaikkan ke 155 agar huruf tipis lebih tertangkap
-                    const val = (gray > 155) ? 255 : 0; 
+                    
+                    // Threshold 190 (Sangat sensitif terhadap tinta tipis)
+                    // Jika warna lebih terang dari 190 -> Putih (Background)
+                    // Jika warna lebih gelap dari 190 -> Hitam (Teks)
+                    const val = (gray > 190) ? 255 : 0; 
+
                     data[i] = data[i + 1] = data[i + 2] = val;
                 }
 
                 ctx.putImageData(imgData, 0, 0);
-                canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.95);
+                canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.90);
             }
         };
         reader.readAsDataURL(imageFile);
@@ -99,29 +109,31 @@ function setupScanner() {
             const rawFile = this.files[0];
             if (!rawFile) return;
 
-            loadingText.textContent = "⚙️ Memproses Gambar...";
+            loadingText.textContent = "⚙️ Mempertajam Gambar...";
             loadingOverlay.style.display = 'flex';
 
             try {
+                // Proses Gambar
                 const processedFile = await preprocessImage(rawFile);
-                loadingText.textContent = "🔍 Membaca Teks...";
+                loadingText.textContent = "🔍 Analisis Teks...";
 
+                // Tesseract Config
                 const result = await Tesseract.recognize(processedFile, 'eng', {
-                    tessedit_pageseg_mode: '6', // Assume single uniform block
+                    tessedit_pageseg_mode: '6', // Mode blok teks tunggal
                     logger: m => console.log(m)
                 });
 
                 const fullText = result.data.text;
-                console.log("TEKS MENTAH:", fullText);
+                console.log("RAW TEKS:", fullText);
 
-                // Jalankan Pencarian & Perbaikan
+                // Filter & Koreksi
                 const kodeDitemukan = cariKodeTransaksi(fullText);
 
                 if (kodeDitemukan) {
                     kodeField.value = kodeDitemukan;
                     alert(`✅ Kode Ditemukan!\n${kodeDitemukan}`);
                 } else {
-                    alert("⚠️ Kode terbaca sebagian/salah.\nHasil mentah:\n" + fullText.substring(0, 50));
+                    alert("⚠️ Kode terbaca sebagian.\nSistem membaca: " + fullText.substring(0, 40) + "...\nMohon cek pencahayaan foto.");
                 }
 
             } catch (error) {
@@ -135,31 +147,30 @@ function setupScanner() {
     }
 }
 
-// === STEP 3: LOGIKA PENCARIAN & PERBAIKAN TYPO ===
+// === STEP 3: SEARCH & FIX ===
 function cariKodeTransaksi(text) {
     if (!text) return null;
 
-    // 1. Bersihkan semua karakter non-alphanumeric (Hapus spasi, enter, titik, koma)
+    // 1. Bersihkan Karakter Sampah
+    // Hanya sisakan Huruf, Angka, dan Strip. Hapus spasi/enter.
     let cleanText = text.replace(/[^a-zA-Z0-9-]/g, '');
 
-    // 2. KOREKSI TYPO MASSAL (Logic Penting!)
-    // Kita paksa karakter yang mirip angka untuk jadi angka, 
-    // karena di Hexadesimal huruf g, i, l, o, s, z itu TIDAK ADA (kecuali a-f).
+    // 2. AUTO-CORRECT TYPO VISUAL
+    // Memperbaiki kesalahan umum OCR pada font struk
     cleanText = perbaikiTypoOCR(cleanText);
 
-    console.log("TEXT SETELAH FIX:", cleanText);
+    console.log("FIXED TEXT:", cleanText);
 
-    // 3. Cari Pola UUID
-    // Format: deretan hex 0-9/a-f dan strip, panjang min 25 char
+    // 3. Regex UUID (Longgar)
+    // Mencari deretan karakter hex (termasuk strip) minimal 25 karakter
     const regex = /[a-fA-F0-9-]{25,}/g;
     
     const matches = cleanText.match(regex);
 
     if (matches && matches.length > 0) {
-        // Ambil hasil terpanjang
         const bestMatch = matches.reduce((a, b) => a.length > b.length ? a : b);
         
-        // Cek minimal ada 2 strip (-)
+        // Validasi: Minimal ada 2 strip (-)
         if ((bestMatch.match(/-/g) || []).length >= 2) {
             return bestMatch;
         }
@@ -168,22 +179,29 @@ function cariKodeTransaksi(text) {
     return null;
 }
 
-// === FUNGSI PERBAIKI HURUF JADI ANGKA ===
+// === STEP 4: KAMUS PERBAIKAN TYPO ===
 function perbaikiTypoOCR(str) {
     return str
-        .replace(/O/g, '0').replace(/o/g, '0').replace(/D/g, '0') // O, o, D -> 0
-        .replace(/I/g, '1').replace(/l/g, '1').replace(/i/g, '1') // I, l, i -> 1
-        .replace(/Z/g, '2').replace(/z/g, '2')                    // Z, z -> 2
-        .replace(/S/g, '5').replace(/s/g, '5')                    // S, s -> 5
-        .replace(/g/g, '9')                                       // g -> 9 (Kecuali G besar kadang 6)
-        .replace(/G/g, '6')                                       // G -> 6
-        .replace(/B/g, '8')                                       // B -> 8 (Karena b kecil itu valid hex)
-        .replace(/q/g, '9');                                      // q -> 9
+        // Fix 0 dan O
+        .replace(/O/g, '0').replace(/o/g, '0').replace(/D/g, '0')
+        // Fix 1 dan l/I
+        .replace(/I/g, '1').replace(/l/g, '1').replace(/i/g, '1')
+        // Fix 2 dan Z
+        .replace(/Z/g, '2').replace(/z/g, '2')
+        // Fix 5 dan S
+        .replace(/S/g, '5').replace(/s/g, '5')
+        // Fix 6 dan G
+        .replace(/G/g, '6') 
+        // Fix 8 dan B
+        .replace(/B/g, '8')
+        // Fix 9 dan g/q
+        .replace(/g/g, '9').replace(/q/g, '9');
+        // Note: Kita tidak bisa auto-replace '0' jadi '9' atau 'a' jadi '0' secara global 
+        // karena '0' dan 'a' adalah karakter valid di Hexadesimal.
+        // Perbaikan '0' vs '9' dan 'a' vs '0' SANGAT bergantung pada ketajaman gambar (Step 1).
 }
 
-// ... (Sisa fungsi loadUserProfile, submitLaporan, formatRupiah SAMA PERSIS) ...
-// Pastikan bagian bawah ini tetap ada:
-
+// ... (Load Profil & Submit Logic - Tidak Berubah) ...
 function loadUserProfile(uid) {
     const userRef = ref(db, 'users/' + uid);
     get(userRef).then((snapshot) => {
