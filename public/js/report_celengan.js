@@ -52,11 +52,11 @@ window.addEventListener('DOMContentLoaded', () => {
         formEl.addEventListener('submit', submitLaporan);
     }
 
-    // 5. SETUP SCANNER OCR (DENGAN FILTER)
+    // 5. SETUP SCANNER OCR
     setupScanner();
 });
 
-// --- FUNGSI SCANNER PINTAR ---
+// --- FUNGSI SCANNER PINTAR (UPDATED UNTUK UUID) ---
 function setupScanner() {
     const btnScan = document.getElementById('btnScan');
     const scanInput = document.getElementById('scanInput');
@@ -73,24 +73,28 @@ function setupScanner() {
             const file = this.files[0];
             if (!file) return;
 
-            loadingText.textContent = "🔍 Mencari Kode Transaksi...";
+            loadingText.textContent = "🔍 Membaca Struk...";
             loadingOverlay.style.display = 'flex';
 
             try {
-                // Proses OCR
-                const result = await Tesseract.recognize(file, 'eng');
-                const fullText = result.data.text;
-                console.log("Teks Mentah:", fullText); // Cek di console untuk debug
+                // 1. Proses Gambar (OCR)
+                // Menggunakan whitelist karakter agar lebih akurat membaca UUID (huruf a-f, angka 0-9, dan strip)
+                const result = await Tesseract.recognize(file, 'eng', {
+                    logger: m => console.log(m),
+                    tessedit_char_whitelist: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789- ' // Hanya izinkan karakter ini
+                });
 
-                // --- BAGIAN FILTER (Mencari Kode) ---
+                const fullText = result.data.text;
+                console.log("Teks Terbaca:", fullText); 
+
+                // 2. Filter Mencari UUID
                 const kodeDitemukan = saringKodeTransaksi(fullText);
 
                 if (kodeDitemukan) {
                     kodeField.value = kodeDitemukan;
-                    alert(`✅ Kode Ditemukan: ${kodeDitemukan}`);
+                    alert(`✅ Kode Ditemukan!\n${kodeDitemukan}`);
                 } else {
-                    alert("⚠️ Teks terbaca, tapi format Kode Transaksi tidak ditemukan.\nPastikan foto jelas & kode terbaca.");
-                    console.log("Gagal filter. Hasil mentah:", fullText);
+                    alert("⚠️ Kode Transaksi tidak ditemukan.\n\nPastikan foto jelas dan memuat kode format: xxxxxxxx-xxxx-xxxx...");
                 }
 
             } catch (error) {
@@ -105,35 +109,33 @@ function setupScanner() {
     }
 }
 
-// --- LOGIKA FILTER KODE (BISA DIEDIT SESUAI KEBUTUHAN) ---
+// --- LOGIKA FILTER KODE KHUSUS UUID (Sesuai Gambar) ---
 function saringKodeTransaksi(text) {
-    // 1. Bersihkan teks (Hapus spasi aneh)
-    const lines = text.split('\n'); // Pecah per baris
+    if (!text) return null;
 
-    // STRATEGI A: Cari Kata Kunci "Kode" atau "Transaksi" atau "TRX"
-    for (let line of lines) {
-        // Ubah ke huruf besar semua biar gampang ngecek
-        const upperLine = line.toUpperCase().trim();
+    // Bersihkan teks dari spasi berlebih
+    const cleanText = text.replace(/\s+/g, ' ');
 
-        // Contoh 1: Jika baris mengandung kata "TRX" atau "INV" (Invoice)
-        // Misal: "No Ref: TRX-998877" -> diambil "TRX-998877"
-        const regexKode = /(TRX|INV|REF|KODE)[-:\s]*([A-Z0-9]+)/i;
-        const match = upperLine.match(regexKode);
-        if (match && match[2].length > 4) { 
-            return match[2]; // Mengembalikan kode yang ditemukan (Grup ke-2)
-        }
-        
-        // Contoh 2: Jika kode hanya berupa angka panjang (misal 10-12 digit)
-        // const regexAngka = /\b\d{10,15}\b/;
-        // const matchAngka = upperLine.match(regexAngka);
-        // if (matchAngka) return matchAngka[0];
+    // REGEX UUID
+    // Format: 8char - 4char - 4char - 4char - 12char
+    // Contoh: 100658c0-3b87-46d2-aec5-6d7a244c049c
+    const regexUUID = /\b[a-zA-Z0-9]{8}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}\b/i;
+
+    const match = cleanText.match(regexUUID);
+
+    if (match) {
+        return match[0]; // Kembalikan kode yang cocok persis
     }
 
-    // STRATEGI B: Jika tidak ada kata kunci, cari format kasar
-    // Misal kodenya selalu format: Huruf-Angka (CONTOH: AB-12345)
-    // const regexUmum = /[A-Z]{2,}-\d{4,}/;
-    // const matchUmum = text.match(regexUmum);
-    // if (matchUmum) return matchUmum[0];
+    // FALLBACK (Cadangan):
+    // Jika OCR salah baca sedikit (misal kurang 1 digit), kita cari string panjang yg mengandung minimal 3 strip (-)
+    const words = cleanText.split(' ');
+    for (let word of words) {
+        // Cari kata yang panjangnya > 20 dan punya minimal 3 tanda strip
+        if (word.length > 30 && (word.match(/-/g) || []).length >= 4) {
+            return word; // Kembalikan kemungkinan kode
+        }
+    }
 
     return null; // Tidak ketemu
 }
@@ -197,7 +199,7 @@ async function submitLaporan(e) {
             kodeTransaksi: kode, 
             namaMitra: namaMitra,
             nominal: cleanNominal,
-            foto: "", 
+            foto: "", // Celengan di script ini tidak kirim foto bukti, hanya OCR
         };
 
         const response = await fetch(SCRIPT_URL, {
