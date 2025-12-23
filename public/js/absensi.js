@@ -13,7 +13,7 @@ const firebaseConfig = {
     appId: "1:22431520744:web:711af76a5335d97179765d"
 };
 
-const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; 
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw0qs3sdbTk13UY7DWCgFLjNhhKqgcc7c1cE731Lw2ZYLag6S5RlDBr4jERmCoIOT86/exec"; 
 
 // 1. DAFTAR POINT PER AREA (Untuk Dropdown)
 const DATA_POINTS = {
@@ -279,7 +279,14 @@ document.getElementById('absensiForm').addEventListener('submit', async (e) => {
             mimeType: file.type
         };
 
-        const response = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(formData) });
+        const response = await fetch(SCRIPT_URL, { 
+    method: 'POST', 
+    body: JSON.stringify(formData),
+    // Wajib ada agar browser mau mengikuti balasan dari Google
+    redirect: "follow", 
+    // Opsional: Memastikan tipe konten text/plain agar tidak kena Preflight Check
+    headers: { "Content-Type": "text/plain;charset=utf-8" } 
+});
         const result = await response.json();
         
         if (result.result === 'success') {
