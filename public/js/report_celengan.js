@@ -61,6 +61,7 @@ function preprocessImage(imageFile) {
                 const scale = 3; 
                 canvas.width = img.width * scale;
                 canvas.height = img.height * scale;
+                
                 ctx.imageSmoothingEnabled = false; 
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
@@ -70,7 +71,8 @@ function preprocessImage(imageFile) {
                 // Binarization (Hitam Putih Pekat)
                 for (let i = 0; i < data.length; i += 4) {
                     const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-                    const val = (gray > 145) ? 255 : 0; // Thresholding
+                    // Threshold sedikit dinaikkan ke 155 agar huruf tipis lebih tertangkap
+                    const val = (gray > 155) ? 255 : 0; 
                     data[i] = data[i + 1] = data[i + 2] = val;
                 }
 
@@ -104,24 +106,22 @@ function setupScanner() {
                 const processedFile = await preprocessImage(rawFile);
                 loadingText.textContent = "🔍 Membaca Teks...";
 
-                // Hapus whitelist agar karakter 'typo' (seperti O menggantikan 0) tetap terbaca
-                // Nanti kita perbaiki di step filtering
                 const result = await Tesseract.recognize(processedFile, 'eng', {
-                    tessedit_pageseg_mode: '6', // Assume single uniform block of text
+                    tessedit_pageseg_mode: '6', // Assume single uniform block
                     logger: m => console.log(m)
                 });
 
                 const fullText = result.data.text;
                 console.log("TEKS MENTAH:", fullText);
 
-                // Jalankan filter super agresif
+                // Jalankan Pencarian & Perbaikan
                 const kodeDitemukan = cariKodeTransaksi(fullText);
 
                 if (kodeDitemukan) {
                     kodeField.value = kodeDitemukan;
                     alert(`✅ Kode Ditemukan!\n${kodeDitemukan}`);
                 } else {
-                    alert("⚠️ Kode tidak terdeteksi utuh.\nHasil pembacaan:\n" + fullText.substring(0, 100));
+                    alert("⚠️ Kode terbaca sebagian/salah.\nHasil mentah:\n" + fullText.substring(0, 50));
                 }
 
             } catch (error) {
@@ -135,36 +135,31 @@ function setupScanner() {
     }
 }
 
-// === STEP 3: LOGIKA PENCARIAN & PEMBERSIHAN (THE FIX) ===
+// === STEP 3: LOGIKA PENCARIAN & PERBAIKAN TYPO ===
 function cariKodeTransaksi(text) {
     if (!text) return null;
 
-    // 1. BUANG KARAKTER SAMPAH
-    // Hapus semua yang BUKAN huruf, angka, atau strip (-).
-    // Ini akan membuang spasi, enter, titik, koma, garis | dll.
-    // Contoh: "94d2- \n a09c" -> "94d2-a09c"
+    // 1. Bersihkan semua karakter non-alphanumeric (Hapus spasi, enter, titik, koma)
     let cleanText = text.replace(/[^a-zA-Z0-9-]/g, '');
 
-    // 2. PERBAIKI TYPO UMUM OCR (Penting!)
-    // Kadang angka 0 dibaca huruf O, angka 1 dibaca huruf l/I.
-    // Kita normalkan dulu sebelum regex.
-    cleanText = cleanText.replace(/O/g, '0').replace(/o/g, '0'); // O/o jadi 0
-    cleanText = cleanText.replace(/l/g, '1').replace(/I/g, '1'); // l/I jadi 1
+    // 2. KOREKSI TYPO MASSAL (Logic Penting!)
+    // Kita paksa karakter yang mirip angka untuk jadi angka, 
+    // karena di Hexadesimal huruf g, i, l, o, s, z itu TIDAK ADA (kecuali a-f).
+    cleanText = perbaikiTypoOCR(cleanText);
 
-    console.log("TEXT BERSIH:", cleanText);
+    console.log("TEXT SETELAH FIX:", cleanText);
 
-    // 3. CARI POLA UUID LONGGAR
-    // Kita cari deretan karakter Hex (0-9, a-f) dan strip (-) yang panjangnya > 30 karakter.
-    // Regex ini lebih pemaaf daripada yang sebelumnya.
-    const regexLonggar = /[a-fA-F0-9-]{30,}/g;
+    // 3. Cari Pola UUID
+    // Format: deretan hex 0-9/a-f dan strip, panjang min 25 char
+    const regex = /[a-fA-F0-9-]{25,}/g;
     
-    const matches = cleanText.match(regexLonggar);
+    const matches = cleanText.match(regex);
 
     if (matches && matches.length > 0) {
-        // Ambil hasil yang paling panjang (kemungkinan besar itu kode transaksinya)
+        // Ambil hasil terpanjang
         const bestMatch = matches.reduce((a, b) => a.length > b.length ? a : b);
         
-        // Cek validasi sederhana: minimal harus ada 2 tanda strip (-)
+        // Cek minimal ada 2 strip (-)
         if ((bestMatch.match(/-/g) || []).length >= 2) {
             return bestMatch;
         }
@@ -173,8 +168,21 @@ function cariKodeTransaksi(text) {
     return null;
 }
 
-// ... (Sisa fungsi loadUserProfile, submitLaporan, formatRupiah SAMA SEPERTI SEBELUMNYA) ...
-// Pastikan bagian bawah ini tetap ada di file Anda:
+// === FUNGSI PERBAIKI HURUF JADI ANGKA ===
+function perbaikiTypoOCR(str) {
+    return str
+        .replace(/O/g, '0').replace(/o/g, '0').replace(/D/g, '0') // O, o, D -> 0
+        .replace(/I/g, '1').replace(/l/g, '1').replace(/i/g, '1') // I, l, i -> 1
+        .replace(/Z/g, '2').replace(/z/g, '2')                    // Z, z -> 2
+        .replace(/S/g, '5').replace(/s/g, '5')                    // S, s -> 5
+        .replace(/g/g, '9')                                       // g -> 9 (Kecuali G besar kadang 6)
+        .replace(/G/g, '6')                                       // G -> 6
+        .replace(/B/g, '8')                                       // B -> 8 (Karena b kecil itu valid hex)
+        .replace(/q/g, '9');                                      // q -> 9
+}
+
+// ... (Sisa fungsi loadUserProfile, submitLaporan, formatRupiah SAMA PERSIS) ...
+// Pastikan bagian bawah ini tetap ada:
 
 function loadUserProfile(uid) {
     const userRef = ref(db, 'users/' + uid);
