@@ -52,10 +52,11 @@ window.addEventListener('DOMContentLoaded', () => {
         formEl.addEventListener('submit', submitLaporan);
     }
 
-    // 5. FITUR SCANNER OCR (BARU)
+    // 5. SETUP SCANNER OCR (DENGAN FILTER)
     setupScanner();
 });
 
+// --- FUNGSI SCANNER PINTAR ---
 function setupScanner() {
     const btnScan = document.getElementById('btnScan');
     const scanInput = document.getElementById('scanInput');
@@ -64,56 +65,77 @@ function setupScanner() {
     const loadingText = document.getElementById('loadingText');
 
     if (btnScan && scanInput) {
-        // Klik Tombol -> Buka Kamera/File
         btnScan.addEventListener('click', () => {
             scanInput.click();
         });
 
-        // Saat File Dipilih -> Proses OCR
         scanInput.addEventListener('change', async function() {
             const file = this.files[0];
             if (!file) return;
 
-            // Tampilkan Loading
-            loadingText.textContent = "🔍 Membaca Teks dari Gambar...";
+            loadingText.textContent = "🔍 Mencari Kode Transaksi...";
             loadingOverlay.style.display = 'flex';
 
             try {
-                // Proses dengan Tesseract.js
-                // 'eng' biasanya cukup bagus untuk angka/kode. Bisa ganti 'ind' jika perlu bahasa indonesia.
-                const result = await Tesseract.recognize(
-                    file,
-                    'eng', 
-                    { 
-                        logger: m => console.log(m) // Cek progress di console
-                    }
-                );
+                // Proses OCR
+                const result = await Tesseract.recognize(file, 'eng');
+                const fullText = result.data.text;
+                console.log("Teks Mentah:", fullText); // Cek di console untuk debug
 
-                const textDitemukan = result.data.text;
-                console.log("Hasil OCR:", textDitemukan);
+                // --- BAGIAN FILTER (Mencari Kode) ---
+                const kodeDitemukan = saringKodeTransaksi(fullText);
 
-                // Bersihkan hasil (Hapus spasi berlebih/baris baru)
-                // Kita ambil teks yang terlihat seperti kode (Misal huruf+angka)
-                // Atau cukup masukkan semua teks ke input biar user edit
-                const cleanText = textDitemukan.replace(/\n/g, " ").trim();
-                
-                if (cleanText) {
-                    kodeField.value = cleanText;
-                    alert("✅ Teks berhasil dibaca! Silakan koreksi jika ada yang salah.");
+                if (kodeDitemukan) {
+                    kodeField.value = kodeDitemukan;
+                    alert(`✅ Kode Ditemukan: ${kodeDitemukan}`);
                 } else {
-                    alert("⚠️ Tidak ada teks yang terbaca. Pastikan foto jelas.");
+                    alert("⚠️ Teks terbaca, tapi format Kode Transaksi tidak ditemukan.\nPastikan foto jelas & kode terbaca.");
+                    console.log("Gagal filter. Hasil mentah:", fullText);
                 }
 
             } catch (error) {
                 console.error(error);
-                alert("❌ Gagal membaca gambar: " + error.message);
+                alert("❌ Gagal scan: " + error.message);
             } finally {
                 loadingOverlay.style.display = 'none';
-                loadingText.textContent = "Memproses..."; // Reset text
-                this.value = ""; // Reset input file agar bisa scan ulang
+                loadingText.textContent = "Memproses...";
+                this.value = ""; 
             }
         });
     }
+}
+
+// --- LOGIKA FILTER KODE (BISA DIEDIT SESUAI KEBUTUHAN) ---
+function saringKodeTransaksi(text) {
+    // 1. Bersihkan teks (Hapus spasi aneh)
+    const lines = text.split('\n'); // Pecah per baris
+
+    // STRATEGI A: Cari Kata Kunci "Kode" atau "Transaksi" atau "TRX"
+    for (let line of lines) {
+        // Ubah ke huruf besar semua biar gampang ngecek
+        const upperLine = line.toUpperCase().trim();
+
+        // Contoh 1: Jika baris mengandung kata "TRX" atau "INV" (Invoice)
+        // Misal: "No Ref: TRX-998877" -> diambil "TRX-998877"
+        const regexKode = /(TRX|INV|REF|KODE)[-:\s]*([A-Z0-9]+)/i;
+        const match = upperLine.match(regexKode);
+        if (match && match[2].length > 4) { 
+            return match[2]; // Mengembalikan kode yang ditemukan (Grup ke-2)
+        }
+        
+        // Contoh 2: Jika kode hanya berupa angka panjang (misal 10-12 digit)
+        // const regexAngka = /\b\d{10,15}\b/;
+        // const matchAngka = upperLine.match(regexAngka);
+        // if (matchAngka) return matchAngka[0];
+    }
+
+    // STRATEGI B: Jika tidak ada kata kunci, cari format kasar
+    // Misal kodenya selalu format: Huruf-Angka (CONTOH: AB-12345)
+    // const regexUmum = /[A-Z]{2,}-\d{4,}/;
+    // const matchUmum = text.match(regexUmum);
+    // if (matchUmum) return matchUmum[0];
+
+    return null; // Tidak ketemu
 }
 
 // --- FUNGSI LOAD PROFIL (AUTO FILL) ---
@@ -158,10 +180,8 @@ async function submitLaporan(e) {
     if(!cleanNominal) { alert("❌ Nominal wajib diisi!"); return; }
 
     const loadingOverlay = document.getElementById('loadingOverlay');
-    const loadingText = document.getElementById('loadingText');
-    
     if(loadingOverlay) {
-        loadingText.textContent = "Mengirim Data...";
+        document.getElementById('loadingText').textContent = "Mengirim Data...";
         loadingOverlay.style.display = 'flex';
     }
 
@@ -177,7 +197,7 @@ async function submitLaporan(e) {
             kodeTransaksi: kode, 
             namaMitra: namaMitra,
             nominal: cleanNominal,
-            foto: "", // Kosongkan
+            foto: "", 
         };
 
         const response = await fetch(SCRIPT_URL, {
