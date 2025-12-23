@@ -56,7 +56,59 @@ window.addEventListener('DOMContentLoaded', () => {
     setupScanner();
 });
 
-// --- FUNGSI SCANNER PINTAR (UPDATED UNTUK UUID) ---
+// --- FUNGSI PRE-PROCESSING IMAGE (MEMPERTAJAM GAMBAR) ---
+// Mengubah gambar jadi Hitam-Putih (Binarization) agar teks lebih jelas dibaca OCR
+function preprocessImage(imageFile) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        const reader = new FileReader();
+
+        reader.onload = function(e) {
+            img.src = e.target.result;
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Atur ukuran canvas
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+
+                // Ambil data pixel
+                const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imgData.data;
+
+                // Loop setiap pixel untuk ubah jadi grayscale & high contrast
+                for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+                    
+                    // Rumus Grayscale (Luminosity)
+                    const gray = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+                    
+                    // Thresholding (Jika abu-abu gelap jadi hitam, terang jadi putih)
+                    // Angka 140 bisa diubah (0-255) untuk sensitivitas
+                    const val = (gray > 140) ? 255 : 0;
+
+                    data[i] = val;     // Red
+                    data[i + 1] = val; // Green
+                    data[i + 2] = val; // Blue
+                }
+
+                ctx.putImageData(imgData, 0, 0);
+                
+                // Konversi Canvas kembali ke Blob/File
+                canvas.toBlob((blob) => {
+                    resolve(blob);
+                }, 'image/jpeg', 0.95);
+            }
+        };
+        reader.readAsDataURL(imageFile);
+    });
+}
+
+// --- FUNGSI SCANNER PINTAR ---
 function setupScanner() {
     const btnScan = document.getElementById('btnScan');
     const scanInput = document.getElementById('scanInput');
@@ -70,31 +122,39 @@ function setupScanner() {
         });
 
         scanInput.addEventListener('change', async function() {
-            const file = this.files[0];
-            if (!file) return;
+            const rawFile = this.files[0];
+            if (!rawFile) return;
 
-            loadingText.textContent = "🔍 Membaca Struk...";
+            loadingText.textContent = "⚙️ Memproses Gambar...";
             loadingOverlay.style.display = 'flex';
 
             try {
-                // 1. Proses Gambar (OCR)
-                // Menggunakan whitelist karakter agar lebih akurat membaca UUID (huruf a-f, angka 0-9, dan strip)
-                const result = await Tesseract.recognize(file, 'eng', {
-                    logger: m => console.log(m),
-                    tessedit_char_whitelist: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789- ' // Hanya izinkan karakter ini
+                // 1. Pre-processing: Pertajam gambar dulu!
+                const processedFile = await preprocessImage(rawFile);
+                
+                loadingText.textContent = "🔍 Membaca Teks...";
+
+                // 2. Jalankan Tesseract pada gambar yang sudah dipertajam
+                const result = await Tesseract.recognize(processedFile, 'eng', {
+                    logger: m => console.log(m)
+                    // Hapus whitelist agar tidak terlalu ketat
                 });
 
                 const fullText = result.data.text;
-                console.log("Teks Terbaca:", fullText); 
+                console.log("=== HASIL OCR ===");
+                console.log(fullText);
+                console.log("=================");
 
-                // 2. Filter Mencari UUID
+                // 3. Filter Mencari Kode
                 const kodeDitemukan = saringKodeTransaksi(fullText);
 
                 if (kodeDitemukan) {
-                    kodeField.value = kodeDitemukan;
-                    alert(`✅ Kode Ditemukan!\n${kodeDitemukan}`);
+                    // Bersihkan spasi jika ada di tengah kode (kadang OCR baca "a- b" padahal "a-b")
+                    const kodeBersih = kodeDitemukan.replace(/\s/g, '');
+                    kodeField.value = kodeBersih;
+                    alert(`✅ Kode Ditemukan!\n${kodeBersih}`);
                 } else {
-                    alert("⚠️ Kode Transaksi tidak ditemukan.\n\nPastikan foto jelas dan memuat kode format: xxxxxxxx-xxxx-xxxx...");
+                    alert("⚠️ Teks terbaca, tapi Kode Transaksi belum ketemu.\nCoba foto lebih dekat dan fokus pada area kode.");
                 }
 
             } catch (error) {
@@ -109,35 +169,66 @@ function setupScanner() {
     }
 }
 
-// --- LOGIKA FILTER KODE KHUSUS UUID (Sesuai Gambar) ---
+// --- LOGIKA FILTER (LEBIH PINTAR) ---
 function saringKodeTransaksi(text) {
     if (!text) return null;
 
-    // Bersihkan teks dari spasi berlebih
-    const cleanText = text.replace(/\s+/g, ' ');
+    // Bersihkan karakter aneh di awal/akhir baris
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
-    // REGEX UUID
-    // Format: 8char - 4char - 4char - 4char - 12char
-    // Contoh: 100658c0-3b87-46d2-aec5-6d7a244c049c
-    const regexUUID = /\b[a-zA-Z0-9]{8}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}\b/i;
-
-    const match = cleanText.match(regexUUID);
-
-    if (match) {
-        return match[0]; // Kembalikan kode yang cocok persis
-    }
-
-    // FALLBACK (Cadangan):
-    // Jika OCR salah baca sedikit (misal kurang 1 digit), kita cari string panjang yg mengandung minimal 3 strip (-)
-    const words = cleanText.split(' ');
-    for (let word of words) {
-        // Cari kata yang panjangnya > 20 dan punya minimal 3 tanda strip
-        if (word.length > 30 && (word.match(/-/g) || []).length >= 4) {
-            return word; // Kembalikan kemungkinan kode
+    // STRATEGI 1: Cari Pola UUID (Paling Akurat)
+    // Mencari string panjang dengan pola: xxxxxxxx-xxxx...
+    const regexUUID = /[a-zA-Z0-9]{8}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}/; // Cukup cek bagian depannya saja
+    
+    for (let line of lines) {
+        // Hapus spasi di dalam baris untuk pengecekan regex (karena kadang OCR baca: 10065 8c0-...)
+        const lineNoSpace = line.replace(/\s/g, '');
+        const match = lineNoSpace.match(regexUUID);
+        if (match) {
+            // Jika ketemu pola UUID, ambil seluruh string panjang di baris itu
+            // Kita asumsikan kodenya minimal 20 karakter
+            if (lineNoSpace.length > 20) return lineNoSpace;
         }
     }
 
-    return null; // Tidak ketemu
+    // STRATEGI 2: Cari Label "Kode Transaksi"
+    // Jika regex gagal, kita cari baris yang ada kata "Kode" atau "Transaksi"
+    for (let i = 0; i < lines.length; i++) {
+        const lineLower = lines[i].toLowerCase();
+        if (lineLower.includes('kode') || lineLower.includes('transaksi') || lineLower.includes('ref')) {
+            // Cek baris ini dulu, ada angka panjang gak?
+            const words = lines[i].split(/\s+/);
+            for (let word of words) {
+                if (word.length > 15 && word.includes('-')) return word;
+            }
+            
+            // Kalau gak ada di baris ini, Cek baris berikutnya (bisa jadi kodenya di bawah label)
+            if (i + 1 < lines.length) {
+                const nextLine = lines[i+1].replace(/\s/g, '');
+                if (nextLine.length > 15 && nextLine.includes('-')) return nextLine;
+            }
+        }
+    }
+
+    // STRATEGI 3: Brute Force (Cari Kata Terpanjang yang punya tanda strip)
+    // Kode transaksi biasanya adalah "kata" terpanjang di struk yang mengandung "-"
+    let kandidatTerbaik = null;
+    let panjangMax = 0;
+
+    const allWords = text.split(/\s+/);
+    for (let word of allWords) {
+        // Harus ada strip (-) dan panjang minimal 15 char
+        if (word.includes('-') && word.length > 15) {
+            // Bersihkan simbol aneh di ujung (misal titik atau koma)
+            const cleanWord = word.replace(/^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$/g, '');
+            if (cleanWord.length > panjangMax) {
+                panjangMax = cleanWord.length;
+                kandidatTerbaik = cleanWord;
+            }
+        }
+    }
+
+    return kandidatTerbaik;
 }
 
 // --- FUNGSI LOAD PROFIL (AUTO FILL) ---
@@ -199,7 +290,7 @@ async function submitLaporan(e) {
             kodeTransaksi: kode, 
             namaMitra: namaMitra,
             nominal: cleanNominal,
-            foto: "", // Celengan di script ini tidak kirim foto bukti, hanya OCR
+            foto: "", 
         };
 
         const response = await fetch(SCRIPT_URL, {
