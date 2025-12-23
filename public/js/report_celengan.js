@@ -24,24 +24,33 @@ window.addEventListener('DOMContentLoaded', () => {
     const tgl = document.getElementById('tanggalInput');
     if(tgl) tgl.value = new Date().toISOString().split('T')[0];
 
-    // 2. Cek Login
+    // 2. KUNCI KOLOM KODE TRANSAKSI (Hanya Read-Only) [UPDATED]
+    const kodeInput = document.getElementById('kodeTransaksi');
+    if(kodeInput) {
+        kodeInput.readOnly = true; // Kunci agar tidak bisa diketik manual
+        kodeInput.placeholder = "Klik Scan untuk isi otomatis...";
+        kodeInput.style.backgroundColor = "#e9ecef"; // Beri warna abu-abu agar terlihat terkunci
+        kodeInput.style.cursor = "not-allowed"; // Ubah kursor jadi tanda larang
+    }
+
+    // 3. Cek Login
     onAuthStateChanged(auth, (user) => {
         if (user) { loadUserProfile(user.uid); } 
         else { window.location.replace("index.html"); }
     });
 
-    // 3. Format Rupiah
+    // 4. Format Rupiah
     const rupiahEl = document.getElementById('nominalInput');
     if(rupiahEl) {
         rupiahEl.addEventListener('input', function() { this.value = formatRupiah(this.value, 'Rp. '); });
         rupiahEl.addEventListener('blur', function() { if(this.value === '') this.value = 'Rp. 0'; });
     }
 
-    // 4. Submit Listener
+    // 5. Submit Listener
     const formEl = document.getElementById('celenganForm');
     if(formEl) { formEl.addEventListener('submit', submitLaporan); }
 
-    // 5. SCANNER INIT
+    // 6. SCANNER INIT
     setupScanner();
 });
 
@@ -57,32 +66,21 @@ function preprocessImage(imageFile) {
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
                 
-                // 1. ZOOM EKSTREM 4x
-                // Agar detail kecil (ekor 9, lengkungan 0) terlihat jelas
+                // ZOOM EKSTREM 4x
                 const scale = 4; 
                 canvas.width = img.width * scale;
                 canvas.height = img.height * scale;
                 
-                // Matikan smoothing agar pixel tajam
                 ctx.imageSmoothingEnabled = false; 
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
                 const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 const data = imgData.data;
 
-                // 2. HIGH SENSITIVITY THRESHOLDING
-                // Kita naikkan ambang batas ke 190.
-                // Artinya: Abu-abu muda sekalipun akan dipaksa jadi HITAM.
-                // Ini akan menyelamatkan ekor angka 9 yang pudar.
+                // HIGH SENSITIVITY THRESHOLDING (190)
                 for (let i = 0; i < data.length; i += 4) {
-                    // Rumus Luminance standar
                     const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-                    
-                    // Threshold 190 (Sangat sensitif terhadap tinta tipis)
-                    // Jika warna lebih terang dari 190 -> Putih (Background)
-                    // Jika warna lebih gelap dari 190 -> Hitam (Teks)
                     const val = (gray > 190) ? 255 : 0; 
-
                     data[i] = data[i + 1] = data[i + 2] = val;
                 }
 
@@ -109,7 +107,7 @@ function setupScanner() {
             const rawFile = this.files[0];
             if (!rawFile) return;
 
-            loadingText.textContent = "⚙️ Mempertajam Gambar...";
+            loadingText.textContent = "⚙️ Memproses Gambar...";
             loadingOverlay.style.display = 'flex';
 
             try {
@@ -117,9 +115,8 @@ function setupScanner() {
                 const processedFile = await preprocessImage(rawFile);
                 loadingText.textContent = "🔍 Analisis Teks...";
 
-                // Tesseract Config
                 const result = await Tesseract.recognize(processedFile, 'eng', {
-                    tessedit_pageseg_mode: '6', // Mode blok teks tunggal
+                    tessedit_pageseg_mode: '6',
                     logger: m => console.log(m)
                 });
 
@@ -131,7 +128,17 @@ function setupScanner() {
 
                 if (kodeDitemukan) {
                     kodeField.value = kodeDitemukan;
-                    alert(`✅ Kode Ditemukan!\n${kodeDitemukan}`);
+                    // Beri efek visual sukses (hijau sebentar)
+                    kodeField.style.backgroundColor = "#d4edda";
+                    kodeField.style.borderColor = "#28a745";
+                    alert(`✅ Kode Berhasil Discan!\n${kodeDitemukan}`);
+                    
+                    // Kembalikan warna setelah 2 detik (tetap read-only)
+                    setTimeout(() => {
+                        kodeField.style.backgroundColor = "#e9ecef";
+                        kodeField.style.borderColor = ""; 
+                    }, 2000);
+
                 } else {
                     alert("⚠️ Kode terbaca sebagian.\nSistem membaca: " + fullText.substring(0, 40) + "...\nMohon cek pencahayaan foto.");
                 }
@@ -151,57 +158,37 @@ function setupScanner() {
 function cariKodeTransaksi(text) {
     if (!text) return null;
 
-    // 1. Bersihkan Karakter Sampah
-    // Hanya sisakan Huruf, Angka, dan Strip. Hapus spasi/enter.
     let cleanText = text.replace(/[^a-zA-Z0-9-]/g, '');
-
-    // 2. AUTO-CORRECT TYPO VISUAL
-    // Memperbaiki kesalahan umum OCR pada font struk
     cleanText = perbaikiTypoOCR(cleanText);
 
     console.log("FIXED TEXT:", cleanText);
 
-    // 3. Regex UUID (Longgar)
-    // Mencari deretan karakter hex (termasuk strip) minimal 25 karakter
     const regex = /[a-fA-F0-9-]{25,}/g;
-    
     const matches = cleanText.match(regex);
 
     if (matches && matches.length > 0) {
         const bestMatch = matches.reduce((a, b) => a.length > b.length ? a : b);
-        
-        // Validasi: Minimal ada 2 strip (-)
         if ((bestMatch.match(/-/g) || []).length >= 2) {
             return bestMatch;
         }
     }
-
     return null;
 }
 
 // === STEP 4: KAMUS PERBAIKAN TYPO ===
 function perbaikiTypoOCR(str) {
     return str
-        // Fix 0 dan O
         .replace(/O/g, '0').replace(/o/g, '0').replace(/D/g, '0')
-        // Fix 1 dan l/I
         .replace(/I/g, '1').replace(/l/g, '1').replace(/i/g, '1')
-        // Fix 2 dan Z
         .replace(/Z/g, '2').replace(/z/g, '2')
-        // Fix 5 dan S
         .replace(/S/g, '5').replace(/s/g, '5')
-        // Fix 6 dan G
         .replace(/G/g, '6') 
-        // Fix 8 dan B
         .replace(/B/g, '8')
-        // Fix 9 dan g/q
         .replace(/g/g, '9').replace(/q/g, '9');
-        // Note: Kita tidak bisa auto-replace '0' jadi '9' atau 'a' jadi '0' secara global 
-        // karena '0' dan 'a' adalah karakter valid di Hexadesimal.
-        // Perbaikan '0' vs '9' dan 'a' vs '0' SANGAT bergantung pada ketajaman gambar (Step 1).
 }
 
-// ... (Load Profil & Submit Logic - Tidak Berubah) ...
+// ... (Sisa fungsi tidak berubah) ...
+
 function loadUserProfile(uid) {
     const userRef = ref(db, 'users/' + uid);
     get(userRef).then((snapshot) => {
@@ -226,6 +213,9 @@ async function submitLaporan(e) {
 
     if(!elArea.value || elArea.value === "-") { alert("Data Profil belum termuat."); return; }
     
+    // Validasi Tambahan: Pastikan Kode Transaksi Terisi (karena sekarang read-only)
+    if(!elKode.value) { alert("❌ Kode Transaksi Kosong! Silakan Scan Foto Struk."); return; }
+
     loadingOverlay.style.display = 'flex';
     document.getElementById('loadingText').textContent = "Mengirim Data...";
 
