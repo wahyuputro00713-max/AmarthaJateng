@@ -35,7 +35,7 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 5. Listener Submit
+    // 3. Listener Submit
     const formEl = document.getElementById('celenganForm');
     if(formEl) {
         formEl.addEventListener('submit', submitLaporan);
@@ -49,41 +49,42 @@ function loadUserProfile(uid) {
         if (snapshot.exists()) {
             const data = snapshot.val();
             
-            document.getElementById('namaKaryawan').value = data.nama || "-";
-            document.getElementById('idKaryawan').value = data.idKaryawan || "-";
-            document.getElementById('regionalInput').value = data.regional || "Jawa Tengah 1";
-            document.getElementById('areaDisplay').value = data.area || "-";
-            document.getElementById('pointDisplay').value = data.point || "-";
-            
+            if(document.getElementById('namaKaryawan')) document.getElementById('namaKaryawan').value = data.nama || "-";
+            if(document.getElementById('idKaryawan')) document.getElementById('idKaryawan').value = data.idKaryawan || "-";
+            if(document.getElementById('regionalInput')) document.getElementById('regionalInput').value = data.regional || "Jawa Tengah 1";
+            if(document.getElementById('areaDisplay')) document.getElementById('areaDisplay').value = data.area || "-";
+            if(document.getElementById('pointDisplay')) document.getElementById('pointDisplay').value = data.point || "-";
         }
     });
 }
 
-// --- FUNGSI SUBMIT ---
+// --- FUNGSI SUBMIT (HANYA PROFIL + KODE TRANSAKSI) ---
 async function submitLaporan(e) {
     e.preventDefault();
     
-    // Ambil Data
-    const area = document.getElementById('areaDisplay').value;
-    const point = document.getElementById('pointDisplay').value;
-    const kode = document.getElementById('kodeTransaksi').value.trim();
-    
+    // Ambil Elemen
+    const elArea = document.getElementById('areaDisplay');
+    const elKode = document.getElementById('kodeTransaksi');
+
+    // Cek Kelengkapan Elemen HTML
+    if (!elArea || !elKode) {
+        alert("❌ Error Script: Elemen HTML tidak ditemukan. Hubungi IT.");
+        return;
+    }
+
+    // Ambil Value
+    const area = elArea.value;
+    const kode = elKode.value.trim();
+
+    // Validasi Data
     if(!area || area === "-") { alert("❌ Data Area/Profil belum termuat."); return; }
     if(!kode) { alert("❌ Kode Transaksi wajib diisi!"); return; }
 
     const loadingOverlay = document.getElementById('loadingOverlay');
-    loadingOverlay.style.display = 'flex';
+    if(loadingOverlay) loadingOverlay.style.display = 'flex';
 
     try {
-        // Proses Foto
-        const fileInput = document.getElementById('fotoInput');
-        const file = fileInput.files[0];
-        const base64 = await toBase64(file);
-
-        // Bersihkan Nominal
-        const rawNominal = document.getElementById('nominalInput').value;
-        const cleanNominal = rawNominal.replace(/[^0-9]/g, '');
-
+        // Susun Data Sederhana
         const formData = {
             jenisLaporan: "Celengan",
             
@@ -92,9 +93,9 @@ async function submitLaporan(e) {
             namaBP: document.getElementById('namaKaryawan').value,
             regional: document.getElementById('regionalInput').value,
             area: area,
-            point: point,
+            point: document.getElementById('pointDisplay').value,
             
-            kodeTransaksi: kode, // INI YANG AKAN DICEK DUPLIKAT DI SCRIPT
+            kodeTransaksi: kode // Data Utama
         };
 
         const response = await fetch(SCRIPT_URL, {
@@ -109,7 +110,7 @@ async function submitLaporan(e) {
             alert("✅ Laporan Celengan Berhasil Disimpan!");
             window.location.href = "home.html";
         } else {
-            // TANGKAP ERROR DARI APP SCRIPT (MISAL KODE DUPLIKAT)
+            // TANGKAP ERROR (MISAL KODE DUPLIKAT)
             throw new Error(result.error);
         }
 
@@ -117,46 +118,6 @@ async function submitLaporan(e) {
         console.error("Error:", error);
         alert("❌ Gagal Kirim: " + error.message);
     } finally {
-        loadingOverlay.style.display = 'none';
+        if(loadingOverlay) loadingOverlay.style.display = 'none';
     }
 }
-
-// --- HELPER FUNCTIONS ---
-function formatRupiah(angka, prefix) {
-    if (!angka) return "";
-    let number_string = angka.replace(/[^,\d]/g, '').toString();
-    if (number_string.length > 1 && number_string.startsWith('0')) number_string = number_string.substring(1);
-    let split = number_string.split(','),
-        sisa = split[0].length % 3,
-        rupiah = split[0].substr(0, sisa),
-        ribuan = split[0].substr(sisa).match(/\d{3}/gi);
-    if (ribuan) {
-        let separator = sisa ? '.' : '';
-        rupiah += separator + ribuan.join('.');
-    }
-    rupiah = split[1] != undefined ? rupiah + ',' + split[1] : rupiah;
-    return prefix == undefined ? rupiah : (rupiah ? 'Rp. ' + rupiah : '');
-}
-
-function previewFoto() {
-    const previewContainer = document.getElementById('previewContainer');
-    previewContainer.innerHTML = '';
-    const file = this.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const img = document.createElement('img');
-            img.src = e.target.result;
-            img.className = 'preview-img';
-            previewContainer.appendChild(img);
-        }
-        reader.readAsDataURL(file);
-    }
-}
-
-const toBase64 = file => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = error => reject(error);
-});
