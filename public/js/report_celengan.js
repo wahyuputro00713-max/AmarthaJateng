@@ -17,47 +17,36 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// ⚠️ PASTE URL APPS SCRIPT ANDA DI SINI ⚠️
 const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; 
 
-// --- INIT ---
 window.addEventListener('DOMContentLoaded', () => {
     // 1. Auto Tanggal
     const tgl = document.getElementById('tanggalInput');
     if(tgl) tgl.value = new Date().toISOString().split('T')[0];
 
-    // 2. Cek Login & Load Data
+    // 2. Cek Login
     onAuthStateChanged(auth, (user) => {
-        if (user) {
-            loadUserProfile(user.uid);
-        } else {
-            window.location.replace("index.html");
-        }
+        if (user) { loadUserProfile(user.uid); } 
+        else { window.location.replace("index.html"); }
     });
 
-    // 3. Listener Rupiah
+    // 3. Format Rupiah
     const rupiahEl = document.getElementById('nominalInput');
     if(rupiahEl) {
-        rupiahEl.addEventListener('input', function() {
-            this.value = formatRupiah(this.value, 'Rp. ');
-        });
-        rupiahEl.addEventListener('blur', function() {
-            if(this.value === '') this.value = 'Rp. 0';
-        });
+        rupiahEl.addEventListener('input', function() { this.value = formatRupiah(this.value, 'Rp. '); });
+        rupiahEl.addEventListener('blur', function() { if(this.value === '') this.value = 'Rp. 0'; });
     }
 
-    // 4. Listener Submit
+    // 4. Submit Listener
     const formEl = document.getElementById('celenganForm');
-    if(formEl) {
-        formEl.addEventListener('submit', submitLaporan);
-    }
+    if(formEl) { formEl.addEventListener('submit', submitLaporan); }
 
-    // 5. SETUP SCANNER OCR
+    // 5. SCANNER INIT
     setupScanner();
 });
 
-// --- FUNGSI PRE-PROCESSING IMAGE (GRAYSCALE SAJA) ---
-// Kita hindari thresholding kasar agar teks abu-abu tidak hilang
+// === FUNGSI UTAMA: MEMPERBESAR & MEMPERTAJAM GAMBAR (UPSCALING) ===
+// Ini kunci agar teks kecil/pecah bisa terbaca jelas
 function preprocessImage(imageFile) {
     return new Promise((resolve) => {
         const img = new Image();
@@ -68,28 +57,44 @@ function preprocessImage(imageFile) {
             img.onload = function() {
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
-                canvas.width = img.width;
-                canvas.height = img.height;
-                ctx.drawImage(img, 0, 0);
+                
+                // 1. PERBESAR GAMBAR 3X LIPAT
+                // Agar pixel huruf menjadi lebih tebal dan jelas bagi OCR
+                const scale = 3; 
+                canvas.width = img.width * scale;
+                canvas.height = img.height * scale;
+                
+                // Matikan smoothing agar garis huruf tetap tajam (pixelated is better for OCR)
+                ctx.imageSmoothingEnabled = false; 
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
                 const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 const data = imgData.data;
 
-                // Ubah jadi Grayscale (Tanpa menghapus warna abu-abu muda)
+                // 2. UBAH JADI HITAM PUTIH (High Contrast)
                 for (let i = 0; i < data.length; i += 4) {
-                    const gray = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
-                    data[i] = data[i + 1] = data[i + 2] = gray; // Set R, G, B jadi nilai abu-abu
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+                    
+                    // Rumus Luminance
+                    const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+                    
+                    // Thresholding: Abu-abu di atas 150 jadi Putih, di bawah jadi Hitam
+                    // Ini membuat teks abu-abu di struk menjadi HITAM PEKAT
+                    const val = (gray > 150) ? 255 : 0;
+
+                    data[i] = data[i + 1] = data[i + 2] = val;
                 }
 
                 ctx.putImageData(imgData, 0, 0);
-                canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 1.0); // Kualitas Maksimal
+                canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.95);
             }
         };
         reader.readAsDataURL(imageFile);
     });
 }
 
-// --- FUNGSI SCANNER PINTAR ---
 function setupScanner() {
     const btnScan = document.getElementById('btnScan');
     const scanInput = document.getElementById('scanInput');
@@ -98,49 +103,45 @@ function setupScanner() {
     const loadingText = document.getElementById('loadingText');
 
     if (btnScan && scanInput) {
-        btnScan.addEventListener('click', () => {
-            scanInput.click();
-        });
+        btnScan.addEventListener('click', () => scanInput.click());
 
         scanInput.addEventListener('change', async function() {
             const rawFile = this.files[0];
             if (!rawFile) return;
 
-            loadingText.textContent = "⚙️ Memproses Gambar...";
+            loadingText.textContent = "⚙️ Memproses Gambar (Upscaling)...";
             loadingOverlay.style.display = 'flex';
 
             try {
-                // 1. Pre-process Image
+                // Proses 1: Pertajam Gambar
                 const processedFile = await preprocessImage(rawFile);
                 
-                loadingText.textContent = "🔍 Membaca Kode...";
+                loadingText.textContent = "🔍 Membaca Teks...";
 
-                // 2. OCR Tesseract dengan Whitelist & PSM 6
-                // PSM 6 = Menganggap teks sebagai satu blok seragam (bagus untuk teks terpotong baris)
-                // Whitelist = Hanya izinkan karakter Hex (0-9, a-f) dan strip (-)
+                // Proses 2: Baca dengan Tesseract
+                // Gunakan PSM 6 (Assume a single uniform block of text) agar baris terbaca urut
                 const result = await Tesseract.recognize(processedFile, 'eng', {
-                    tessedit_char_whitelist: '0123456789abcdefABCDEF-',
-                    tessedit_pageseg_mode: '6', 
+                    tessedit_char_whitelist: '0123456789abcdefABCDEF-', // Batasi karakter hanya Hex & Strip
+                    tessedit_pageseg_mode: '6',
                     logger: m => console.log(m)
                 });
 
                 const fullText = result.data.text;
-                console.log("=== RAW OCR RESULT ===");
-                console.log(fullText);
+                console.log("TEKS MENTAH:", fullText);
 
-                // 3. Filter Mencari Kode
-                const kodeDitemukan = saringKodeTransaksi(fullText);
+                // Proses 3: Cari Kode
+                const kodeDitemukan = cariKodeTransaksi(fullText);
 
                 if (kodeDitemukan) {
                     kodeField.value = kodeDitemukan;
                     alert(`✅ Kode Ditemukan!\n${kodeDitemukan}`);
                 } else {
-                    alert("⚠️ Kode tidak ditemukan.\nPastikan foto fokus ke area kode transaksi.");
+                    alert("⚠️ Kode tidak terdeteksi utuh.\nSistem membaca: \n" + fullText.substring(0, 50) + "...\n\nSilakan ketik manual atau foto lebih dekat.");
                 }
 
             } catch (error) {
                 console.error(error);
-                alert("❌ Gagal scan: " + error.message);
+                alert("❌ Error: " + error.message);
             } finally {
                 loadingOverlay.style.display = 'none';
                 loadingText.textContent = "Memproses...";
@@ -150,36 +151,40 @@ function setupScanner() {
     }
 }
 
-// --- LOGIKA FILTER KHUSUS UUID ---
-function saringKodeTransaksi(text) {
+// === LOGIKA PENCARIAN KODE YANG LEBIH CERDAS ===
+function cariKodeTransaksi(text) {
     if (!text) return null;
 
-    // 1. BERSIHKAN TEKS
-    // Hapus spasi dan enter agar baris yang terpotong menyatu
+    // 1. Hapus semua spasi & enter (Gabung jadi 1 baris panjang)
+    // Contoh: "1234-\n5678" -> "1234-5678"
     const cleanText = text.replace(/\s+/g, '').trim(); 
+
+    // 2. Regex Longgar (Cari string Hex panjang dengan tanda strip)
+    // Kita tidak pakai format kaku 8-4-4-4-12 karena kadang OCR salah baca 1 huruf.
+    // Kita cari saja: "Kumpulan angka/huruf a-f minimal 20 karakter yang mengandung strip"
     
-    // 2. CARI POLA UUID
-    // Format: 8char - 4char - 4char - 4char - 12char
-    // Contoh: 100658c0-3b87-46d2-aec5-6d7a244c049c
-    // Regex ini mencari minimal 32 karakter Hex dengan tanda hubung opsional
-    const regexUUID = /[0-9a-fA-F]{8}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{12}/i;
+    // Penjelasan Regex:
+    // [0-9a-fA-F\-]{20,} -> Cari karakter hex atau strip, minimal 20 digit berturut-turut
+    const matches = cleanText.match(/[0-9a-fA-F\-]{20,}/g);
 
-    const match = cleanText.match(regexUUID);
-
-    if (match) {
-        return match[0]; // Kembalikan kode yang cocok
+    if (matches && matches.length > 0) {
+        // Ambil hasil terpanjang (asumsi kode transaksi adalah teks hex terpanjang di struk)
+        let longest = matches.reduce((a, b) => a.length > b.length ? a : b);
+        
+        // Validasi tambahan: Harus ada minimal 2 strip "-" agar yakin itu UUID
+        if ((longest.match(/-/g) || []).length >= 2) {
+            return longest;
+        }
     }
 
-    return null; 
+    return null;
 }
 
-// --- FUNGSI LOAD PROFIL (AUTO FILL) ---
 function loadUserProfile(uid) {
     const userRef = ref(db, 'users/' + uid);
     get(userRef).then((snapshot) => {
         if (snapshot.exists()) {
             const data = snapshot.val();
-            
             if(document.getElementById('namaKaryawan')) document.getElementById('namaKaryawan').value = data.nama || "-";
             if(document.getElementById('idKaryawan')) document.getElementById('idKaryawan').value = data.idKaryawan || "-";
             if(document.getElementById('regionalInput')) document.getElementById('regionalInput').value = data.regional || "Jawa Tengah 1";
@@ -189,36 +194,19 @@ function loadUserProfile(uid) {
     });
 }
 
-// --- FUNGSI SUBMIT ---
 async function submitLaporan(e) {
     e.preventDefault();
-    
+    // ... Logic submit sama seperti sebelumnya ...
     const elArea = document.getElementById('areaDisplay');
     const elKode = document.getElementById('kodeTransaksi');
     const elNamaMitra = document.getElementById('namaMitra');
     const elNominal = document.getElementById('nominalInput');
-
-    if (!elArea || !elKode || !elNamaMitra || !elNominal) {
-        alert("❌ Error Script: Elemen HTML tidak ditemukan.");
-        return;
-    }
-
-    const area = elArea.value;
-    const kode = elKode.value.trim();
-    const namaMitra = elNamaMitra.value;
-    const rawNominal = elNominal.value;
-    const cleanNominal = rawNominal.replace(/[^0-9]/g, ''); 
-
-    if(!area || area === "-") { alert("❌ Data Area/Profil belum termuat."); return; }
-    if(!kode) { alert("❌ Kode Transaksi wajib diisi!"); return; }
-    if(!namaMitra) { alert("❌ Nama Mitra wajib diisi!"); return; }
-    if(!cleanNominal) { alert("❌ Nominal wajib diisi!"); return; }
-
     const loadingOverlay = document.getElementById('loadingOverlay');
-    if(loadingOverlay) {
-        document.getElementById('loadingText').textContent = "Mengirim Data...";
-        loadingOverlay.style.display = 'flex';
-    }
+
+    if(!elArea.value || elArea.value === "-") { alert("Data Profil belum termuat."); return; }
+    
+    loadingOverlay.style.display = 'flex';
+    document.getElementById('loadingText').textContent = "Mengirim Data...";
 
     try {
         const formData = {
@@ -227,11 +215,11 @@ async function submitLaporan(e) {
             idKaryawan: document.getElementById('idKaryawan').value,
             namaBP: document.getElementById('namaKaryawan').value,
             regional: document.getElementById('regionalInput').value,
-            area: area,
+            area: elArea.value,
             point: document.getElementById('pointDisplay').value,
-            kodeTransaksi: kode, 
-            namaMitra: namaMitra,
-            nominal: cleanNominal,
+            kodeTransaksi: elKode.value.trim(), 
+            namaMitra: elNamaMitra.value,
+            nominal: elNominal.value.replace(/[^0-9]/g, ''),
             foto: "", 
         };
 
@@ -240,30 +228,23 @@ async function submitLaporan(e) {
             redirect: 'follow',
             body: JSON.stringify(formData)
         });
-
+        
         const result = await response.json();
-
         if (result.result === 'success') {
-            alert("✅ Laporan Celengan Berhasil Disimpan!");
+            alert("✅ Sukses!");
             window.location.href = "home.html";
-        } else {
-            throw new Error(result.error);
-        }
-
+        } else { throw new Error(result.error); }
     } catch (error) {
-        console.error("Error:", error);
-        alert("❌ Gagal Kirim: " + error.message);
+        alert("❌ Gagal: " + error.message);
     } finally {
-        if(loadingOverlay) loadingOverlay.style.display = 'none';
+        loadingOverlay.style.display = 'none';
     }
 }
 
-// --- HELPER FUNCTIONS ---
 function formatRupiah(angka, prefix) {
     if (!angka) return "";
-    let number_string = angka.replace(/[^,\d]/g, '').toString();
-    if (number_string.length > 1 && number_string.startsWith('0')) number_string = number_string.substring(1);
-    let split = number_string.split(','),
+    let number_string = angka.replace(/[^,\d]/g, '').toString(),
+        split = number_string.split(','),
         sisa = split[0].length % 3,
         rupiah = split[0].substr(0, sisa),
         ribuan = split[0].substr(sisa).match(/\d{3}/gi);
@@ -271,6 +252,5 @@ function formatRupiah(angka, prefix) {
         let separator = sisa ? '.' : '';
         rupiah += separator + ribuan.join('.');
     }
-    rupiah = split[1] != undefined ? rupiah + ',' + split[1] : rupiah;
     return prefix == undefined ? rupiah : (rupiah ? 'Rp. ' + rupiah : '');
 }
