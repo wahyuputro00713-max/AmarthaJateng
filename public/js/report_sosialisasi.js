@@ -17,11 +17,11 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// 🔴 PASTE URL CLOUDFLARE ANDA DI SINI 🔴
+// ⚠️ PASTE URL APP SCRIPT / CLOUDFLARE TERBARU DI SINI ⚠️
 const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; 
 
 const dataPoints = {
-    "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucuk"],
+    "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucul"],
     "Magelang": ["Grabag", "Mungkid", "Pakis", "Salam"],
     "Solo": ["Banjarsari", "Gemolong", "Masaran", "Tangen"],
     "Solo 2": ["Gatak", "Jumantono", "Karanganyar", "Nguter", "Pasar kliwon"],
@@ -30,6 +30,7 @@ const dataPoints = {
     "Wonogiri": ["Jatisrono", "Ngadirojo", "Ngawen 2", "Pracimantoro", "Wonosari"]
 };
 
+// ELEMEN HTML
 const areaSelect = document.getElementById('areaSelect');
 const pointSelect = document.getElementById('pointSelect');
 const btnGetLoc = document.getElementById('btnGetLoc');
@@ -40,12 +41,11 @@ if(document.getElementById('tanggalInput')) {
     document.getElementById('tanggalInput').value = new Date().toISOString().split('T')[0];
 }
 
-// 2. AUTO LOAD LOKASI SAAT HALAMAN DIBUKA
+// 2. AUTO LOAD GEOTAG SAAT MASUK
 window.addEventListener('load', () => {
     getLokasiOtomatis();
 });
 
-// FUNGSI UTAMA PENCARI LOKASI
 function getLokasiOtomatis() {
     if (navigator.geolocation) {
         if(statusLokasi) {
@@ -57,11 +57,11 @@ function getLokasiOtomatis() {
             const lat = position.coords.latitude;
             const lng = position.coords.longitude;
             
-            // ISI GEOTAG (PENTING)
+            // ISI GEOTAG
             const geotagInput = document.getElementById('geotagInput');
             if(geotagInput) geotagInput.value = `${lat}, ${lng}`;
             
-            // ISI ALAMAT (Jika gagal, user bisa ketik manual)
+            // ISI ALAMAT (Reverse Geocoding)
             await getAddressFromCoordinates(lat, lng);
 
         }, (error) => {
@@ -76,12 +76,12 @@ function getLokasiOtomatis() {
     }
 }
 
-// Tombol Manual untuk Refresh Lokasi
+// Tombol Manual Geotag
 if (btnGetLoc) {
     btnGetLoc.addEventListener('click', getLokasiOtomatis);
 }
 
-// REVERSE GEOCODING (Mencoba isi alamat, tapi tidak mengunci kolom)
+// 3. REVERSE GEOCODING (Ambil Nama Desa/Kec)
 async function getAddressFromCoordinates(lat, lng) {
     try {
         if(statusLokasi) statusLokasi.textContent = "Mencari Nama Daerah...";
@@ -90,7 +90,7 @@ async function getAddressFromCoordinates(lat, lng) {
         const data = await response.json();
         const addr = data.address;
         
-        // Isi jika kolom masih kosong atau mau diupdate
+        // Isi Input (Bisa diedit manual)
         const desaField = document.getElementById('desaInput');
         const kecField = document.getElementById('kecamatanInput');
         const kabField = document.getElementById('kabupatenInput');
@@ -100,7 +100,7 @@ async function getAddressFromCoordinates(lat, lng) {
         if(kabField) kabField.value = addr.city || addr.regency || addr.state_district || "";
         
         if(statusLokasi) {
-            statusLokasi.textContent = "Geotag Terkunci. Alamat bisa diedit jika salah.";
+            statusLokasi.textContent = "Geotag Terkunci ✅";
             statusLokasi.className = "text-success text-center mt-1 fw-bold";
         }
 
@@ -112,19 +112,16 @@ async function getAddressFromCoordinates(lat, lng) {
     }
 }
 
-// 3. FORMAT HP AUTO 62
+// 4. FORMAT VISUAL NO HP (Hanya kosmetik)
 const hpInput = document.getElementById('noHpInput');
-const hpClean = document.getElementById('noHpClean');
 if (hpInput) {
     hpInput.addEventListener('input', function() {
-        let raw = this.value.replace(/[^0-9]/g, '');
-        if (raw.startsWith('0')) raw = '62' + raw.substring(1);
-        else if (raw.startsWith('8')) raw = '62' + raw;
-        hpClean.value = raw;
+        // Hanya hapus karakter non-angka
+        this.value = this.value.replace(/[^0-9]/g, '');
     });
 }
 
-// 4. AREA & POINT
+// 5. AREA & POINT
 function updatePointsDropdown(selectedArea) {
     const points = dataPoints[selectedArea] || [];
     pointSelect.innerHTML = '<option value="" selected disabled>Pilih Point...</option>';
@@ -146,7 +143,7 @@ if (areaSelect) {
     });
 }
 
-// 5. LOAD PROFIL
+// 6. LOAD PROFIL
 onAuthStateChanged(auth, (user) => {
     if (user) {
         const userRef = ref(db, 'users/' + user.uid);
@@ -185,7 +182,7 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
-// 6. PREVIEW FOTO
+// 7. PREVIEW FOTO
 const fileInput = document.getElementById('fotoInput');
 const previewContainer = document.getElementById('previewContainer');
 if (fileInput) {
@@ -207,18 +204,30 @@ if (fileInput) {
     });
 }
 
-// 7. SUBMIT FORM
+// 8. SUBMIT FORM (DENGAN VALIDASI HP 10-12 DIGIT)
 document.getElementById('sosialisasiForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     
-    let finalHp = document.getElementById('noHpClean').value;
-    if (!finalHp) {
-        let raw = document.getElementById('noHpInput').value.replace(/[^0-9]/g, '');
-        if (raw.startsWith('0')) finalHp = '62' + raw.substring(1);
-        else if (raw.startsWith('8')) finalHp = '62' + raw;
-        else finalHp = raw;
+    // --- VALIDASI NO HP (BAGIAN PENTING) ---
+    // 1. Ambil angka murni yang diketik user
+    let rawHp = document.getElementById('noHpInput').value.replace(/[^0-9]/g, '');
+    
+    // 2. Cek Panjang Digit (Wajib 10 sampai 12)
+    if (rawHp.length < 10 || rawHp.length > 12) {
+        alert(`❌ Salah input nomer HP!\n\nJumlah digit yang Anda masukkan: ${rawHp.length}.\nWajib antara 10 sampai 12 digit.`);
+        return; // STOP DI SINI, JANGAN KIRIM
     }
 
+    // 3. Format ke 62 (Jika lolos validasi)
+    let finalHp = rawHp;
+    if (finalHp.startsWith('0')) {
+        finalHp = '62' + finalHp.substring(1);
+    } else if (finalHp.startsWith('8')) {
+        finalHp = '62' + finalHp;
+    }
+    // Jika user sudah mengetik 62 di awal, biarkan.
+
+    // --- VALIDASI LAINNYA ---
     if (!areaSelect.value) { alert("❌ Area belum terpilih!"); return; }
     if (!pointSelect.value) { alert("❌ Point belum terpilih!"); return; }
     if (fileInput.files.length === 0) { alert("❌ Wajib upload foto!"); return; }
@@ -242,9 +251,8 @@ document.getElementById('sosialisasiForm').addEventListener('submit', async (e) 
             point: pointSelect.value,
             
             namaMitra: document.getElementById('namaMitra').value,
-            noHp: finalHp,
+            noHp: finalHp, // Kirim Nomor yg sudah diformat 62
             
-            // Ambil value dari Textbox (Entah itu hasil otomatis atau ketikan manual)
             desa: document.getElementById('desaInput').value,
             kecamatan: document.getElementById('kecamatanInput').value,
             kabupaten: document.getElementById('kabupatenInput').value,
@@ -257,6 +265,7 @@ document.getElementById('sosialisasiForm').addEventListener('submit', async (e) 
 
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
+            redirect: 'follow', // PENTING AGAR TIDAK ERROR FETCH
             body: JSON.stringify(formData)
         });
 
