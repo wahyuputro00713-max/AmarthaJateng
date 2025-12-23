@@ -203,28 +203,40 @@ if (fileInput) {
     });
 }
 
-// 8. SUBMIT FORM (DENGAN VALIDASI HP ANTI-ASAL)
+// 8. SUBMIT FORM (VALIDASI SUPER KETAT)
 document.getElementById('sosialisasiForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     
-    // --- VALIDASI NO HP (LOGIKA UPDATE) ---
-    // 1. Ambil angka murni
+    // --- STEP VALIDASI NO HP ---
     let rawHp = document.getElementById('noHpInput').value.replace(/[^0-9]/g, '');
-    
-    // 2. Cek Panjang Digit (10-12)
-    if (rawHp.length < 10 || rawHp.length > 12) {
-        alert(`❌ Salah input nomer HP!\n\nJumlah digit: ${rawHp.length}.\nWajib antara 10 sampai 12 digit.`);
-        return; 
-    }
 
-    // 3. Cek Angka Kembar Berulang (Lebih dari 8 digit sama berturut-turut)
-    // Regex ini mencari digit yang diulang 8 kali atau lebih (contoh: 88888888)
-    if (/(\d)\1{7,}/.test(rawHp)) {
-        alert("❌ Nomor HP Tidak Valid!\n\nTerdeteksi angka kembar yang tidak wajar.\nMohon masukkan nomor HP mitra yang asli.");
+    // A. Cek Panjang Digit
+    if (rawHp.length < 10 || rawHp.length > 13) {
+        alert(`❌ Nomor HP Tidak Valid!\n\nPanjang nomor: ${rawHp.length} digit.\nHarus antara 10 - 13 digit.`);
         return;
     }
 
-    // 4. Format ke 62
+    // B. Cek Awalan (Prefix) Wajib Indonesia
+    // Harus mulai dengan 08... ATAU 628... ATAU 8...
+    // 00000... akan gagal di sini karena mulai dengan 00.
+    let isValidPrefix = false;
+    if (rawHp.startsWith('08')) isValidPrefix = true;
+    else if (rawHp.startsWith('628')) isValidPrefix = true;
+    else if (rawHp.startsWith('8')) isValidPrefix = true;
+
+    if (!isValidPrefix) {
+        alert("❌ Nomor HP Tidak Valid!\n\nNomor HP Indonesia harus diawali dengan:\n- 08xx\n- 628xx\n- atau 8xx\n\nNomor '000...' tidak diterima.");
+        return;
+    }
+
+    // C. Cek Angka Kembar (Anti Spam)
+    // Blokir jika ada 8 angka sama berturut-turut (misal 88888888)
+    if (/(\d)\1{7,}/.test(rawHp)) {
+        alert("❌ Nomor HP Tidak Valid!\n\nTerdeteksi angka kembar berulang yang tidak wajar.");
+        return;
+    }
+
+    // D. Format ke 62
     let finalHp = rawHp;
     if (finalHp.startsWith('0')) {
         finalHp = '62' + finalHp.substring(1);
@@ -232,7 +244,7 @@ document.getElementById('sosialisasiForm').addEventListener('submit', async (e) 
         finalHp = '62' + finalHp;
     }
 
-    // --- VALIDASI LAINNYA ---
+    // --- VALIDASI FORM LAINNYA ---
     if (!areaSelect.value) { alert("❌ Area belum terpilih!"); return; }
     if (!pointSelect.value) { alert("❌ Point belum terpilih!"); return; }
     if (fileInput.files.length === 0) { alert("❌ Wajib upload foto!"); return; }
@@ -256,7 +268,7 @@ document.getElementById('sosialisasiForm').addEventListener('submit', async (e) 
             point: pointSelect.value,
             
             namaMitra: document.getElementById('namaMitra').value,
-            noHp: finalHp, // Kirim Nomor yg sudah diformat
+            noHp: finalHp, // Kirim Nomor yg sudah diformat 62
             
             desa: document.getElementById('desaInput').value,
             kecamatan: document.getElementById('kecamatanInput').value,
