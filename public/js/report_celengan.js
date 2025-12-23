@@ -45,8 +45,7 @@ window.addEventListener('DOMContentLoaded', () => {
     setupScanner();
 });
 
-// === FUNGSI UTAMA: MEMPERBESAR & MEMPERTAJAM GAMBAR (UPSCALING) ===
-// Ini kunci agar teks kecil/pecah bisa terbaca jelas
+// === STEP 1: PRE-PROCESSING (MEMPERTAJAM GAMBAR) ===
 function preprocessImage(imageFile) {
     return new Promise((resolve) => {
         const img = new Image();
@@ -58,32 +57,20 @@ function preprocessImage(imageFile) {
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
                 
-                // 1. PERBESAR GAMBAR 3X LIPAT
-                // Agar pixel huruf menjadi lebih tebal dan jelas bagi OCR
+                // Perbesar 3x agar teks kecil tidak pecah
                 const scale = 3; 
                 canvas.width = img.width * scale;
                 canvas.height = img.height * scale;
-                
-                // Matikan smoothing agar garis huruf tetap tajam (pixelated is better for OCR)
                 ctx.imageSmoothingEnabled = false; 
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
                 const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 const data = imgData.data;
 
-                // 2. UBAH JADI HITAM PUTIH (High Contrast)
+                // Binarization (Hitam Putih Pekat)
                 for (let i = 0; i < data.length; i += 4) {
-                    const r = data[i];
-                    const g = data[i + 1];
-                    const b = data[i + 2];
-                    
-                    // Rumus Luminance
-                    const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-                    
-                    // Thresholding: Abu-abu di atas 150 jadi Putih, di bawah jadi Hitam
-                    // Ini membuat teks abu-abu di struk menjadi HITAM PEKAT
-                    const val = (gray > 150) ? 255 : 0;
-
+                    const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+                    const val = (gray > 145) ? 255 : 0; // Thresholding
                     data[i] = data[i + 1] = data[i + 2] = val;
                 }
 
@@ -95,6 +82,7 @@ function preprocessImage(imageFile) {
     });
 }
 
+// === STEP 2: SCANNING ===
 function setupScanner() {
     const btnScan = document.getElementById('btnScan');
     const scanInput = document.getElementById('scanInput');
@@ -109,34 +97,31 @@ function setupScanner() {
             const rawFile = this.files[0];
             if (!rawFile) return;
 
-            loadingText.textContent = "⚙️ Memproses Gambar (Upscaling)...";
+            loadingText.textContent = "⚙️ Memproses Gambar...";
             loadingOverlay.style.display = 'flex';
 
             try {
-                // Proses 1: Pertajam Gambar
                 const processedFile = await preprocessImage(rawFile);
-                
                 loadingText.textContent = "🔍 Membaca Teks...";
 
-                // Proses 2: Baca dengan Tesseract
-                // Gunakan PSM 6 (Assume a single uniform block of text) agar baris terbaca urut
+                // Hapus whitelist agar karakter 'typo' (seperti O menggantikan 0) tetap terbaca
+                // Nanti kita perbaiki di step filtering
                 const result = await Tesseract.recognize(processedFile, 'eng', {
-                    tessedit_char_whitelist: '0123456789abcdefABCDEF-', // Batasi karakter hanya Hex & Strip
-                    tessedit_pageseg_mode: '6',
+                    tessedit_pageseg_mode: '6', // Assume single uniform block of text
                     logger: m => console.log(m)
                 });
 
                 const fullText = result.data.text;
                 console.log("TEKS MENTAH:", fullText);
 
-                // Proses 3: Cari Kode
+                // Jalankan filter super agresif
                 const kodeDitemukan = cariKodeTransaksi(fullText);
 
                 if (kodeDitemukan) {
                     kodeField.value = kodeDitemukan;
                     alert(`✅ Kode Ditemukan!\n${kodeDitemukan}`);
                 } else {
-                    alert("⚠️ Kode tidak terdeteksi utuh.\nSistem membaca: \n" + fullText.substring(0, 50) + "...\n\nSilakan ketik manual atau foto lebih dekat.");
+                    alert("⚠️ Kode tidak terdeteksi utuh.\nHasil pembacaan:\n" + fullText.substring(0, 100));
                 }
 
             } catch (error) {
@@ -144,41 +129,52 @@ function setupScanner() {
                 alert("❌ Error: " + error.message);
             } finally {
                 loadingOverlay.style.display = 'none';
-                loadingText.textContent = "Memproses...";
                 this.value = ""; 
             }
         });
     }
 }
 
-// === LOGIKA PENCARIAN KODE YANG LEBIH CERDAS ===
+// === STEP 3: LOGIKA PENCARIAN & PEMBERSIHAN (THE FIX) ===
 function cariKodeTransaksi(text) {
     if (!text) return null;
 
-    // 1. Hapus semua spasi & enter (Gabung jadi 1 baris panjang)
-    // Contoh: "1234-\n5678" -> "1234-5678"
-    const cleanText = text.replace(/\s+/g, '').trim(); 
+    // 1. BUANG KARAKTER SAMPAH
+    // Hapus semua yang BUKAN huruf, angka, atau strip (-).
+    // Ini akan membuang spasi, enter, titik, koma, garis | dll.
+    // Contoh: "94d2- \n a09c" -> "94d2-a09c"
+    let cleanText = text.replace(/[^a-zA-Z0-9-]/g, '');
 
-    // 2. Regex Longgar (Cari string Hex panjang dengan tanda strip)
-    // Kita tidak pakai format kaku 8-4-4-4-12 karena kadang OCR salah baca 1 huruf.
-    // Kita cari saja: "Kumpulan angka/huruf a-f minimal 20 karakter yang mengandung strip"
+    // 2. PERBAIKI TYPO UMUM OCR (Penting!)
+    // Kadang angka 0 dibaca huruf O, angka 1 dibaca huruf l/I.
+    // Kita normalkan dulu sebelum regex.
+    cleanText = cleanText.replace(/O/g, '0').replace(/o/g, '0'); // O/o jadi 0
+    cleanText = cleanText.replace(/l/g, '1').replace(/I/g, '1'); // l/I jadi 1
+
+    console.log("TEXT BERSIH:", cleanText);
+
+    // 3. CARI POLA UUID LONGGAR
+    // Kita cari deretan karakter Hex (0-9, a-f) dan strip (-) yang panjangnya > 30 karakter.
+    // Regex ini lebih pemaaf daripada yang sebelumnya.
+    const regexLonggar = /[a-fA-F0-9-]{30,}/g;
     
-    // Penjelasan Regex:
-    // [0-9a-fA-F\-]{20,} -> Cari karakter hex atau strip, minimal 20 digit berturut-turut
-    const matches = cleanText.match(/[0-9a-fA-F\-]{20,}/g);
+    const matches = cleanText.match(regexLonggar);
 
     if (matches && matches.length > 0) {
-        // Ambil hasil terpanjang (asumsi kode transaksi adalah teks hex terpanjang di struk)
-        let longest = matches.reduce((a, b) => a.length > b.length ? a : b);
+        // Ambil hasil yang paling panjang (kemungkinan besar itu kode transaksinya)
+        const bestMatch = matches.reduce((a, b) => a.length > b.length ? a : b);
         
-        // Validasi tambahan: Harus ada minimal 2 strip "-" agar yakin itu UUID
-        if ((longest.match(/-/g) || []).length >= 2) {
-            return longest;
+        // Cek validasi sederhana: minimal harus ada 2 tanda strip (-)
+        if ((bestMatch.match(/-/g) || []).length >= 2) {
+            return bestMatch;
         }
     }
 
     return null;
 }
+
+// ... (Sisa fungsi loadUserProfile, submitLaporan, formatRupiah SAMA SEPERTI SEBELUMNYA) ...
+// Pastikan bagian bawah ini tetap ada di file Anda:
 
 function loadUserProfile(uid) {
     const userRef = ref(db, 'users/' + uid);
@@ -196,7 +192,6 @@ function loadUserProfile(uid) {
 
 async function submitLaporan(e) {
     e.preventDefault();
-    // ... Logic submit sama seperti sebelumnya ...
     const elArea = document.getElementById('areaDisplay');
     const elKode = document.getElementById('kodeTransaksi');
     const elNamaMitra = document.getElementById('namaMitra');
