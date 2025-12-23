@@ -50,5 +50,64 @@
     </div>
 
     <script type="module" src="./js/login.js"></script>
+    <style>
+    .snowflake {
+        position: fixed;
+        top: -10px;
+        z-index: 99999; /* Paling depan */
+        color: #dbeeff; /* Putih agak biru */
+        text-shadow: 0 0 5px rgba(0,0,0,0.1); /* Bayangan tipis biar kelihatan di background putih */
+        user-select: none;
+        pointer-events: none; /* Klik tembus ke belakang */
+        cursor: default;
+        animation-name: fall;
+        animation-timing-function: linear;
+        animation-iteration-count: infinite;
+    }
+
+    @keyframes fall {
+        to {
+            transform: translateY(105vh);
+        }
+    }
+</style>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // Konfigurasi
+        const snowSymbol = '❄'; // Simbol Salju
+        const spawnRate = 200; // Muncul setiap 200ms (Makin kecil makin badai)
+        
+        function createSnowflake() {
+            const snowflake = document.createElement('div');
+            snowflake.classList.add('snowflake');
+            snowflake.innerHTML = snowSymbol;
+            
+            // Posisi Random Horizontal
+            snowflake.style.left = Math.random() * 100 + 'vw';
+            
+            // Ukuran Random (10px - 25px)
+            const size = Math.random() * 15 + 10;
+            snowflake.style.fontSize = size + 'px';
+            
+            // Kecepatan Random (3s - 8s)
+            const duration = Math.random() * 5 + 3;
+            snowflake.style.animationDuration = duration + 's';
+            
+            // Transparansi Random
+            snowflake.style.opacity = Math.random() * 0.7 + 0.3;
+
+            document.body.appendChild(snowflake);
+
+            // Hapus elemen setelah animasi selesai biar HP gak berat
+            setTimeout(() => {
+                snowflake.remove();
+            }, duration * 1000);
+        }
+
+        // Jalankan Hujan Salju
+        setInterval(createSnowflake, spawnRate);
+    });
+</script>
 </body>
 </html>
