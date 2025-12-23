@@ -32,7 +32,7 @@ const DATABASE_KOORDINAT_POINT = {
     "Karangnongko":  { lat: -7.673078, lng: 110.56044 }, 
     "Mojosongo":     { lat: -7.5403421, lng: 110.6208683 },
     "Polanharjo":     { lat: -7.620437, lng: 110.696366 },
-    "Trucuk":     { lat: -7.7445764, lng: 110.3666281 },
+    "Trucuk":     { lat: -7.688590, lng: 110.695219 },
     "Grabag":     { lat: -7.369339, lng: 110.308800 },
     "Mungkid":     { lat: -7.5389326, lng: 110.2280005 },
     "Pakis":     { lat: -7.4706756, lng: 110.242976 },
