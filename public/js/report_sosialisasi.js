@@ -116,7 +116,6 @@ async function getAddressFromCoordinates(lat, lng) {
 const hpInput = document.getElementById('noHpInput');
 if (hpInput) {
     hpInput.addEventListener('input', function() {
-        // Hanya hapus karakter non-angka
         this.value = this.value.replace(/[^0-9]/g, '');
     });
 }
@@ -204,28 +203,34 @@ if (fileInput) {
     });
 }
 
-// 8. SUBMIT FORM (DENGAN VALIDASI HP 10-12 DIGIT)
+// 8. SUBMIT FORM (DENGAN VALIDASI HP ANTI-ASAL)
 document.getElementById('sosialisasiForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     
-    // --- VALIDASI NO HP (BAGIAN PENTING) ---
-    // 1. Ambil angka murni yang diketik user
+    // --- VALIDASI NO HP (LOGIKA UPDATE) ---
+    // 1. Ambil angka murni
     let rawHp = document.getElementById('noHpInput').value.replace(/[^0-9]/g, '');
     
-    // 2. Cek Panjang Digit (Wajib 10 sampai 12)
+    // 2. Cek Panjang Digit (10-12)
     if (rawHp.length < 10 || rawHp.length > 12) {
-        alert(`❌ Salah input nomer HP!\n\nJumlah digit yang Anda masukkan: ${rawHp.length}.\nWajib antara 10 sampai 12 digit.`);
-        return; // STOP DI SINI, JANGAN KIRIM
+        alert(`❌ Salah input nomer HP!\n\nJumlah digit: ${rawHp.length}.\nWajib antara 10 sampai 12 digit.`);
+        return; 
     }
 
-    // 3. Format ke 62 (Jika lolos validasi)
+    // 3. Cek Angka Kembar Berulang (Lebih dari 8 digit sama berturut-turut)
+    // Regex ini mencari digit yang diulang 8 kali atau lebih (contoh: 88888888)
+    if (/(\d)\1{7,}/.test(rawHp)) {
+        alert("❌ Nomor HP Tidak Valid!\n\nTerdeteksi angka kembar yang tidak wajar.\nMohon masukkan nomor HP mitra yang asli.");
+        return;
+    }
+
+    // 4. Format ke 62
     let finalHp = rawHp;
     if (finalHp.startsWith('0')) {
         finalHp = '62' + finalHp.substring(1);
     } else if (finalHp.startsWith('8')) {
         finalHp = '62' + finalHp;
     }
-    // Jika user sudah mengetik 62 di awal, biarkan.
 
     // --- VALIDASI LAINNYA ---
     if (!areaSelect.value) { alert("❌ Area belum terpilih!"); return; }
@@ -251,7 +256,7 @@ document.getElementById('sosialisasiForm').addEventListener('submit', async (e) 
             point: pointSelect.value,
             
             namaMitra: document.getElementById('namaMitra').value,
-            noHp: finalHp, // Kirim Nomor yg sudah diformat 62
+            noHp: finalHp, // Kirim Nomor yg sudah diformat
             
             desa: document.getElementById('desaInput').value,
             kecamatan: document.getElementById('kecamatanInput').value,
@@ -265,7 +270,7 @@ document.getElementById('sosialisasiForm').addEventListener('submit', async (e) 
 
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
-            redirect: 'follow', // PENTING AGAR TIDAK ERROR FETCH
+            redirect: 'follow', 
             body: JSON.stringify(formData)
         });
 
