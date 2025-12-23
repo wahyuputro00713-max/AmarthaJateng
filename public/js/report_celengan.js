@@ -56,7 +56,8 @@ window.addEventListener('DOMContentLoaded', () => {
     setupScanner();
 });
 
-// --- FUNGSI PRE-PROCESSING IMAGE (MEMPERTAJAM GAMBAR) ---
+// --- FUNGSI PRE-PROCESSING IMAGE (GRAYSCALE SAJA) ---
+// Kita hindari thresholding kasar agar teks abu-abu tidak hilang
 function preprocessImage(imageFile) {
     return new Promise((resolve) => {
         const img = new Image();
@@ -74,15 +75,14 @@ function preprocessImage(imageFile) {
                 const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 const data = imgData.data;
 
-                // Ubah jadi Grayscale & High Contrast
+                // Ubah jadi Grayscale (Tanpa menghapus warna abu-abu muda)
                 for (let i = 0; i < data.length; i += 4) {
                     const gray = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
-                    const val = (gray > 130) ? 255 : 0; // Thresholding
-                    data[i] = data[i + 1] = data[i + 2] = val;
+                    data[i] = data[i + 1] = data[i + 2] = gray; // Set R, G, B jadi nilai abu-abu
                 }
 
                 ctx.putImageData(imgData, 0, 0);
-                canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.95);
+                canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 1.0); // Kualitas Maksimal
             }
         };
         reader.readAsDataURL(imageFile);
@@ -113,15 +113,19 @@ function setupScanner() {
                 // 1. Pre-process Image
                 const processedFile = await preprocessImage(rawFile);
                 
-                loadingText.textContent = "🔍 Membaca Teks...";
+                loadingText.textContent = "🔍 Membaca Kode...";
 
-                // 2. OCR Tesseract
+                // 2. OCR Tesseract dengan Whitelist & PSM 6
+                // PSM 6 = Menganggap teks sebagai satu blok seragam (bagus untuk teks terpotong baris)
+                // Whitelist = Hanya izinkan karakter Hex (0-9, a-f) dan strip (-)
                 const result = await Tesseract.recognize(processedFile, 'eng', {
+                    tessedit_char_whitelist: '0123456789abcdefABCDEF-',
+                    tessedit_pageseg_mode: '6', 
                     logger: m => console.log(m)
                 });
 
                 const fullText = result.data.text;
-                console.log("=== RAW OCR ===");
+                console.log("=== RAW OCR RESULT ===");
                 console.log(fullText);
 
                 // 3. Filter Mencari Kode
@@ -131,7 +135,7 @@ function setupScanner() {
                     kodeField.value = kodeDitemukan;
                     alert(`✅ Kode Ditemukan!\n${kodeDitemukan}`);
                 } else {
-                    alert("⚠️ Kode tidak ditemukan.\nPastikan foto memuat kode UUID lengkap (xxxxx-xxxx-xxxx...).");
+                    alert("⚠️ Kode tidak ditemukan.\nPastikan foto fokus ke area kode transaksi.");
                 }
 
             } catch (error) {
@@ -146,21 +150,18 @@ function setupScanner() {
     }
 }
 
-// --- LOGIKA FILTER BARU (SUPER AGRESIF) ---
+// --- LOGIKA FILTER KHUSUS UUID ---
 function saringKodeTransaksi(text) {
     if (!text) return null;
 
-    // 1. HAPUS SEMUA SPASI DAN BARIS BARU (Gabung jadi satu string panjang)
-    // Ini kunci agar kode yang terpotong baris bisa terbaca nyambung.
-    // Contoh: "1234-\n5678" menjadi "1234-5678"
+    // 1. BERSIHKAN TEKS
+    // Hapus spasi dan enter agar baris yang terpotong menyatu
     const cleanText = text.replace(/\s+/g, '').trim(); 
     
-    console.log("=== CLEAN TEXT ===");
-    console.log(cleanText);
-
-    // 2. REGEX UUID (Format sesuai screenshot Anda)
-    // Pola: 8char - 4char - 4char - 4char - 12char
-    // Total sekitar 32-36 karakter Hexadesimal (0-9, a-f) dengan tanda '-'
+    // 2. CARI POLA UUID
+    // Format: 8char - 4char - 4char - 4char - 12char
+    // Contoh: 100658c0-3b87-46d2-aec5-6d7a244c049c
+    // Regex ini mencari minimal 32 karakter Hex dengan tanda hubung opsional
     const regexUUID = /[0-9a-fA-F]{8}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{12}/i;
 
     const match = cleanText.match(regexUUID);
@@ -169,7 +170,7 @@ function saringKodeTransaksi(text) {
         return match[0]; // Kembalikan kode yang cocok
     }
 
-    return null; // Gagal
+    return null; 
 }
 
 // --- FUNGSI LOAD PROFIL (AUTO FILL) ---
