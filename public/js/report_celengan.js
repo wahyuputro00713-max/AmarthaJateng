@@ -24,13 +24,13 @@ window.addEventListener('DOMContentLoaded', () => {
     const tgl = document.getElementById('tanggalInput');
     if(tgl) tgl.value = new Date().toISOString().split('T')[0];
 
-    // 2. KUNCI KOLOM KODE TRANSAKSI (Hanya Read-Only) [UPDATED]
+    // 2. KUNCI KOLOM KODE TRANSAKSI (Read-Only)
     const kodeInput = document.getElementById('kodeTransaksi');
     if(kodeInput) {
-        kodeInput.readOnly = true; // Kunci agar tidak bisa diketik manual
+        kodeInput.readOnly = true; 
         kodeInput.placeholder = "Klik Scan untuk isi otomatis...";
-        kodeInput.style.backgroundColor = "#e9ecef"; // Beri warna abu-abu agar terlihat terkunci
-        kodeInput.style.cursor = "not-allowed"; // Ubah kursor jadi tanda larang
+        kodeInput.style.backgroundColor = "#e9ecef"; 
+        kodeInput.style.cursor = "not-allowed"; 
     }
 
     // 3. Cek Login
@@ -39,18 +39,11 @@ window.addEventListener('DOMContentLoaded', () => {
         else { window.location.replace("index.html"); }
     });
 
-    // 4. Format Rupiah
-    const rupiahEl = document.getElementById('nominalInput');
-    if(rupiahEl) {
-        rupiahEl.addEventListener('input', function() { this.value = formatRupiah(this.value, 'Rp. '); });
-        rupiahEl.addEventListener('blur', function() { if(this.value === '') this.value = 'Rp. 0'; });
-    }
-
-    // 5. Submit Listener
+    // 4. Submit Listener
     const formEl = document.getElementById('celenganForm');
     if(formEl) { formEl.addEventListener('submit', submitLaporan); }
 
-    // 6. SCANNER INIT
+    // 5. SCANNER INIT
     setupScanner();
 });
 
@@ -128,12 +121,11 @@ function setupScanner() {
 
                 if (kodeDitemukan) {
                     kodeField.value = kodeDitemukan;
-                    // Beri efek visual sukses (hijau sebentar)
+                    // Beri efek visual sukses
                     kodeField.style.backgroundColor = "#d4edda";
                     kodeField.style.borderColor = "#28a745";
                     alert(`✅ Kode Berhasil Discan!\n${kodeDitemukan}`);
                     
-                    // Kembalikan warna setelah 2 detik (tetap read-only)
                     setTimeout(() => {
                         kodeField.style.backgroundColor = "#e9ecef";
                         kodeField.style.borderColor = ""; 
@@ -187,8 +179,6 @@ function perbaikiTypoOCR(str) {
         .replace(/g/g, '9').replace(/q/g, '9');
 }
 
-// ... (Sisa fungsi tidak berubah) ...
-
 function loadUserProfile(uid) {
     const userRef = ref(db, 'users/' + uid);
     get(userRef).then((snapshot) => {
@@ -207,13 +197,14 @@ async function submitLaporan(e) {
     e.preventDefault();
     const elArea = document.getElementById('areaDisplay');
     const elKode = document.getElementById('kodeTransaksi');
-    const elNamaMitra = document.getElementById('namaMitra');
-    const elNominal = document.getElementById('nominalInput');
+    
+    // Hapus variabel elNamaMitra dan elNominal
+
     const loadingOverlay = document.getElementById('loadingOverlay');
 
     if(!elArea.value || elArea.value === "-") { alert("Data Profil belum termuat."); return; }
     
-    // Validasi Tambahan: Pastikan Kode Transaksi Terisi (karena sekarang read-only)
+    // Validasi Kode Transaksi
     if(!elKode.value) { alert("❌ Kode Transaksi Kosong! Silakan Scan Foto Struk."); return; }
 
     loadingOverlay.style.display = 'flex';
@@ -229,8 +220,7 @@ async function submitLaporan(e) {
             area: elArea.value,
             point: document.getElementById('pointDisplay').value,
             kodeTransaksi: elKode.value.trim(), 
-            namaMitra: elNamaMitra.value,
-            nominal: elNominal.value.replace(/[^0-9]/g, ''),
+            // Hapus namaMitra dan nominal dari pengiriman data
             foto: "", 
         };
 
@@ -250,18 +240,4 @@ async function submitLaporan(e) {
     } finally {
         loadingOverlay.style.display = 'none';
     }
-}
-
-function formatRupiah(angka, prefix) {
-    if (!angka) return "";
-    let number_string = angka.replace(/[^,\d]/g, '').toString(),
-        split = number_string.split(','),
-        sisa = split[0].length % 3,
-        rupiah = split[0].substr(0, sisa),
-        ribuan = split[0].substr(sisa).match(/\d{3}/gi);
-    if (ribuan) {
-        let separator = sisa ? '.' : '';
-        rupiah += separator + ribuan.join('.');
-    }
-    return prefix == undefined ? rupiah : (rupiah ? 'Rp. ' + rupiah : '');
 }
