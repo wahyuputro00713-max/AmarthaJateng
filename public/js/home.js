@@ -2,7 +2,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebas
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getDatabase, ref, get, child } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// --- KONFIGURASI FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyC8wOUkyZTa4W2hHHGZq_YKnGFqYEGOuH8",
     authDomain: "amarthajatengwebapp.firebaseapp.com",
@@ -17,17 +16,14 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app); 
 
-// URL WEB APP APPS SCRIPT (Pastikan ini URL 'New Version' /exec)
+// 🔴🔴 PASTE URL APPS SCRIPT BARU DI SINI 🔴🔴
 const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; 
 
-// Elemen DOM
 const userNameSpan = document.getElementById('userName') || document.getElementById('welcomeName'); 
 const logoutBtn = document.getElementById('logoutBtn');
 
-// 1. Cek Status Login
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        // Ambil Nama User Sendiri
         const userRef = ref(db, 'users/' + user.uid);
         get(userRef).then((snapshot) => {
             if (snapshot.exists()) {
@@ -40,13 +36,11 @@ onAuthStateChanged(auth, (user) => {
         }).catch(err => console.log("Gagal load profil sendiri:", err));
 
         loadLeaderboard();
-        
     } else {
         window.location.replace("index.html");
     }
 });
 
-// 2. Fungsi Logout
 if (logoutBtn) {
     logoutBtn.addEventListener('click', () => {
         if(confirm("Apakah Anda yakin ingin keluar?")) {
@@ -55,13 +49,11 @@ if (logoutBtn) {
     });
 }
 
-// 3. FUNGSI LEADERBOARD (ANTI ERROR)
 async function loadLeaderboard() {
     try {
         console.log("Memuat Leaderboard...");
         setLoadingState();
 
-        // --- STEP A: Fetch Data Spreadsheet (Apps Script) ---
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify({ action: "get_leaderboard" }),
@@ -79,14 +71,10 @@ async function loadLeaderboard() {
 
         const top3 = result.data; 
 
-        // --- STEP B: Ambil Data Profil User Firebase (Dengan Pengaman) ---
-        // Kita pisahkan try-catch di sini agar jika permission denied, leaderboard TETAP MUNCUL
         let usersMap = {}; 
         try {
             const dbRef = ref(db);
-            // Ini yang bikin error Permission Denied sebelumnya
             const snapshot = await get(child(dbRef, `users`));
-            
             if (snapshot.exists()) {
                 snapshot.forEach((childSnapshot) => {
                     const userData = childSnapshot.val();
@@ -100,11 +88,9 @@ async function loadLeaderboard() {
                 });
             }
         } catch (dbError) {
-            console.warn("Gagal ambil detail user (Permission Denied). Menggunakan ID Karyawan saja.");
-            // Tidak perlu stop function, lanjut tampilkan data seadanya
+            console.warn("Gagal ambil detail user, lanjut tampilkan ID saja.");
         }
 
-        // --- STEP C: Update Tampilan ---
         updatePodium(".rank-1", top3[0], usersMap); 
         updatePodium(".rank-2", top3[1], usersMap); 
         updatePodium(".rank-3", top3[2], usersMap); 
@@ -120,8 +106,10 @@ function setLoadingState() {
         const card = document.querySelector(sel);
         if(card) {
             const elName = card.querySelector('.bp-name');
+            const elPoint = card.querySelector('.bp-point');
             const elAmount = card.querySelector('.bp-amount');
             if(elName) elName.textContent = "Memuat...";
+            if(elPoint) elPoint.textContent = "-";
             if(elAmount) elAmount.textContent = "-";
         }
     });
@@ -131,6 +119,7 @@ function showErrorState(msg) {
     const card1 = document.querySelector(".rank-1");
     if(card1) {
         card1.querySelector('.bp-name').innerHTML = `<span style="color:red; font-size:10px;">${msg}</span>`;
+        card1.querySelector('.bp-point').textContent = "";
         card1.querySelector('.bp-amount').textContent = "";
     }
 }
@@ -140,30 +129,29 @@ function updatePodium(selectorClass, data, usersMap) {
     if (!card) return;
 
     const elName = card.querySelector('.bp-name');
+    const elPoint = card.querySelector('.bp-point'); // Elemen Baru
     const elAmount = card.querySelector('.bp-amount');
     const elImg = card.querySelector('.avatar-img');
 
     if (data && data.idKaryawan) {
         const idCari = String(data.idKaryawan).trim();
-        
-        // Cek apakah data user berhasil diambil dari Firebase
         const userProfile = usersMap[idCari];
-        
-        // Jika berhasil, pakai Nama Asli. Jika gagal (Permission Denied), pakai ID Karyawan.
         const displayName = userProfile ? userProfile.nama : `ID: ${data.idKaryawan}`;
         
-        // Foto Profil
+        // Foto
         let displayPhoto = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`;
         if (userProfile && userProfile.foto) {
             displayPhoto = userProfile.foto;
         }
 
         if (elName) elName.textContent = displayName;
+        if (elPoint) elPoint.textContent = data.point || "-"; // Tampilkan Point
         if (elAmount) elAmount.textContent = formatJuta(data.amount);
         if (elImg) elImg.src = displayPhoto;
 
     } else {
         if (elName) elName.textContent = "-";
+        if (elPoint) elPoint.textContent = "-";
         if (elAmount) elAmount.textContent = "";
     }
 }
