@@ -35,6 +35,7 @@ const areaSelect = document.getElementById('areaSelect');
 const pointSelect = document.getElementById('pointSelect');
 const btnGetLoc = document.getElementById('btnGetLoc');
 const statusLokasi = document.getElementById('statusLokasi');
+const hpInput = document.getElementById('noHpInput');
 
 // 1. AUTO TANGGAL
 if(document.getElementById('tanggalInput')) {
@@ -112,12 +113,66 @@ async function getAddressFromCoordinates(lat, lng) {
     }
 }
 
-// 4. FORMAT VISUAL NO HP (Hanya kosmetik)
-const hpInput = document.getElementById('noHpInput');
+// 4. FORMAT VISUAL NO HP & CEK DOUBLE (PENTING!)
 if (hpInput) {
+    // Hanya angka saat mengetik
     hpInput.addEventListener('input', function() {
         this.value = this.value.replace(/[^0-9]/g, '');
     });
+
+    // Cek Double saat selesai mengetik (Blur)
+    hpInput.addEventListener('blur', async function() {
+        const rawHp = this.value;
+        if (rawHp.length >= 10) {
+            // Format dulu ke 62
+            let finalHp = rawHp;
+            if (finalHp.startsWith('0')) finalHp = '62' + finalHp.substring(1);
+            else if (finalHp.startsWith('8')) finalHp = '62' + finalHp;
+
+            // Panggil Server untuk Cek
+            const isDouble = await cekNomorDiServer(finalHp);
+            if (isDouble) {
+                alert("❌ NOMOR TERDETEKSI GANDA!\n\nNomor HP ini sudah ada di database. Laporan ditolak.");
+                this.value = ""; // Kosongkan input
+                this.focus(); // Kembalikan kursor
+            }
+        }
+    });
+}
+
+// FUNGSI CEK KE SERVER (APPS SCRIPT)
+async function cekNomorDiServer(nomor) {
+    // Tampilkan indikator loading kecil jika perlu (opsional)
+    const originalPlaceholder = hpInput.placeholder;
+    hpInput.placeholder = "Mengecek database...";
+    
+    try {
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            redirect: 'follow',
+            // Kita kirim action khusus "check_double"
+            body: JSON.stringify({
+                action: "check_double", 
+                noHp: nomor
+            })
+        });
+        
+        const result = await response.json();
+        
+        // Kembalikan placeholder
+        hpInput.placeholder = originalPlaceholder;
+
+        // Asumsi: Server membalas { status: 'exist' } jika nomor ada
+        if (result.status === 'exist' || result.result === 'duplicate') {
+            return true; 
+        }
+        return false;
+
+    } catch (error) {
+        console.warn("Gagal cek nomor:", error);
+        hpInput.placeholder = originalPlaceholder;
+        return false; // Jika error jaringan, kita loloskan dulu (fail open) atau bisa diblokir
+    }
 }
 
 // 5. AREA & POINT
@@ -217,20 +272,17 @@ document.getElementById('sosialisasiForm').addEventListener('submit', async (e) 
     }
 
     // B. Cek Awalan (Prefix) Wajib Indonesia
-    // Harus mulai dengan 08... ATAU 628... ATAU 8...
-    // 00000... akan gagal di sini karena mulai dengan 00.
     let isValidPrefix = false;
     if (rawHp.startsWith('08')) isValidPrefix = true;
     else if (rawHp.startsWith('628')) isValidPrefix = true;
     else if (rawHp.startsWith('8')) isValidPrefix = true;
 
     if (!isValidPrefix) {
-        alert("❌ Nomor HP Tidak Valid!\n\nNomor HP Indonesia harus diawali dengan:\n- 08xx\n- 628xx\n- atau 8xx\n\nNomor '000...' tidak diterima.");
+        alert("❌ Nomor HP Tidak Valid!\n\nNomor HP Indonesia harus diawali dengan:\n- 08xx\n- 628xx\n- atau 8xx");
         return;
     }
 
     // C. Cek Angka Kembar (Anti Spam)
-    // Blokir jika ada 8 angka sama berturut-turut (misal 88888888)
     if (/(\d)\1{7,}/.test(rawHp)) {
         alert("❌ Nomor HP Tidak Valid!\n\nTerdeteksi angka kembar berulang yang tidak wajar.");
         return;
@@ -242,6 +294,14 @@ document.getElementById('sosialisasiForm').addEventListener('submit', async (e) 
         finalHp = '62' + finalHp.substring(1);
     } else if (finalHp.startsWith('8')) {
         finalHp = '62' + finalHp;
+    }
+
+    // --- E. CEK DOUBLE TERAKHIR (SAFETY) ---
+    // Cek lagi sebelum submit beneran, untuk jaga-jaga
+    const isDouble = await cekNomorDiServer(finalHp);
+    if (isDouble) {
+        alert("❌ GAGAL KIRIM: Nomor HP sudah terdaftar di sistem!");
+        return; // Batalkan kirim
     }
 
     // --- VALIDASI FORM LAINNYA ---
@@ -288,6 +348,7 @@ document.getElementById('sosialisasiForm').addEventListener('submit', async (e) 
 
         const result = await response.json();
 
+        // Handle error dari server juga (double check)
         if (result.result === 'success') {
             alert("✅ Laporan Sosialisasi Terkirim!");
             window.location.href = "home.html";
