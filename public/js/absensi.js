@@ -54,7 +54,7 @@ const DATABASE_KOORDINAT_POINT = {
     "01 Sleman":     { lat: -7.7826631, lng: 110.3176677 },
     "Kalasan":     { lat: -7.7461157, lng: 110.4479074 },
     "Ngaglik":     { lat: -7.7448999, lng: 110.3953837 },
-    "Umbulharjo":     { lat: -7.822132, lng: 110.3852211 },
+    "Umbulharjo":     { lat: -7.8221304, lng: 110.3877378 },
     "01 Pandak":     { lat: -7.898319, lng: 110.3041433 },
     "01 Pengasih":     { lat: -7.8499644, lng: 110.1694607 },
     "01 Pleret":     { lat: -7.856949, lng: 110.4097071 },
