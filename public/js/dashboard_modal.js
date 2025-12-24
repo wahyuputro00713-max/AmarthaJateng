@@ -27,7 +27,7 @@ const filterPoint = document.getElementById('filterPoint');
 const filterDPD = document.getElementById('filterDPD');
 const filterHari = document.getElementById('filterHari');
 const filterStatus = document.getElementById('filterStatus');
-const searchBP = document.getElementById('searchBP'); // SEARCH BARU
+const searchBP = document.getElementById('searchBP');
 
 const btnSubmit = document.getElementById('btnSubmit');
 const btnReset = document.getElementById('btnReset');
@@ -38,7 +38,7 @@ const welcomeState = document.getElementById('welcomeState');
 const loadingOverlay = document.getElementById('loadingOverlay');
 const totalDataEl = document.getElementById('totalData');
 
-// 1. Cek Login & Load Profil
+// 1. Cek Login
 onAuthStateChanged(auth, (user) => {
     if (user) {
         getUserProfile(user.uid).then(() => {
@@ -80,11 +80,15 @@ async function fetchDataModal() {
         
         if (result.result === "success" && Array.isArray(result.data)) {
             globalData = result.data;
+            
+            // Isi Filter Area
             populateAreaDropdown(globalData);
             
+            // Set Default dari Profil
             if(userProfile.area && filterArea) {
                 filterArea.value = userProfile.area;
             }
+            // Update Point sesuai Area terpilih
             updatePointDropdown(filterArea.value);
 
             if(userProfile.point && filterPoint) {
@@ -140,7 +144,7 @@ function fillSelect(element, items) {
     }
 }
 
-// 5. RENDER DATA + SEARCH BP
+// 5. RENDER DATA (MODE TABEL/LIST SIMPLE)
 function renderData(data) {
     if (!dataContainer) return;
     if(welcomeState) welcomeState.classList.add('d-none');
@@ -151,22 +155,18 @@ function renderData(data) {
     const fDPD = filterDPD ? filterDPD.value.toLowerCase() : "";
     const fHari = filterHari ? filterHari.value.toLowerCase() : "";
     const fStatus = filterStatus ? filterStatus.value.toLowerCase() : "";
-    
-    // Ambil Search
     const fSearch = searchBP ? searchBP.value.toLowerCase().trim() : "";
 
     const filtered = data.filter(item => {
         const itemDPD = String(item.dpd).toLowerCase();
         const itemHari = String(item.hari).toLowerCase();
-        const itemBP = String(item.nama_bp).toLowerCase(); // Nama BP di data
+        const itemBP = String(item.nama_bp).toLowerCase();
 
         const matchArea = fArea === "" || String(item.area).toLowerCase() === fArea;
         const matchPoint = fPoint === "" || String(item.point).toLowerCase() === fPoint;
         const matchStatus = fStatus === "" || String(item.status).toLowerCase().includes(fStatus);
         const matchHari = fHari === "" || itemHari === fHari;
         const matchDPD = fDPD === "" || fDPD.includes(itemDPD) || itemDPD.includes(fDPD);
-        
-        // Logika Search BP (Partial Match)
         const matchSearch = fSearch === "" || itemBP.includes(fSearch);
 
         return matchArea && matchPoint && matchStatus && matchHari && matchDPD && matchSearch;
@@ -181,39 +181,50 @@ function renderData(data) {
     }
     if(emptyState) emptyState.classList.add('d-none');
 
-    const cardsHTML = filtered.map(item => {
+    // --- RENDER TABEL ---
+    const rowsHTML = filtered.map(item => {
         const statusText = String(item.status).toLowerCase();
         const isBelum = statusText.includes("belum");
-        
-        const statusClass = isBelum ? "status-belum" : "status-bayar";
         const badgeClass = isBelum ? "bg-belum" : "bg-bayar";
         
         return `
-            <div class="data-card ${statusClass}">
-                <span class="badge ${badgeClass} badge-status">${item.status}</span>
-                <div class="mitra-name">${item.mitra || "Tanpa Nama"}</div>
-                <small class="majelis-name"><i class="fa-solid fa-users me-1"></i> ${item.majelis || "-"}</small>
-                <hr style="margin: 8px 0; opacity: 0.1;">
-                <div class="card-row">
-                    <span class="card-label">Nama BP</span><span class="card-val">${item.nama_bp || "-"}</span>
-                </div>
-                <div class="card-row">
-                    <span class="card-label">Point</span><span class="card-val">${item.point}</span>
-                </div>
-                <div class="card-row">
-                    <span class="card-label">Area</span><span class="card-val">${item.area}</span>
-                </div>
-                <div class="card-row">
-                    <span class="card-label">Hari</span><span class="card-val">${item.hari}</span>
-                </div>
-                <div class="card-row">
-                    <span class="card-label">DPD</span><span class="card-val text-danger fw-bold">${item.dpd}</span>
-                </div>
-            </div>
+            <tr>
+                <td>
+                    <span class="fw-bold d-block text-dark">${item.mitra || "-"}</span>
+                    <small class="text-muted" style="font-size: 10px;">${item.majelis || "-"}</small>
+                </td>
+                <td>
+                    <span class="d-block">${item.nama_bp || "-"}</span>
+                    <small class="text-muted" style="font-size: 10px;">${item.point || "-"} (${item.area || "-"})</small>
+                </td>
+                <td class="text-center">${item.hari || "-"}</td>
+                <td class="text-end">
+                    <span class="badge ${badgeClass}" style="font-size: 10px;">${item.status}</span>
+                    <div class="text-danger fw-bold" style="font-size: 10px;">${item.dpd} DPD</div>
+                </td>
+            </tr>
         `;
-    }).join(''); 
+    }).join('');
 
-    dataContainer.innerHTML = cardsHTML;
+    dataContainer.innerHTML = `
+        <div class="bg-white rounded shadow-sm overflow-hidden border">
+            <div class="table-responsive">
+                <table class="table table-hover table-custom mb-0 w-100">
+                    <thead>
+                        <tr>
+                            <th style="width: 35%;">Mitra/Mjl</th>
+                            <th style="width: 30%;">BP/Point</th>
+                            <th style="width: 15%;" class="text-center">Hari</th>
+                            <th style="width: 20%;" class="text-end">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHTML}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
 }
 
 // 6. Listeners
@@ -232,11 +243,8 @@ if(btnSubmit) {
     });
 }
 
-// Listener Search (Real-time saat mengetik)
 if(searchBP) {
     searchBP.addEventListener('input', () => {
-        // Hanya render jika data sudah pernah ditampilkan (container tidak kosong)
-        // atau jika user ingin search di antara data yang ter-filter
         renderData(globalData);
     });
 }
@@ -256,7 +264,7 @@ if(btnReset) {
         if(filterHari) filterHari.value = "";
         if(filterDPD) filterDPD.value = "";
         if(filterStatus) filterStatus.value = "";
-        if(searchBP) searchBP.value = ""; // Reset Search
+        if(searchBP) searchBP.value = "";
 
         dataContainer.innerHTML = "";
         if(welcomeState) welcomeState.classList.remove('d-none');
