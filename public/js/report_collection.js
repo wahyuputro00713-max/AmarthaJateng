@@ -182,7 +182,7 @@ form.addEventListener('submit', async (e) => {
     const nominal = parseInt(amtReal, 10);
     
     if (!nominal || nominal < 1000) { 
-        alert("❌ Amount Collect tidak boleh 0 dan minimal Rp 1.000!");
+        alert("❌ Amount Collect tidak boleh 0!");
         // Fokuskan kembali ke input agar user memperbaiki
         document.getElementById('amountCollectDisplay').focus(); 
         return; 
