@@ -15,16 +15,18 @@
         .form-select-sm { border-radius: 8px; border: 1px solid #eee; background-color: #f9f9f9; font-size: 12px; margin-bottom: 10px; }
         .form-label { font-size: 11px; font-weight: bold; color: #666; margin-bottom: 3px; }
         
-        .data-card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-left: 5px solid #ddd; transition: transform 0.2s; }
+        .data-card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-left: 5px solid #ddd; position: relative; }
         .data-card.status-bayar { border-left-color: #2ecc71; } /* Hijau */
         .data-card.status-belum { border-left-color: #e74c3c; } /* Merah */
         
-        .card-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
-        .card-label { font-size: 11px; color: #888; }
-        .card-value { font-size: 12px; font-weight: 600; color: #333; }
-        .mitra-name { font-size: 14px; font-weight: bold; color: #2c3e50; margin-bottom: 8px; }
+        .mitra-name { font-size: 14px; font-weight: bold; color: #2c3e50; margin-bottom: 2px; }
+        .majelis-name { font-size: 11px; color: #7f8c8d; margin-bottom: 8px; display: block; }
         
-        .badge-status { padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: bold; }
+        .card-row { display: flex; justify-content: space-between; align-items: center; font-size: 11px; margin-bottom: 4px; }
+        .card-label { color: #95a5a6; }
+        .card-val { font-weight: 600; color: #34495e; }
+
+        .badge-status { padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: bold; position: absolute; top: 15px; right: 15px; }
         .bg-bayar { background-color: #d5f5e3; color: #27ae60; }
         .bg-belum { background-color: #fadbd8; color: #c0392b; }
 
@@ -32,7 +34,6 @@
         .sum-val { font-size: 16px; font-weight: bold; color: #4a00e0; }
         .sum-lbl { font-size: 10px; color: #777; }
         
-        /* Loading Overlay */
         #loadingOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 9999; display: flex; justify-content: center; align-items: center; flex-direction: column; }
     </style>
 </head>
@@ -47,7 +48,6 @@
     </div>
 
     <div class="container">
-        
         <div class="filter-card">
             <div class="row g-2">
                 <div class="col-6">
@@ -80,29 +80,17 @@
             </div>
         </div>
 
-        <div class="row g-2 mb-3">
-            <div class="col-6">
-                <div class="summary-box">
-                    <div id="totalData" class="sum-val">0</div>
-                    <div class="sum-lbl">Total Mitra</div>
-                </div>
-            </div>
-            <div class="col-6">
-                <div class="summary-box">
-                    <div id="totalOs" class="sum-val">Rp 0</div>
-                    <div class="sum-lbl">Total OS Pokok</div>
-                </div>
-            </div>
+        <div class="summary-box">
+            <div id="totalData" class="sum-val">0</div>
+            <div class="sum-lbl">Total Mitra Terfilter</div>
         </div>
 
-        <div id="dataContainer">
-            </div>
+        <div id="dataContainer"></div>
         
         <div id="emptyState" class="text-center py-5 d-none">
             <img src="https://cdn-icons-png.flaticon.com/512/7486/7486777.png" width="80" style="opacity: 0.5;">
             <p class="text-muted mt-2 small">Data tidak ditemukan</p>
         </div>
-
     </div>
 
     <div id="loadingOverlay">
