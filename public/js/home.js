@@ -19,7 +19,7 @@ const db = getDatabase(app);
 
 // URL APPS SCRIPT / CLOUDFLARE
 // Pastikan Worker Cloudflare Anda mengarah ke URL Apps Script TERBARU (yang barusan di-deploy New Version)
-const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; 
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzwn46ARbZfWXtB2uzy0aRRLjUZGfXTdWQ7iKKPmSGAuY2Z4zoKkRSzN6fE4c-sWSVd/execv"; 
 
 // Elemen DOM
 const userNameSpan = document.getElementById('userName') || document.getElementById('welcomeName'); 
