@@ -13,11 +13,10 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
-// 🔴🔴 GANTI URL INI DENGAN URL APPS SCRIPT HASIL DEPLOY TERBARU 🔴🔴
-// Gunakan URL yang berakhiran '/exec'
-const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev";
+// 🔴 GUNAKAN URL APPS SCRIPT LANGSUNG (Bypass Cloudflare sementara agar stabil) 🔴
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzh6MheAVZOleG5x_3rJ_CfLGuSXlbknm-1axsx3_PCqx_fDsS5X_F6qRNxmgiweM7Z/exec";
 
-// Variabel Global untuk menyimpan data
+// Variabel Global
 let globalData = [];
 
 // Elemen DOM
@@ -35,21 +34,19 @@ const totalDataEl = document.getElementById('totalData');
 // 1. Cek Login
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        // Langsung tarik data tanpa cek profil user (sesuai request)
         fetchDataModal();
     } else {
         window.location.replace("index.html");
     }
 });
 
-// 2. Fungsi Fetch Data dari Spreadsheet
+// 2. Fetch Data (Optimized)
 async function fetchDataModal() {
     try {
         if(loadingOverlay) loadingOverlay.classList.remove('d-none');
         
-        console.log("Mengambil data dari:", SCRIPT_URL);
+        console.log("Mengambil data...");
 
-        // Header text/plain penting agar tidak kena masalah CORS
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify({ action: "get_data_modal" }),
@@ -58,32 +55,35 @@ async function fetchDataModal() {
         });
 
         const result = await response.json();
-        console.log("Data Diterima:", result);
-
+        
         if (result.result === "success" && Array.isArray(result.data)) {
+            console.log(`Berhasil: ${result.data.length} data diterima.`);
             globalData = result.data;
-            populateFilters(globalData); // Isi dropdown otomatis
-            renderData(globalData);      // Tampilkan data
+            
+            // Render awal
+            populateFilters(globalData);
+            requestAnimationFrame(() => renderData(globalData)); // Render di frame berikutnya agar UI tidak freeze
+            
         } else {
             console.error("Gagal:", result);
-            alert("Gagal mengambil data: " + (result.error || "Data kosong/Tab tidak ditemukan"));
+            alert("Gagal mengambil data: " + (result.error || "Data kosong"));
         }
 
     } catch (error) {
         console.error("Error Fetch:", error);
-        alert("Terjadi kesalahan koneksi. Pastikan URL Script benar.");
+        alert("Terjadi kesalahan koneksi.");
     } finally {
         if(loadingOverlay) loadingOverlay.classList.add('d-none');
     }
 }
 
-// 3. Isi Pilihan Filter Otomatis (Mengambil nilai unik dari data)
+// 3. Populate Filter (Cepat)
 function populateFilters(data) {
-    const areas = [...new Set(data.map(item => item.area).filter(i => i && i !== "-"))].sort();
-    const points = [...new Set(data.map(item => item.point).filter(i => i && i !== "-"))].sort();
-    // Urutkan DPD secara angka (jika memungkinkan), kalau string urut abjad
-    const dpds = [...new Set(data.map(item => item.dpd).filter(i => i && i !== "0"))].sort((a,b) => a-b);
-    const haris = [...new Set(data.map(item => item.hari).filter(i => i && i !== "-"))].sort();
+    // Menggunakan Set untuk performa pencarian unique value yang cepat
+    const areas = [...new Set(data.map(i => i.area).filter(i => i && i !== "-"))].sort();
+    const points = [...new Set(data.map(i => i.point).filter(i => i && i !== "-"))].sort();
+    const dpds = [...new Set(data.map(i => i.dpd).filter(i => i && i !== "0"))].sort((a,b) => a-b);
+    const haris = [...new Set(data.map(i => i.hari).filter(i => i && i !== "-"))].sort();
 
     fillSelect(filterArea, areas);
     fillSelect(filterPoint, points);
@@ -94,32 +94,28 @@ function populateFilters(data) {
 function fillSelect(element, items) {
     if (!element) return;
     const currentVal = element.value;
-    // Reset option, sisakan yang pertama (Semua)
-    element.innerHTML = element.options[0].outerHTML;
     
-    items.forEach(item => {
-        const opt = document.createElement('option');
-        opt.value = item;
-        opt.textContent = item;
-        element.appendChild(opt);
-    });
-    // Restore value jika filter sedang aktif
+    // Build options string sekaligus (lebih cepat daripada appendChild berulang)
+    let optionsHTML = element.options[0].outerHTML; // Simpan opsi 'Semua'
+    optionsHTML += items.map(item => `<option value="${item}">${item}</option>`).join('');
+    
+    element.innerHTML = optionsHTML;
+    
     if(items.includes(currentVal)) element.value = currentVal;
 }
 
-// 4. Render Data ke HTML
+// 4. Render Data (SUPER CEPAT - ANTI FORCE CLOSE)
 function renderData(data) {
     if (!dataContainer) return;
-    dataContainer.innerHTML = "";
-    
-    // Ambil nilai filter saat ini
+
+    // Ambil nilai filter
     const fArea = filterArea ? filterArea.value.toLowerCase() : "";
     const fPoint = filterPoint ? filterPoint.value.toLowerCase() : "";
     const fDPD = filterDPD ? filterDPD.value : "";
     const fHari = filterHari ? filterHari.value.toLowerCase() : "";
     const fStatus = filterStatus ? filterStatus.value.toLowerCase() : "";
 
-    // Lakukan Filtering
+    // Filtering Data
     const filtered = data.filter(item => {
         return (fArea === "" || String(item.area).toLowerCase() === fArea) &&
                (fPoint === "" || String(item.point).toLowerCase() === fPoint) &&
@@ -131,57 +127,56 @@ function renderData(data) {
     // Update Counter
     if(totalDataEl) totalDataEl.textContent = filtered.length;
 
-    // Tampilkan Empty State jika data kosong
+    // Kosongkan container
     if (filtered.length === 0) {
+        dataContainer.innerHTML = "";
         if(emptyState) emptyState.classList.remove('d-none');
         return;
     }
     if(emptyState) emptyState.classList.add('d-none');
 
-    // Loop data dan buat kartu HTML
-    filtered.forEach(item => {
+    // TEKNIK OPTIMASI: Build string HTML dulu, baru masukkan ke DOM sekali saja.
+    // Ini mencegah browser melakukan re-layout ratusan kali yang bikin HP freeze.
+    const cardsHTML = filtered.map(item => {
         const statusText = String(item.status).toLowerCase();
-        const isBelum = statusText.includes("belum"); // Cek apakah "Belum Bayar"
+        const isBelum = statusText.includes("belum");
         
         const statusClass = isBelum ? "status-belum" : "status-bayar";
         const badgeClass = isBelum ? "bg-belum" : "bg-bayar";
+        const namaBp = item.nama_bp || "-";
+        const namaMitra = item.mitra || "Tanpa Nama";
+        const majelis = item.majelis || "-";
         
-        const html = `
+        return `
             <div class="data-card ${statusClass}">
                 <span class="badge ${badgeClass} badge-status">${item.status}</span>
-                
-                <div class="mitra-name">${item.mitra || "Tanpa Nama"}</div>
-                <small class="majelis-name"><i class="fa-solid fa-users me-1"></i> ${item.majelis || "-"}</small>
-                
+                <div class="mitra-name">${namaMitra}</div>
+                <small class="majelis-name"><i class="fa-solid fa-users me-1"></i> ${majelis}</small>
                 <hr style="margin: 8px 0; opacity: 0.1;">
-                
                 <div class="card-row">
-                    <span class="card-label">Nama BP</span>
-                    <span class="card-val">${item.nama_bp || "-"}</span>
+                    <span class="card-label">Nama BP</span><span class="card-val">${namaBp}</span>
                 </div>
                 <div class="card-row">
-                    <span class="card-label">Point</span>
-                    <span class="card-val">${item.point}</span>
+                    <span class="card-label">Point</span><span class="card-val">${item.point}</span>
                 </div>
                 <div class="card-row">
-                    <span class="card-label">Area</span>
-                    <span class="card-val">${item.area}</span>
+                    <span class="card-label">Area</span><span class="card-val">${item.area}</span>
                 </div>
                 <div class="card-row">
-                    <span class="card-label">Hari</span>
-                    <span class="card-val">${item.hari}</span>
+                    <span class="card-label">Hari</span><span class="card-val">${item.hari}</span>
                 </div>
                 <div class="card-row">
-                    <span class="card-label">DPD</span>
-                    <span class="card-val text-danger fw-bold">${item.dpd}</span>
+                    <span class="card-label">DPD</span><span class="card-val text-danger fw-bold">${item.dpd}</span>
                 </div>
             </div>
         `;
-        dataContainer.innerHTML += html;
-    });
+    }).join(''); // Gabungkan jadi satu string panjang
+
+    // Masukkan ke layar sekaligus (Hanya 1x proses render)
+    dataContainer.innerHTML = cardsHTML;
 }
 
-// 5. Event Listeners untuk Filter
+// 5. Event Listeners
 const filters = [filterArea, filterPoint, filterDPD, filterHari, filterStatus];
 filters.forEach(el => {
     if(el) el.addEventListener('change', () => renderData(globalData));
