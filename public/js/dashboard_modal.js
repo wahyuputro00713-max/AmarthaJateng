@@ -15,19 +15,8 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// URL APPS SCRIPT LANGSUNG (Agar Stabil)
+// URL APPS SCRIPT
 const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev";
-
-// --- DATA POINT STATIS (Sama seperti Collection/Sosialisasi) ---
-const dataPoints = {
-    "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucuk"],
-    "Magelang": ["Grabag", "Mungkid", "Pakis", "Salam"],
-    "Solo": ["Banjarsari", "Gemolong", "Masaran", "Tangen"],
-    "Solo 2": ["Gatak", "Jumantono", "Karanganyar", "Nguter", "Pasar kliwon"],
-    "Yogyakarta": ["01 Sleman", "Kalasan", "Ngaglik", "Umbulharjo"],
-    "Yogyakarta 2": ["01 Pandak", "01 Pengasih", "01 Pleret", "Kutoarjo", "Purworejo", "Saptosari"],
-    "Wonogiri": ["Jatisrono", "Ngadirojo", "Ngawen 2", "Pracimantoro", "Wonosari"]
-};
 
 let globalData = [];
 let userProfile = { area: "", point: "" };
@@ -38,6 +27,7 @@ const filterPoint = document.getElementById('filterPoint');
 const filterDPD = document.getElementById('filterDPD');
 const filterHari = document.getElementById('filterHari');
 const filterStatus = document.getElementById('filterStatus');
+const searchBP = document.getElementById('searchBP'); // SEARCH BARU
 
 const btnSubmit = document.getElementById('btnSubmit');
 const btnReset = document.getElementById('btnReset');
@@ -48,60 +38,18 @@ const welcomeState = document.getElementById('welcomeState');
 const loadingOverlay = document.getElementById('loadingOverlay');
 const totalDataEl = document.getElementById('totalData');
 
-// 1. Inisialisasi Dropdown Area & Point (Langsung saat load)
-populateStaticDropdowns();
-
-// 2. Cek Login & Load Profil
+// 1. Cek Login & Load Profil
 onAuthStateChanged(auth, (user) => {
     if (user) {
         getUserProfile(user.uid).then(() => {
-            fetchDataModal(); // Ambil data tabel di background
+            fetchDataModal();
         });
     } else {
         window.location.replace("index.html");
     }
 });
 
-// 3. Fungsi Isi Dropdown (Statis)
-function populateStaticDropdowns() {
-    // Isi Area
-    filterArea.innerHTML = '<option value="">Semua Area</option>';
-    Object.keys(dataPoints).forEach(area => {
-        const option = document.createElement('option');
-        option.value = area;
-        option.textContent = area;
-        filterArea.appendChild(option);
-    });
-
-    // Listener Perubahan Area
-    filterArea.addEventListener('change', function() {
-        updatePointsDropdown(this.value);
-    });
-}
-
-// Update Dropdown Point Berdasarkan Area yang Dipilih
-function updatePointsDropdown(selectedArea) {
-    const points = dataPoints[selectedArea] || [];
-    
-    // Reset Point
-    filterPoint.innerHTML = '<option value="">Semua Point</option>';
-    
-    if (points.length > 0) {
-        filterPoint.disabled = false;
-        points.forEach(point => {
-            const option = document.createElement('option');
-            option.value = point;
-            option.textContent = point;
-            filterPoint.appendChild(option);
-        });
-    } else {
-        // Jika area kosong/tidak dipilih, point dimatikan atau reset
-        filterPoint.value = "";
-        // Opsional: filterPoint.disabled = true; 
-    }
-}
-
-// 4. Ambil Profil User (Firebase)
+// 2. Ambil Profil
 async function getUserProfile(uid) {
     try {
         const snapshot = await get(ref(db, 'users/' + uid));
@@ -109,23 +57,13 @@ async function getUserProfile(uid) {
             const val = snapshot.val();
             userProfile.area = val.area || "";
             userProfile.point = val.point || "";
-            
-            // Auto-fill Filter sesuai Profil
-            if (userProfile.area && filterArea) {
-                filterArea.value = userProfile.area;
-                updatePointsDropdown(userProfile.area); // Trigger update point list
-                
-                if (userProfile.point && filterPoint) {
-                    filterPoint.value = userProfile.point;
-                }
-            }
         }
     } catch (err) {
         console.error("Gagal load profil:", err);
     }
 }
 
-// 5. Fetch Data Modal (Data Tabel)
+// 3. Fetch Data
 async function fetchDataModal() {
     try {
         if(loadingOverlay) loadingOverlay.classList.remove('d-none');
@@ -141,51 +79,97 @@ async function fetchDataModal() {
         const result = await response.json();
         
         if (result.result === "success" && Array.isArray(result.data)) {
-            console.log(`Berhasil: ${result.data.length} data diterima.`);
             globalData = result.data;
-            // Kita tidak perlu populate filter lagi karena sudah pakai data statis
+            populateAreaDropdown(globalData);
+            
+            if(userProfile.area && filterArea) {
+                filterArea.value = userProfile.area;
+            }
+            updatePointDropdown(filterArea.value);
+
+            if(userProfile.point && filterPoint) {
+                const options = Array.from(filterPoint.options).map(opt => opt.value);
+                if(options.includes(userProfile.point)) {
+                    filterPoint.value = userProfile.point;
+                }
+            }
         } else {
             console.error("Gagal:", result);
-            // Jangan alert error kalau data kosong, cukup log saja biar ga ganggu UX
+            alert("Gagal mengambil data: " + (result.error || "Data kosong"));
         }
 
     } catch (error) {
         console.error("Error Fetch:", error);
-        alert("Terjadi kesalahan koneksi saat mengambil data.");
+        alert("Terjadi kesalahan koneksi.");
     } finally {
         if(loadingOverlay) loadingOverlay.classList.add('d-none');
     }
 }
 
-// 6. Render Data (Saat Tombol Tampilkan Diklik)
+// 4. Dropdown Logic
+function populateAreaDropdown(data) {
+    const areas = [...new Set(data.map(i => i.area).filter(i => i && i !== "-"))].sort();
+    fillSelect(filterArea, areas);
+}
+
+function updatePointDropdown(selectedArea) {
+    const relevantData = selectedArea 
+        ? globalData.filter(item => item.area === selectedArea)
+        : globalData;
+    const points = [...new Set(relevantData.map(i => i.point).filter(i => i && i !== "-"))].sort();
+    fillSelect(filterPoint, points);
+}
+
+if(filterArea) {
+    filterArea.addEventListener('change', () => {
+        filterPoint.value = ""; 
+        updatePointDropdown(filterArea.value);
+    });
+}
+
+function fillSelect(element, items) {
+    if (!element) return;
+    const currentVal = element.value;
+    let optionsHTML = element.options[0].outerHTML; 
+    optionsHTML += items.map(item => `<option value="${item}">${item}</option>`).join('');
+    element.innerHTML = optionsHTML;
+    if(items.includes(currentVal)) {
+        element.value = currentVal;
+    } else {
+        element.value = "";
+    }
+}
+
+// 5. RENDER DATA + SEARCH BP
 function renderData(data) {
     if (!dataContainer) return;
-    
     if(welcomeState) welcomeState.classList.add('d-none');
 
-    // Ambil nilai filter
+    // Ambil Filter
     const fArea = filterArea ? filterArea.value.toLowerCase() : "";
     const fPoint = filterPoint ? filterPoint.value.toLowerCase() : "";
     const fDPD = filterDPD ? filterDPD.value.toLowerCase() : "";
     const fHari = filterHari ? filterHari.value.toLowerCase() : "";
     const fStatus = filterStatus ? filterStatus.value.toLowerCase() : "";
+    
+    // Ambil Search
+    const fSearch = searchBP ? searchBP.value.toLowerCase().trim() : "";
 
-    // Filtering Data
     const filtered = data.filter(item => {
         const itemDPD = String(item.dpd).toLowerCase();
         const itemHari = String(item.hari).toLowerCase();
-        
+        const itemBP = String(item.nama_bp).toLowerCase(); // Nama BP di data
+
         const matchArea = fArea === "" || String(item.area).toLowerCase() === fArea;
         const matchPoint = fPoint === "" || String(item.point).toLowerCase() === fPoint;
         const matchStatus = fStatus === "" || String(item.status).toLowerCase().includes(fStatus);
-        
-        // Match Hari (Exact)
         const matchHari = fHari === "" || itemHari === fHari;
-
-        // Match DPD (Includes agar lebih fleksibel)
         const matchDPD = fDPD === "" || fDPD.includes(itemDPD) || itemDPD.includes(fDPD);
+        
+        // Logika Search BP (Partial Match)
+        const matchSearch = fSearch === "" || itemBP.includes(fSearch);
 
-        return matchArea && matchPoint && matchStatus && matchHari && matchDPD;
+        return matchArea && matchPoint && matchStatus && matchHari && matchDPD && matchSearch;
     });
 
     if(totalDataEl) totalDataEl.textContent = filtered.length;
@@ -197,7 +181,6 @@ function renderData(data) {
     }
     if(emptyState) emptyState.classList.add('d-none');
 
-    // Render Kartu
     const cardsHTML = filtered.map(item => {
         const statusText = String(item.status).toLowerCase();
         const isBelum = statusText.includes("belum");
@@ -233,7 +216,7 @@ function renderData(data) {
     dataContainer.innerHTML = cardsHTML;
 }
 
-// 7. Event Listeners Tombol
+// 6. Listeners
 if(btnSubmit) {
     btnSubmit.addEventListener('click', () => {
         if(loadingOverlay) {
@@ -249,26 +232,31 @@ if(btnSubmit) {
     });
 }
 
+// Listener Search (Real-time saat mengetik)
+if(searchBP) {
+    searchBP.addEventListener('input', () => {
+        // Hanya render jika data sudah pernah ditampilkan (container tidak kosong)
+        // atau jika user ingin search di antara data yang ter-filter
+        renderData(globalData);
+    });
+}
+
 if(btnReset) {
     btnReset.addEventListener('click', () => {
-        // Reset Area kembali ke PROFIL USER
         if(filterArea) {
             filterArea.value = userProfile.area;
-            updatePointsDropdown(userProfile.area); // Trigger update point list
+            updatePointDropdown(userProfile.area);
         }
-        
-        // Reset Point kembali ke PROFIL USER
         if(filterPoint) {
-            if (userProfile.point) {
-                 filterPoint.value = userProfile.point;
-            } else {
-                 filterPoint.value = "";
-            }
+            const options = Array.from(filterPoint.options).map(opt => opt.value);
+            if(options.includes(userProfile.point)) filterPoint.value = userProfile.point;
+            else filterPoint.value = "";
         }
 
         if(filterHari) filterHari.value = "";
         if(filterDPD) filterDPD.value = "";
         if(filterStatus) filterStatus.value = "";
+        if(searchBP) searchBP.value = ""; // Reset Search
 
         dataContainer.innerHTML = "";
         if(welcomeState) welcomeState.classList.remove('d-none');
