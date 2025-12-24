@@ -99,10 +99,6 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
-// ... (SISANYA SAMA: Tanggal, Geotag, Rupiah, Submit Logic) ...
-// Pastikan kode di bawah ini tetap ada (ambilLokasi, formatRupiah, submit listener)
-// Copy dari file lama Anda untuk bagian bawahnya.
-
 // 2. Set Tanggal
 document.getElementById('tanggalInput').value = new Date().toISOString().split('T')[0];
 
@@ -173,7 +169,6 @@ function formatRupiah(angka, prefix) {
 
 // 6. Submit Logic
 const form = document.getElementById('collectionForm');
-// const loadingOverlay = document.getElementById('loadingOverlay'); // Sudah didefinisikan di profil.js tapi ini file beda, jadi perlu
 
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -182,7 +177,17 @@ form.addEventListener('submit', async (e) => {
     const geotag = document.getElementById('geotagInput').value;
     const fileInput = document.getElementById('fotoInput');
 
-    if (!amtReal || amtReal === "0") { alert("❌ Amount Collect wajib diisi!"); return; }
+    // === VALIDASI NOMINAL (PERBAIKAN) ===
+    // Pastikan nominal minimal 1000
+    const nominal = parseInt(amtReal, 10);
+    
+    if (!nominal || nominal < 1000) { 
+        alert("❌ Amount Collect tidak boleh 0 dan minimal Rp 1.000!");
+        // Fokuskan kembali ke input agar user memperbaiki
+        document.getElementById('amountCollectDisplay').focus(); 
+        return; 
+    }
+
     if (!geotag || geotag.includes("Menunggu") || geotag.includes("Gagal")) {
         alert("❌ Lokasi wajib terkunci! Tunggu akurasi muncul."); return;
     }
