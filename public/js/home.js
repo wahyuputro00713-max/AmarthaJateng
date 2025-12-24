@@ -17,18 +17,17 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app); 
 
-// ⚠️ PENTING: GANTI INI DENGAN URL 'WEB APP' DARI GOOGLE APPS SCRIPT SETELAH 'NEW DEPLOYMENT' ⚠️
-// Jangan pakai workers.dev dulu untuk memastikan koneksi langsung berhasil.
+// URL APPS SCRIPT / CLOUDFLARE
+// Pastikan Worker Cloudflare Anda mengarah ke URL Apps Script TERBARU (yang barusan di-deploy New Version)
 const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; 
 
 // Elemen DOM
 const userNameSpan = document.getElementById('userName') || document.getElementById('welcomeName'); 
 const logoutBtn = document.getElementById('logoutBtn');
 
-// 1. Cek Status Login & Load Data
+// 1. Cek Status Login
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        // A. Load Nama User
         const userRef = ref(db, 'users/' + user.uid);
         get(userRef).then((snapshot) => {
             if (snapshot.exists()) {
@@ -40,7 +39,7 @@ onAuthStateChanged(auth, (user) => {
             }
         });
 
-        // B. Load Leaderboard
+        // LOAD LEADERBOARD
         loadLeaderboard();
         
     } else {
@@ -52,46 +51,41 @@ onAuthStateChanged(auth, (user) => {
 if (logoutBtn) {
     logoutBtn.addEventListener('click', () => {
         if(confirm("Apakah Anda yakin ingin keluar?")) {
-            signOut(auth).then(() => {
-                window.location.replace("index.html");
-            });
+            signOut(auth).then(() => window.location.replace("index.html"));
         }
     });
 }
 
-// ==========================================
-// 3. LOGIKA LEADERBOARD
-// ==========================================
-
+// 3. FUNGSI LEADERBOARD
 async function loadLeaderboard() {
     try {
-        console.log("Menghubungi Server Leaderboard...");
+        console.log("Memuat Leaderboard...");
         
-        // Ubah tampilan jadi "Memuat..."
-        updateStatusLoading(".rank-1");
-        updateStatusLoading(".rank-2");
-        updateStatusLoading(".rank-3");
+        // Ubah status jadi loading
+        setLoadingState(".rank-1");
+        setLoadingState(".rank-2");
+        setLoadingState(".rank-3");
 
-        // Request ke Google Apps Script
-        // Mode 'no-cors' dihapus agar kita bisa baca response JSON
+        // Fetch Data
+        // PENTING: Gunakan 'text/plain' untuk menghindari masalah CORS Preflight
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
-            body: JSON.stringify({ action: "get_leaderboard" })
+            body: JSON.stringify({ action: "get_leaderboard" }),
+            headers: { "Content-Type": "text/plain" } 
         });
         
         const result = await response.json();
-        console.log("Data Diterima:", result); // Cek Console jika masih Error
+        console.log("Leaderboard Data:", result); // Cek Console browser (F12) jika masih error
 
-        // Validasi Data
-        if (result.result !== "success" || !Array.isArray(result.data) || result.data.length === 0) {
-            console.warn("Data leaderboard kosong/gagal:", result);
-            showErrorState("Data Kosong");
+        if (result.result !== "success" || !result.data || result.data.length === 0) {
+            console.warn("Data kosong atau gagal:", result);
+            showErrorState("Belum Ada Data");
             return;
         }
 
         const top3 = result.data; 
 
-        // Ambil Data Profil User dari Firebase (untuk Nama & Foto)
+        // Ambil Data Profil User dari Firebase (Sekali saja)
         const dbRef = ref(db);
         const snapshot = await get(child(dbRef, `users`));
         let usersMap = {}; 
@@ -110,7 +104,7 @@ async function loadLeaderboard() {
         }
 
         // Update Tampilan HTML
-        // Data Spreadsheet: [Juara 1, Juara 2, Juara 3]
+        // Urutan Array: [Juara 1, Juara 2, Juara 3]
         updatePodium(".rank-1", top3[0], usersMap); 
         updatePodium(".rank-2", top3[1], usersMap); 
         updatePodium(".rank-3", top3[2], usersMap); 
@@ -121,8 +115,7 @@ async function loadLeaderboard() {
     }
 }
 
-// Helper: Tampilan Loading
-function updateStatusLoading(selector) {
+function setLoadingState(selector) {
     const card = document.querySelector(selector);
     if(card) {
         const elName = card.querySelector('.bp-name');
@@ -132,7 +125,6 @@ function updateStatusLoading(selector) {
     }
 }
 
-// Helper: Tampilan Error
 function showErrorState(msg) {
     [".rank-1", ".rank-2", ".rank-3"].forEach(sel => {
         const card = document.querySelector(sel);
@@ -143,7 +135,6 @@ function showErrorState(msg) {
     });
 }
 
-// Helper: Update Kartu Podium
 function updatePodium(selectorClass, data, usersMap) {
     const card = document.querySelector(selectorClass);
     if (!card) return;
@@ -154,49 +145,31 @@ function updatePodium(selectorClass, data, usersMap) {
 
     if (data && data.idKaryawan) {
         const idCari = String(data.idKaryawan).trim();
-        
-        // Cari data user di map Firebase
         const userProfile = usersMap[idCari];
-        
-        // Nama: Prioritas dari Firebase, kalau tidak ada pakai ID
         const displayName = userProfile ? userProfile.nama : `ID: ${data.idKaryawan}`;
         
-        // Nominal
-        const displayAmount = formatJuta(data.amount);
-
-        // Foto
         let displayPhoto = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`;
         if (userProfile && userProfile.foto) {
             displayPhoto = userProfile.foto;
         }
 
-        // Update DOM
         if (elName) elName.textContent = displayName;
-        if (elAmount) elAmount.textContent = displayAmount;
+        if (elAmount) elAmount.textContent = formatJuta(data.amount);
         if (elImg) elImg.src = displayPhoto;
 
     } else {
-        // Jika data kurang (misal cuma ada 2 juara)
         if (elName) elName.textContent = "-";
         if (elAmount) elAmount.textContent = "";
     }
 }
 
-// Helper: Format Angka (1.2jt, 500rb)
 function formatJuta(angka) {
     if (!angka) return "Rp 0";
-    // Bersihkan karakter non-angka (misal Rp, titik, koma)
     let num = Number(String(angka).replace(/[^0-9.-]+/g,""));
-    
     if (isNaN(num)) return "Rp 0";
 
-    if (num >= 1000000000) {
-        return "Rp " + (num / 1000000000).toFixed(1) + "M";
-    } else if (num >= 1000000) {
-        return "Rp " + (num / 1000000).toFixed(1) + "jt";
-    } else if (num >= 1000) {
-        return "Rp " + (num / 1000).toFixed(0) + "rb";
-    } else {
-        return "Rp " + num.toLocaleString('id-ID');
-    }
+    if (num >= 1000000000) return "Rp " + (num / 1000000000).toFixed(1) + "M";
+    else if (num >= 1000000) return "Rp " + (num / 1000000).toFixed(1) + "jt";
+    else if (num >= 1000) return "Rp " + (num / 1000).toFixed(0) + "rb";
+    else return "Rp " + num.toLocaleString('id-ID');
 }
