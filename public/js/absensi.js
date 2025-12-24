@@ -20,7 +20,7 @@ const DATA_POINTS = {
     "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucuk"],
     "Magelang": ["Grabag", "Mungkid", "Pakis", "Salam"],
     "Solo": ["Banjarsari", "Gemolong", "Masaran", "Tangen"],
-    "Solo 2": ["Gatak", "Jumantono", "Karanganyar", "Nguter", "Pasar kliwon"],
+    "Solo 2": ["Gatak", "Jumantono", "Karanganyar", "Nguter", "Pasar Kliwon"],
     "Yogyakarta": ["01 Sleman", "Kalasan", "Ngaglik", "Umbulharjo"],
     "Yogyakarta 2": ["01 Pandak", "01 Pengasih", "01 Pleret", "Kutoarjo", "Purworejo", "Saptosari"],
     "Wonogiri": ["Jatisrono", "Ngadirojo", "Ngawen 2", "Pracimantoro", "Wonosari"]
