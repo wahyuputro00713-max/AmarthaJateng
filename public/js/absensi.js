@@ -13,7 +13,7 @@ const firebaseConfig = {
     appId: "1:22431520744:web:711af76a5335d97179765d"
 };
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzHM2pC3vsdUUWKRdvI0rCoUyGzkbF595xGAtBZbdQLynJHmWbcOgpQdskwMW7WAAG_/exec"; 
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyJ2YJtiTlw9YlSodPWyRS7zfowPDZ7PE6FXtuHLfWyLxZTLMOM-bMFW2Hv_Isc3XqN/exec"; 
 
 // 1. DAFTAR POINT PER AREA (Untuk Dropdown)
 const DATA_POINTS = {
