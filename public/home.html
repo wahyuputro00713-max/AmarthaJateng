@@ -8,7 +8,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="styles/home.css" rel="stylesheet">
     <style>
-        /* CSS KHUSUS LEADERBOARD - DIPERBAIKI */
+        /* CSS KHUSUS LEADERBOARD */
         .leaderboard-section {
             background: white;
             border-radius: 15px;
@@ -38,70 +38,89 @@
             position: relative;
         }
         
-        /* SETTING UMUM AVATAR AGAR TIDAK KETUTUP */
-        .avatar-ring {
-            position: relative; /* Wajib ada agar z-index jalan */
-            z-index: 10;        /* Pastikan di atas kotak */
-            background: white;
-            padding: 3px;
-            margin-bottom: -15px; /* Foto masuk ke dalam kotak sedikit */
-            border-radius: 50%;
-        }
-
         /* JUARA 1 */
-        .rank-1 { width: 38%; z-index: 5; }
+        .rank-1 { width: 38%; z-index: 2; }
         .rank-1 .avatar-ring {
             width: 70px; height: 70px;
-            border: 3px solid #FFD700;
+            border: 3px solid #FFD700; /* Emas */
+            border-radius: 50%;
+            padding: 3px;
+            margin-bottom: -10px;
+            background: white;
+            z-index: 2;
         }
-        .rank-1 .avatar-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; background: #eee; }
+        .rank-1 .avatar-img {
+            width: 100%; height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+            background: #eee;
+        }
         .rank-1 .crown {
-            position: absolute; top: -25px; color: #FFD700; font-size: 24px;
-            animation: bounce 2s infinite; z-index: 11;
+            position: absolute;
+            top: -25px;
+            color: #FFD700;
+            font-size: 24px;
+            animation: bounce 2s infinite;
         }
         .rank-1 .podium-box {
             background: linear-gradient(to bottom, #FFD700, #FDB931);
             width: 100%;
-            height: 110px; /* Tinggi disesuaikan */
+            height: 90px;
             border-radius: 10px 10px 0 0;
-            display: flex; flex-direction: column; justify-content: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
             color: white;
-            padding-top: 15px; /* Dorong teks ke bawah */
             box-shadow: 0 4px 10px rgba(253, 185, 49, 0.4);
+            padding: 5px;
         }
 
         /* JUARA 2 */
         .rank-2 { width: 30%; }
         .rank-2 .avatar-ring {
             width: 55px; height: 55px;
-            border: 3px solid #C0C0C0;
+            border: 3px solid #C0C0C0; /* Perak */
+            border-radius: 50%;
+            padding: 3px;
+            margin-bottom: -10px;
+            background: white;
+            z-index: 2;
         }
         .rank-2 .avatar-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; background: #eee; }
         .rank-2 .podium-box {
             background: linear-gradient(to bottom, #C0C0C0, #9aa0a6);
             width: 100%;
-            height: 80px; /* Tinggi ditambah */
+            height: 65px; /* Lebih pendek dari juara 1 */
             border-radius: 8px 8px 0 0;
-            display: flex; flex-direction: column; justify-content: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
             color: white;
-            padding-top: 15px; /* Dorong teks ke bawah */
+            padding: 5px;
         }
 
-        /* JUARA 3 (YANG DIPERBAIKI) */
+        /* JUARA 3 */
         .rank-3 { width: 30%; }
         .rank-3 .avatar-ring {
             width: 55px; height: 55px;
-            border: 3px solid #CD7F32;
+            border: 3px solid #CD7F32; /* Perunggu */
+            border-radius: 50%;
+            padding: 3px;
+            margin-bottom: -10px;
+            background: white;
+            z-index: 2;
         }
         .rank-3 .avatar-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; background: #eee; }
         .rank-3 .podium-box {
             background: linear-gradient(to bottom, #CD7F32, #a05a2c);
             width: 100%;
-            height: 65px; /* Tinggi DITAMBAH dari 50px ke 65px */
+            height: 50px; /* Paling pendek */
             border-radius: 8px 8px 0 0;
-            display: flex; flex-direction: column; justify-content: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
             color: white;
-            padding-top: 15px; /* PENTING: Dorong teks ke bawah agar tidak ketutup foto */
+            padding: 5px;
         }
 
         /* TEXT STYLING */
@@ -113,6 +132,15 @@
             40% {transform: translateY(-5px);}
             60% {transform: translateY(-3px);}
         }
+        
+        /* Efek Salju */
+        .snowflake {
+            position: fixed; top: -10px; z-index: 99999; 
+            color: #dbeeff; text-shadow: 0 0 5px rgba(0,0,0,0.1); 
+            user-select: none; pointer-events: none; cursor: default;
+            animation-name: fall; animation-timing-function: linear; animation-iteration-count: infinite;
+        }
+        @keyframes fall { to { transform: translateY(105vh); } }
     </style>
 </head>
 <body>
@@ -257,6 +285,7 @@
     
     <script>
     document.addEventListener("DOMContentLoaded", function() {
+        // --- EFEK SALJU ---
         const snowSymbol = '❄'; 
         const spawnRate = 200; 
         
