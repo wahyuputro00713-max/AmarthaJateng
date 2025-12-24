@@ -85,11 +85,11 @@
                 <div class="menu-title">Laporan<br>Celengan</div>
             </a>
 
-            <a href="report_ppob.html" class="menu-card">
+            <a href="dashboard_modal.html" class="menu-card">
                 <div class="menu-icon" style="background: #1abc9c; color: white;">
-                    <i class="fa-solid fa-receipt"></i>
+                    <i class="fa-solid fa-chart-line"></i>
                 </div>
-                <div class="menu-title">Laporan<br>PPOB</div>
+                <div class="menu-title">Dashboard<br>Modal</div>
             </a>
 
         </div>
@@ -102,15 +102,16 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script type="module" src="./js/home.js"></script>
+    
     <style>
     .snowflake {
         position: fixed;
         top: -10px;
-        z-index: 99999; /* Paling depan */
-        color: #dbeeff; /* Putih agak biru */
-        text-shadow: 0 0 5px rgba(0,0,0,0.1); /* Bayangan tipis biar kelihatan di background putih */
+        z-index: 99999; 
+        color: #dbeeff; 
+        text-shadow: 0 0 5px rgba(0,0,0,0.1); 
         user-select: none;
-        pointer-events: none; /* Klik tembus ke belakang */
+        pointer-events: none; 
         cursor: default;
         animation-name: fall;
         animation-timing-function: linear;
@@ -122,44 +123,37 @@
             transform: translateY(105vh);
         }
     }
-</style>
+    </style>
 
-<script>
+    <script>
     document.addEventListener("DOMContentLoaded", function() {
-        // Konfigurasi
-        const snowSymbol = '❄'; // Simbol Salju
-        const spawnRate = 200; // Muncul setiap 200ms (Makin kecil makin badai)
+        const snowSymbol = '❄'; 
+        const spawnRate = 200; 
         
         function createSnowflake() {
             const snowflake = document.createElement('div');
             snowflake.classList.add('snowflake');
             snowflake.innerHTML = snowSymbol;
             
-            // Posisi Random Horizontal
             snowflake.style.left = Math.random() * 100 + 'vw';
             
-            // Ukuran Random (10px - 25px)
             const size = Math.random() * 15 + 10;
             snowflake.style.fontSize = size + 'px';
             
-            // Kecepatan Random (3s - 8s)
             const duration = Math.random() * 5 + 3;
             snowflake.style.animationDuration = duration + 's';
             
-            // Transparansi Random
             snowflake.style.opacity = Math.random() * 0.7 + 0.3;
 
             document.body.appendChild(snowflake);
 
-            // Hapus elemen setelah animasi selesai biar HP gak berat
             setTimeout(() => {
                 snowflake.remove();
             }, duration * 1000);
         }
 
-        // Jalankan Hujan Salju
         setInterval(createSnowflake, spawnRate);
     });
-</script>
+    </script>
 </body>
 </html>
