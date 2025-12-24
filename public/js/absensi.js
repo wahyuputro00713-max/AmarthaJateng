@@ -58,7 +58,7 @@ const DATABASE_KOORDINAT_POINT = {
     "01 Pandak":     { lat: -7.898319, lng: 110.3041433 },
     "01 Pengasih":     { lat: -7.8499644, lng: 110.1694607 },
     "01 Pleret":     { lat: -7.856949, lng: 110.4097071 },
-    "Kutoarjo":     { lat: -7.7238255, lng: 109.9184847 },
+    "Kutoarjo":     { lat: -7.724611, lng: 109.915361 },
     "Purworejo":     { lat: -7.7150278, lng: 110.00125 },
     "Saptosari":     { lat: -8.0493889, lng: 110.5098611 },
     
