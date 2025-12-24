@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-// TAMBAHKAN IMPORT DATABASE
-import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+// TAMBAHKAN IMPORT 'child'
+import { getDatabase, ref, get, child } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // --- KONFIGURASI FIREBASE ---
 const firebaseConfig = {
@@ -17,40 +17,40 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getDatabase(app); // Inisialisasi Database
+const db = getDatabase(app); 
+
+// URL APPS SCRIPT (Wajib ada untuk ambil data leaderboard)
+const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; 
 
 // Elemen DOM
-// Pastikan di HTML ID-nya adalah 'userName' atau 'welcomeName'
-// Sesuaikan baris di bawah ini dengan ID di home.html Anda
 const userNameSpan = document.getElementById('userName') || document.getElementById('welcomeName'); 
 const logoutBtn = document.getElementById('logoutBtn');
 
 // 1. Cek Status Login & Ambil Data Database
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        // Ambil Data Detail dari Database (Bukan cuma dari Auth)
+        // A. Ambil Data Detail User Login
         const userRef = ref(db, 'users/' + user.uid);
         
         get(userRef).then((snapshot) => {
             if (snapshot.exists()) {
                 const data = snapshot.val();
-                
-                // Prioritas: Nama Asli -> ID Karyawan -> Email
                 const realName = data.nama || data.idKaryawan || user.email;
 
                 if (userNameSpan) {
                     userNameSpan.textContent = realName;
                 }
             } else {
-                // Jika data database belum ada
                 if (userNameSpan) userNameSpan.textContent = user.email;
             }
         }).catch((error) => {
             console.error("Gagal ambil data user:", error);
         });
+
+        // B. Load Leaderboard (Fitur Baru)
+        loadLeaderboard();
         
     } else {
-        // User tidak login -> Tendang ke halaman login
         window.location.replace("index.html");
     }
 });
@@ -64,4 +64,112 @@ if (logoutBtn) {
             });
         }
     });
+}
+
+// ==========================================
+// 3. LOGIKA LEADERBOARD (INTEGRASI BARU)
+// ==========================================
+
+async function loadLeaderboard() {
+    try {
+        console.log("Memuat Leaderboard...");
+        
+        // Step A: Ambil Data Ranking dari Spreadsheet (via Apps Script)
+        // Kirim action: "get_leaderboard"
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: "get_leaderboard" })
+        });
+        const result = await response.json();
+
+        if (result.result !== "success" || !result.data) {
+            console.warn("Gagal ambil data leaderboard:", result);
+            return;
+        }
+
+        const top3 = result.data; // Array data top 3 [Juara 1, Juara 2, Juara 3]
+
+        // Step B: Ambil Data Profil User dari Firebase (Sekali panggil untuk efisiensi)
+        // Kita butuh ini untuk mendapatkan Foto & Nama Asli berdasarkan ID Karyawan
+        const dbRef = ref(db);
+        const snapshot = await get(child(dbRef, `users`));
+        let usersMap = {}; 
+
+        if (snapshot.exists()) {
+            snapshot.forEach((childSnapshot) => {
+                const userData = childSnapshot.val();
+                if (userData.idKaryawan) {
+                    // Mapping ID Karyawan -> Data User
+                    usersMap[String(userData.idKaryawan).trim()] = {
+                        nama: userData.nama || "Tanpa Nama",
+                        foto: userData.fotoProfil || null
+                    };
+                }
+            });
+        }
+
+        // Step C: Update Tampilan HTML
+        // Array Apps Script biasanya urut: [Juara 1, Juara 2, Juara 3]
+        updatePodium(".rank-1", top3[0], usersMap); 
+        updatePodium(".rank-2", top3[1], usersMap); 
+        updatePodium(".rank-3", top3[2], usersMap); 
+
+    } catch (error) {
+        console.error("Error Leaderboard:", error);
+    }
+}
+
+// Helper: Update Kartu Podium
+function updatePodium(selectorClass, data, usersMap) {
+    const card = document.querySelector(selectorClass);
+    if (!card) return;
+
+    // Elemen di dalam kartu HTML
+    const elName = card.querySelector('.bp-name');
+    const elAmount = card.querySelector('.bp-amount');
+    const elImg = card.querySelector('.avatar-img');
+
+    if (data && data.idKaryawan) {
+        // Cari data user di map Firebase
+        const userProfile = usersMap[data.idKaryawan];
+        
+        // Set Nama (Pakai nama profil jika ada, kalau tidak pakai ID)
+        const displayName = userProfile ? userProfile.nama : `ID: ${data.idKaryawan}`;
+        
+        // Set Nominal
+        const displayAmount = formatJuta(data.amount);
+
+        // Set Foto (Pakai foto profil jika ada, kalau tidak pakai Avatar Default Inisial)
+        let displayPhoto = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`;
+        if (userProfile && userProfile.foto) {
+            displayPhoto = userProfile.foto;
+        }
+
+        // Update Text & Gambar
+        if (elName) elName.textContent = displayName;
+        if (elAmount) elAmount.textContent = displayAmount;
+        if (elImg) elImg.src = displayPhoto;
+
+    } else {
+        // Jika data kosong (misal belum ada juara 3)
+        if (elName) elName.textContent = "-";
+        if (elAmount) elAmount.textContent = "Rp 0";
+    }
+}
+
+// Helper: Format Angka Singkat (1.2jt, 500rb)
+function formatJuta(angka) {
+    if (!angka) return "Rp 0";
+    const num = Number(angka); 
+    if (isNaN(num)) return "Rp 0";
+
+    if (num >= 1000000000) {
+        return "Rp " + (num / 1000000000).toFixed(1) + "M";
+    } else if (num >= 1000000) {
+        return "Rp " + (num / 1000000).toFixed(1) + "jt";
+    } else if (num >= 1000) {
+        return "Rp " + (num / 1000).toFixed(0) + "rb";
+    } else {
+        return "Rp " + num.toLocaleString('id-ID');
+    }
 }
