@@ -1,6 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-// TAMBAHKAN IMPORT 'child'
 import { getDatabase, ref, get, child } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // --- KONFIGURASI FIREBASE ---
@@ -19,7 +18,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app); 
 
-// URL APPS SCRIPT (Wajib ada untuk ambil data leaderboard)
+// URL APPS SCRIPT (Pastikan ini URL Deployment Web App TERBARU)
 const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; 
 
 // Elemen DOM
@@ -74,12 +73,18 @@ async function loadLeaderboard() {
     try {
         console.log("Memuat Leaderboard...");
         
+        // Ubah tampilan jadi "Memuat..." dulu agar user tahu proses berjalan
+        setLoadingState(".rank-1");
+        setLoadingState(".rank-2");
+        setLoadingState(".rank-3");
+
         // Step A: Ambil Data Ranking dari Spreadsheet (via Apps Script)
         // Kirim action: "get_leaderboard"
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify({ action: "get_leaderboard" })
         });
+        
         const result = await response.json();
 
         if (result.result !== "success" || !result.data) {
@@ -100,7 +105,9 @@ async function loadLeaderboard() {
                 const userData = childSnapshot.val();
                 if (userData.idKaryawan) {
                     // Mapping ID Karyawan -> Data User
-                    usersMap[String(userData.idKaryawan).trim()] = {
+                    // Kita trim dan jadikan string agar pencarian akurat
+                    const cleanID = String(userData.idKaryawan).trim();
+                    usersMap[cleanID] = {
                         nama: userData.nama || "Tanpa Nama",
                         foto: userData.fotoProfil || null
                     };
@@ -108,8 +115,8 @@ async function loadLeaderboard() {
             });
         }
 
-        // Step C: Update Tampilan HTML
-        // Array Apps Script biasanya urut: [Juara 1, Juara 2, Juara 3]
+        // Step C: Update Tampilan HTML dengan Data Asli
+        // Urutan array Apps Script: Index 0 (Juara 1), Index 1 (Juara 2), Index 2 (Juara 3)
         updatePodium(".rank-1", top3[0], usersMap); 
         updatePodium(".rank-2", top3[1], usersMap); 
         updatePodium(".rank-3", top3[2], usersMap); 
@@ -119,7 +126,18 @@ async function loadLeaderboard() {
     }
 }
 
-// Helper: Update Kartu Podium
+// Helper: Ubah teks jadi loading saat proses fetch
+function setLoadingState(selectorClass) {
+    const card = document.querySelector(selectorClass);
+    if(card) {
+        const elName = card.querySelector('.bp-name');
+        const elAmount = card.querySelector('.bp-amount');
+        if(elName) elName.textContent = "Memuat...";
+        if(elAmount) elAmount.textContent = "-";
+    }
+}
+
+// Helper: Update Kartu Podium dengan Data Real
 function updatePodium(selectorClass, data, usersMap) {
     const card = document.querySelector(selectorClass);
     if (!card) return;
@@ -130,8 +148,10 @@ function updatePodium(selectorClass, data, usersMap) {
     const elImg = card.querySelector('.avatar-img');
 
     if (data && data.idKaryawan) {
+        const idCari = String(data.idKaryawan).trim();
+        
         // Cari data user di map Firebase
-        const userProfile = usersMap[data.idKaryawan];
+        const userProfile = usersMap[idCari];
         
         // Set Nama (Pakai nama profil jika ada, kalau tidak pakai ID)
         const displayName = userProfile ? userProfile.nama : `ID: ${data.idKaryawan}`;
@@ -160,7 +180,10 @@ function updatePodium(selectorClass, data, usersMap) {
 // Helper: Format Angka Singkat (1.2jt, 500rb)
 function formatJuta(angka) {
     if (!angka) return "Rp 0";
-    const num = Number(angka); 
+    
+    // Bersihkan karakter non-angka jika ada (misal "Rp 1.000.000")
+    let num = Number(String(angka).replace(/[^0-9.-]+/g,""));
+    
     if (isNaN(num)) return "Rp 0";
 
     if (num >= 1000000000) {
