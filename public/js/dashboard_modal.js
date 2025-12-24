@@ -16,7 +16,6 @@ const auth = getAuth(app);
 // 🔴 GANTI URL INI DENGAN URL APPS SCRIPT TERBARU ANDA (/exec) 🔴
 const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev";
 
-// State Data Global
 let globalData = [];
 
 // Elemen DOM
@@ -30,9 +29,7 @@ const dataContainer = document.getElementById('dataContainer');
 const emptyState = document.getElementById('emptyState');
 const loadingOverlay = document.getElementById('loadingOverlay');
 const totalDataEl = document.getElementById('totalData');
-const totalOsEl = document.getElementById('totalOs');
 
-// 1. Cek Login
 onAuthStateChanged(auth, (user) => {
     if (user) {
         fetchDataModal();
@@ -41,7 +38,6 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
-// 2. Fetch Data dari Spreadsheet
 async function fetchDataModal() {
     try {
         loadingOverlay.classList.remove('d-none');
@@ -58,8 +54,8 @@ async function fetchDataModal() {
 
         if (result.result === "success" && Array.isArray(result.data)) {
             globalData = result.data;
-            populateFilters(globalData); // Isi opsi dropdown otomatis
-            renderData(globalData);      // Tampilkan semua data awal
+            populateFilters(globalData);
+            renderData(globalData);
         } else {
             alert("Gagal mengambil data: " + (result.error || "Data kosong"));
         }
@@ -72,7 +68,6 @@ async function fetchDataModal() {
     }
 }
 
-// 3. Isi Pilihan Filter Otomatis (Unik)
 function populateFilters(data) {
     const areas = [...new Set(data.map(item => item.area).filter(Boolean))].sort();
     const points = [...new Set(data.map(item => item.point).filter(Boolean))].sort();
@@ -86,26 +81,20 @@ function populateFilters(data) {
 }
 
 function fillSelect(element, items) {
-    // Simpan value yang sedang dipilih agar tidak reset saat refresh (opsional)
     const currentVal = element.value;
-    // Reset option, sisakan yang pertama (Semua)
     element.innerHTML = element.options[0].outerHTML;
-    
     items.forEach(item => {
         const opt = document.createElement('option');
         opt.value = item;
         opt.textContent = item;
         element.appendChild(opt);
     });
-    // Restore value jika ada
     if(items.includes(currentVal)) element.value = currentVal;
 }
 
-// 4. Logika Rendering & Filtering
 function renderData(data) {
     dataContainer.innerHTML = "";
     
-    // Filter Data berdasarkan Dropdown
     const fArea = filterArea.value.toLowerCase();
     const fPoint = filterPoint.value.toLowerCase();
     const fDPD = filterDPD.value;
@@ -120,12 +109,8 @@ function renderData(data) {
                (fStatus === "" || String(item.status).toLowerCase().includes(fStatus));
     });
 
-    // Update Summary
     totalDataEl.textContent = filtered.length;
-    const sumOs = filtered.reduce((acc, curr) => acc + (Number(curr.os_pokok) || 0), 0);
-    totalOsEl.textContent = formatRupiah(sumOs);
 
-    // Tampilkan Data
     if (filtered.length === 0) {
         emptyState.classList.remove('d-none');
         return;
@@ -133,40 +118,37 @@ function renderData(data) {
     emptyState.classList.add('d-none');
 
     filtered.forEach(item => {
-        // Tentukan Warna Status
         const statusClass = String(item.status).toLowerCase().includes("belum") ? "status-belum" : "status-bayar";
         const badgeClass = String(item.status).toLowerCase().includes("belum") ? "bg-belum" : "bg-bayar";
         
         const html = `
             <div class="data-card ${statusClass}">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <div class="mitra-name">${item.nama || "Tanpa Nama"}</div>
-                        <span class="badge ${badgeClass} badge-status">${item.status}</span>
-                    </div>
-                    <div class="text-end">
-                        <div class="card-label">DPD</div>
-                        <div class="card-value text-danger">${item.dpd}</div>
-                    </div>
+                <span class="badge ${badgeClass} badge-status">${item.status}</span>
+                
+                <div class="mitra-name">${item.mitra || "Tanpa Nama"}</div>
+                <small class="majelis-name"><i class="fa-solid fa-users me-1"></i> ${item.majelis}</small>
+                
+                <hr style="margin: 8px 0; opacity: 0.1;">
+                
+                <div class="card-row">
+                    <span class="card-label">Nama BP</span>
+                    <span class="card-val">${item.nama_bp}</span>
                 </div>
-                <hr style="margin: 10px 0; opacity: 0.1;">
-                <div class="row">
-                    <div class="col-6">
-                        <div class="card-label">Area</div>
-                        <div class="card-value">${item.area}</div>
-                    </div>
-                    <div class="col-6 text-end">
-                        <div class="card-label">Hari</div>
-                        <div class="card-value">${item.hari}</div>
-                    </div>
-                    <div class="col-6 mt-2">
-                        <div class="card-label">Point</div>
-                        <div class="card-value">${item.point}</div>
-                    </div>
-                    <div class="col-6 mt-2 text-end">
-                        <div class="card-label">OS Pokok</div>
-                        <div class="card-value text-primary">${formatRupiah(item.os_pokok)}</div>
-                    </div>
+                <div class="card-row">
+                    <span class="card-label">Point</span>
+                    <span class="card-val">${item.point}</span>
+                </div>
+                <div class="card-row">
+                    <span class="card-label">Area</span>
+                    <span class="card-val">${item.area}</span>
+                </div>
+                <div class="card-row">
+                    <span class="card-label">Hari</span>
+                    <span class="card-val">${item.hari}</span>
+                </div>
+                <div class="card-row">
+                    <span class="card-label">DPD</span>
+                    <span class="card-val text-danger fw-bold">${item.dpd}</span>
                 </div>
             </div>
         `;
@@ -174,19 +156,10 @@ function renderData(data) {
     });
 }
 
-// 5. Event Listeners (Filter Otomatis saat ganti dropdown)
 const filters = [filterArea, filterPoint, filterDPD, filterHari, filterStatus];
-filters.forEach(el => {
-    el.addEventListener('change', () => renderData(globalData));
-});
+filters.forEach(el => el.addEventListener('change', () => renderData(globalData)));
 
-// Tombol Reset
 btnReset.addEventListener('click', () => {
     filters.forEach(el => el.value = "");
     renderData(globalData);
 });
-
-// Helper Rupiah
-function formatRupiah(angka) {
-    return "Rp " + Number(angka).toLocaleString('id-ID');
-}
