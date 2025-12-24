@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"; // Tambah database
+import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyC8wOUkyZTa4W2hHHGZq_YKnGFqYEGOuH8",
@@ -13,13 +13,13 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getDatabase(app); // Inisialisasi DB
+const db = getDatabase(app);
 
 // URL APPS SCRIPT
-const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyukYV8miaVWFHg6TWaomRodRFQPAYHnq2UlArNNHy73qR6TdUiz3PMYSvgaKZXmXX-/exec";
 
 let globalData = [];
-let userProfile = { area: "", point: "" }; // Simpan profil user
+let userProfile = { area: "", point: "" }; 
 
 // Elemen DOM
 const filterArea = document.getElementById('filterArea');
@@ -40,7 +40,6 @@ const totalDataEl = document.getElementById('totalData');
 // 1. Cek Login & Load Profil
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        // Ambil profil user dulu, baru ambil data modal
         getUserProfile(user.uid).then(() => {
             fetchDataModal();
         });
@@ -57,7 +56,6 @@ async function getUserProfile(uid) {
             const val = snapshot.val();
             userProfile.area = val.area || "";
             userProfile.point = val.point || "";
-            console.log("Profil User:", userProfile);
         }
     } catch (err) {
         console.error("Gagal load profil:", err);
@@ -80,18 +78,26 @@ async function fetchDataModal() {
         const result = await response.json();
         
         if (result.result === "success" && Array.isArray(result.data)) {
-            console.log(`Berhasil: ${result.data.length} data diterima.`);
             globalData = result.data;
             
-            // Isi dropdown Area/Point dari data yang ada
-            populateFilters(globalData);
+            // 1. Isi Dropdown Area (Semua Area yang ada)
+            populateAreaDropdown(globalData);
             
-            // Set Filter Area & Point SESUAI PROFIL USER
+            // 2. Set Default Area dari Profil (Jika ada)
             if(userProfile.area && filterArea) {
                 filterArea.value = userProfile.area;
             }
+
+            // 3. Update Dropdown Point (Sesuai Area yang terpilih saat ini)
+            updatePointDropdown(filterArea.value);
+
+            // 4. Set Default Point dari Profil (Jika ada dan sesuai Area)
             if(userProfile.point && filterPoint) {
-                filterPoint.value = userProfile.point;
+                // Cek apakah point user ada di dalam opsi point yang baru digenerate
+                const options = Array.from(filterPoint.options).map(opt => opt.value);
+                if(options.includes(userProfile.point)) {
+                    filterPoint.value = userProfile.point;
+                }
             }
 
         } else {
@@ -107,40 +113,60 @@ async function fetchDataModal() {
     }
 }
 
-// 4. Populate Dropdown (Area & Point Saja)
-function populateFilters(data) {
-    // Ambil list unik dari data
-    const areas = [...new Set(data.map(i => i.area).filter(i => i && i !== "-"))].sort();
-    const points = [...new Set(data.map(i => i.point).filter(i => i && i !== "-"))].sort();
+// --- LOGIKA FILTER BERJENJANG (DEPENDENT DROPDOWN) ---
 
+// Fungsi 1: Isi Area (Hanya sekali saat awal)
+function populateAreaDropdown(data) {
+    const areas = [...new Set(data.map(i => i.area).filter(i => i && i !== "-"))].sort();
     fillSelect(filterArea, areas);
-    fillSelect(filterPoint, points);
-    
-    // Hari & DPD TIDAK di-populate dari data, karena sudah hardcoded di HTML
 }
 
+// Fungsi 2: Update Isi Point Berdasarkan Area yang Dipilih
+function updatePointDropdown(selectedArea) {
+    // Jika ada Area dipilih, ambil data HANYA dari area itu.
+    // Jika tidak ada (Semua Area), ambil SEMUA data.
+    const relevantData = selectedArea 
+        ? globalData.filter(item => item.area === selectedArea)
+        : globalData;
+
+    // Ambil daftar point unik dari data yang sudah disaring
+    const points = [...new Set(relevantData.map(i => i.point).filter(i => i && i !== "-"))].sort();
+    
+    // Isi Dropdown Point
+    fillSelect(filterPoint, points);
+}
+
+// Event Listener: Saat Area Berubah -> Update Point
+if(filterArea) {
+    filterArea.addEventListener('change', () => {
+        // Reset pilihan Point ke "Semua Point" agar tidak nyangkut di point area lain
+        filterPoint.value = ""; 
+        updatePointDropdown(filterArea.value);
+    });
+}
+
+// Helper: Mengisi Select Option
 function fillSelect(element, items) {
     if (!element) return;
-    const currentVal = element.value; // Simpan nilai jika sudah ada
+    const currentVal = element.value; // Simpan nilai lama (untuk preserve selection jika valid)
     
+    // Simpan opsi pertama ("Semua ...")
     let optionsHTML = element.options[0].outerHTML; 
+    
+    // Tambahkan opsi baru
     optionsHTML += items.map(item => `<option value="${item}">${item}</option>`).join('');
     
     element.innerHTML = optionsHTML;
     
-    // Kembalikan nilai (berguna jika profil sudah set value sebelumnya)
-    if(items.includes(currentVal)) element.value = currentVal;
-    else if(currentVal !== "") {
-        // Jika value profil tidak ada di list data (misal typo di database), tetap tambahkan opsi
-        const opt = document.createElement('option');
-        opt.value = currentVal;
-        opt.textContent = currentVal;
-        opt.selected = true;
-        element.appendChild(opt);
+    // Kembalikan nilai lama jika masih valid di daftar baru
+    if(items.includes(currentVal)) {
+        element.value = currentVal;
+    } else {
+        element.value = ""; // Reset jika nilai lama tidak valid lagi (misal pindah area)
     }
 }
 
-// 5. Render Data (Saat Tombol Diklik)
+// 4. Render Data (Saat Tombol Diklik)
 function renderData(data) {
     if (!dataContainer) return;
     
@@ -155,20 +181,15 @@ function renderData(data) {
 
     // Filtering Data
     const filtered = data.filter(item => {
-        // String Matching untuk DPD (karena format "01. Current")
         const itemDPD = String(item.dpd).toLowerCase();
         const itemHari = String(item.hari).toLowerCase();
         
-        // Logika Filter
         const matchArea = fArea === "" || String(item.area).toLowerCase() === fArea;
         const matchPoint = fPoint === "" || String(item.point).toLowerCase() === fPoint;
         const matchStatus = fStatus === "" || String(item.status).toLowerCase().includes(fStatus);
-        
-        // Match Hari (Exact)
         const matchHari = fHari === "" || itemHari === fHari;
-
-        // Match DPD (Includes agar lebih fleksibel)
-        // Misal data di sheet "1-7 DPD", filter "02. 1-7 DPD" -> Kita pakai includes
+        
+        // Filter DPD (Includes)
         const matchDPD = fDPD === "" || fDPD.includes(itemDPD) || itemDPD.includes(fDPD);
 
         return matchArea && matchPoint && matchStatus && matchHari && matchDPD;
@@ -183,7 +204,7 @@ function renderData(data) {
     }
     if(emptyState) emptyState.classList.add('d-none');
 
-    // Render Kartu (Optimized)
+    // Render Kartu
     const cardsHTML = filtered.map(item => {
         const statusText = String(item.status).toLowerCase();
         const isBelum = statusText.includes("belum");
@@ -219,7 +240,7 @@ function renderData(data) {
     dataContainer.innerHTML = cardsHTML;
 }
 
-// 6. Event Listeners
+// 5. Event Listeners Tombol
 if(btnSubmit) {
     btnSubmit.addEventListener('click', () => {
         if(loadingOverlay) {
@@ -237,9 +258,23 @@ if(btnSubmit) {
 
 if(btnReset) {
     btnReset.addEventListener('click', () => {
-        // Reset Area/Point kembali ke PROFIL USER (bukan kosong)
-        if(filterArea) filterArea.value = userProfile.area;
-        if(filterPoint) filterPoint.value = userProfile.point;
+        // Reset Area kembali ke PROFIL USER
+        if(filterArea) {
+            filterArea.value = userProfile.area;
+            updatePointDropdown(userProfile.area); // Trigger update point
+        }
+        
+        // Reset Point kembali ke PROFIL USER (jika valid di area tsb)
+        if(filterPoint) {
+            // Cek apakah point user valid di area ini
+            const options = Array.from(filterPoint.options).map(opt => opt.value);
+            if(options.includes(userProfile.point)) {
+                filterPoint.value = userProfile.point;
+            } else {
+                filterPoint.value = "";
+            }
+        }
+
         if(filterHari) filterHari.value = "";
         if(filterDPD) filterDPD.value = "";
         if(filterStatus) filterStatus.value = "";
