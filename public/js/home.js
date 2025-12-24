@@ -18,7 +18,7 @@ const auth = getAuth(app);
 const db = getDatabase(app); 
 
 // URL WEB APP APPS SCRIPT (Pastikan ini URL 'New Version' /exec)
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyukYV8miaVWFHg6TWaomRodRFQPAYHnq2UlArNNHy73qR6TdUiz3PMYSvgaKZXmXX-/exec"; 
+const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; 
 
 // Elemen DOM
 const userNameSpan = document.getElementById('userName') || document.getElementById('welcomeName'); 
