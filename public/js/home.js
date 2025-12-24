@@ -13,40 +13,33 @@ const firebaseConfig = {
     appId: "1:22431520744:web:711af76a5335d97179765d"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app); 
 
-// URL APPS SCRIPT (Pastikan ini URL Deployment Web App TERBARU)
+// URL APPS SCRIPT (Pastikan sudah Deploy New Version)
 const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; 
 
 // Elemen DOM
 const userNameSpan = document.getElementById('userName') || document.getElementById('welcomeName'); 
 const logoutBtn = document.getElementById('logoutBtn');
 
-// 1. Cek Status Login & Ambil Data Database
+// 1. Cek Status Login
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        // A. Ambil Data Detail User Login
+        // Ambil Nama User yang Login
         const userRef = ref(db, 'users/' + user.uid);
-        
         get(userRef).then((snapshot) => {
             if (snapshot.exists()) {
                 const data = snapshot.val();
                 const realName = data.nama || data.idKaryawan || user.email;
-
-                if (userNameSpan) {
-                    userNameSpan.textContent = realName;
-                }
+                if (userNameSpan) userNameSpan.textContent = realName;
             } else {
                 if (userNameSpan) userNameSpan.textContent = user.email;
             }
-        }).catch((error) => {
-            console.error("Gagal ambil data user:", error);
         });
 
-        // B. Load Leaderboard (Fitur Baru)
+        // LOAD LEADERBOARD
         loadLeaderboard();
         
     } else {
@@ -66,20 +59,19 @@ if (logoutBtn) {
 }
 
 // ==========================================
-// 3. LOGIKA LEADERBOARD (INTEGRASI BARU)
+// 3. LOGIKA LEADERBOARD
 // ==========================================
 
 async function loadLeaderboard() {
     try {
         console.log("Memuat Leaderboard...");
         
-        // Ubah tampilan jadi "Memuat..." dulu agar user tahu proses berjalan
+        // Ubah status jadi loading dulu
         setLoadingState(".rank-1");
         setLoadingState(".rank-2");
         setLoadingState(".rank-3");
 
-        // Step A: Ambil Data Ranking dari Spreadsheet (via Apps Script)
-        // Kirim action: "get_leaderboard"
+        // Step A: Ambil Data dari Spreadsheet (Apps Script)
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify({ action: "get_leaderboard" })
@@ -87,15 +79,16 @@ async function loadLeaderboard() {
         
         const result = await response.json();
 
-        if (result.result !== "success" || !result.data) {
-            console.warn("Gagal ambil data leaderboard:", result);
+        if (result.result !== "success" || !result.data || result.data.length === 0) {
+            console.warn("Data leaderboard kosong:", result);
+            showErrorState("Belum Ada Data");
             return;
         }
 
-        const top3 = result.data; // Array data top 3 [Juara 1, Juara 2, Juara 3]
+        const top3 = result.data; 
 
-        // Step B: Ambil Data Profil User dari Firebase (Sekali panggil untuk efisiensi)
-        // Kita butuh ini untuk mendapatkan Foto & Nama Asli berdasarkan ID Karyawan
+        // Step B: Ambil Data Profil User dari Firebase
+        // Kita butuh ini untuk menukar ID Karyawan menjadi Nama Asli & Foto
         const dbRef = ref(db);
         const snapshot = await get(child(dbRef, `users`));
         let usersMap = {}; 
@@ -104,8 +97,6 @@ async function loadLeaderboard() {
             snapshot.forEach((childSnapshot) => {
                 const userData = childSnapshot.val();
                 if (userData.idKaryawan) {
-                    // Mapping ID Karyawan -> Data User
-                    // Kita trim dan jadikan string agar pencarian akurat
                     const cleanID = String(userData.idKaryawan).trim();
                     usersMap[cleanID] = {
                         nama: userData.nama || "Tanpa Nama",
@@ -115,20 +106,21 @@ async function loadLeaderboard() {
             });
         }
 
-        // Step C: Update Tampilan HTML dengan Data Asli
-        // Urutan array Apps Script: Index 0 (Juara 1), Index 1 (Juara 2), Index 2 (Juara 3)
+        // Step C: Update Tampilan
+        // Urutan array Apps Script: [Juara 1, Juara 2, Juara 3]
         updatePodium(".rank-1", top3[0], usersMap); 
         updatePodium(".rank-2", top3[1], usersMap); 
         updatePodium(".rank-3", top3[2], usersMap); 
 
     } catch (error) {
         console.error("Error Leaderboard:", error);
+        showErrorState("Error");
     }
 }
 
-// Helper: Ubah teks jadi loading saat proses fetch
-function setLoadingState(selectorClass) {
-    const card = document.querySelector(selectorClass);
+// Helper: Loading Text
+function setLoadingState(selector) {
+    const card = document.querySelector(selector);
     if(card) {
         const elName = card.querySelector('.bp-name');
         const elAmount = card.querySelector('.bp-amount');
@@ -137,12 +129,22 @@ function setLoadingState(selectorClass) {
     }
 }
 
-// Helper: Update Kartu Podium dengan Data Real
+// Helper: Error/Empty Text
+function showErrorState(msg) {
+    [".rank-1", ".rank-2", ".rank-3"].forEach(sel => {
+        const card = document.querySelector(sel);
+        if(card) {
+            card.querySelector('.bp-name').textContent = msg;
+            card.querySelector('.bp-amount').textContent = "-";
+        }
+    });
+}
+
+// Helper: Update Kartu Podium
 function updatePodium(selectorClass, data, usersMap) {
     const card = document.querySelector(selectorClass);
     if (!card) return;
 
-    // Elemen di dalam kartu HTML
     const elName = card.querySelector('.bp-name');
     const elAmount = card.querySelector('.bp-amount');
     const elImg = card.querySelector('.avatar-img');
@@ -159,29 +161,26 @@ function updatePodium(selectorClass, data, usersMap) {
         // Set Nominal
         const displayAmount = formatJuta(data.amount);
 
-        // Set Foto (Pakai foto profil jika ada, kalau tidak pakai Avatar Default Inisial)
+        // Set Foto
         let displayPhoto = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`;
         if (userProfile && userProfile.foto) {
             displayPhoto = userProfile.foto;
         }
 
-        // Update Text & Gambar
         if (elName) elName.textContent = displayName;
         if (elAmount) elAmount.textContent = displayAmount;
         if (elImg) elImg.src = displayPhoto;
 
     } else {
-        // Jika data kosong (misal belum ada juara 3)
+        // Jika data kurang dari 3
         if (elName) elName.textContent = "-";
-        if (elAmount) elAmount.textContent = "Rp 0";
+        if (elAmount) elAmount.textContent = "";
     }
 }
 
-// Helper: Format Angka Singkat (1.2jt, 500rb)
+// Helper: Format Angka Singkat
 function formatJuta(angka) {
     if (!angka) return "Rp 0";
-    
-    // Bersihkan karakter non-angka jika ada (misal "Rp 1.000.000")
     let num = Number(String(angka).replace(/[^0-9.-]+/g,""));
     
     if (isNaN(num)) return "Rp 0";
