@@ -39,7 +39,7 @@ const DATABASE_KOORDINAT_POINT = {
     "Salam":     { lat: -7.5955596, lng: 110.291043 },
     "Banjarsari":     { lat: -7.5334328, lng: 110.822223 },
     "Gemolong":     { lat: -7.3953056, lng: 110.817814 },
-    "Masaran":     { lat: -7.6904468, lng: 110.628811 },
+    "Masaran":     { lat: -7.4426716, lng: 110.9972224 },
     "Tangen":     { lat: -7.33208, lng: 111.059155 },
     "Gatak":     { lat: -7.572387, lng: 110.742497 },
     "Karanganyar":     { lat: -7.5930712, lng: 110.9244555 },
