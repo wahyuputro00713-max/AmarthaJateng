@@ -17,9 +17,9 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app); 
 
-// URL APPS SCRIPT / CLOUDFLARE
-// Pastikan Worker Cloudflare Anda mengarah ke URL Apps Script TERBARU (yang barusan di-deploy New Version)
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzwn46ARbZfWXtB2uzy0aRRLjUZGfXTdWQ7iKKPmSGAuY2Z4zoKkRSzN6fE4c-sWSVd/execv"; 
+// 🔴 PENTING: Pastikan ini URL Web App Google Script TERBARU (akhiran /exec)
+// Jika pakai Cloudflare Worker, gunakan URL Worker.
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyukYV8miaVWFHg6TWaomRodRFQPAYHnq2UlArNNHy73qR6TdUiz3PMYSvgaKZXmXX-/exec"; 
 
 // Elemen DOM
 const userNameSpan = document.getElementById('userName') || document.getElementById('welcomeName'); 
@@ -39,7 +39,6 @@ onAuthStateChanged(auth, (user) => {
             }
         });
 
-        // LOAD LEADERBOARD
         loadLeaderboard();
         
     } else {
@@ -60,32 +59,32 @@ if (logoutBtn) {
 async function loadLeaderboard() {
     try {
         console.log("Memuat Leaderboard...");
-        
-        // Ubah status jadi loading
-        setLoadingState(".rank-1");
-        setLoadingState(".rank-2");
-        setLoadingState(".rank-3");
+        setLoadingState();
 
-        // Fetch Data
-        // PENTING: Gunakan 'text/plain' untuk menghindari masalah CORS Preflight
+        // --- FETCH DATA ---
+        // Trik: Gunakan text/plain untuk menghindari CORS Preflight (OPTIONS request) yang sering gagal di GAS
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify({ action: "get_leaderboard" }),
-            headers: { "Content-Type": "text/plain" } 
+            redirect: "follow",
+            headers: { 
+                "Content-Type": "text/plain;charset=utf-8" 
+            }
         });
         
         const result = await response.json();
-        console.log("Leaderboard Data:", result); // Cek Console browser (F12) jika masih error
+        console.log("Data Leaderboard Diterima:", result);
 
-        if (result.result !== "success" || !result.data || result.data.length === 0) {
-            console.warn("Data kosong atau gagal:", result);
-            showErrorState("Belum Ada Data");
+        // Validasi Data
+        if (result.result !== "success" || !result.data || !Array.isArray(result.data)) {
+            console.warn("Format data salah atau kosong:", result);
+            showErrorState("Data Kosong");
             return;
         }
 
         const top3 = result.data; 
 
-        // Ambil Data Profil User dari Firebase (Sekali saja)
+        // --- AMBIL DATA USER FIREBASE ---
         const dbRef = ref(db);
         const snapshot = await get(child(dbRef, `users`));
         let usersMap = {}; 
@@ -103,11 +102,11 @@ async function loadLeaderboard() {
             });
         }
 
-        // Update Tampilan HTML
-        // Urutan Array: [Juara 1, Juara 2, Juara 3]
-        updatePodium(".rank-1", top3[0], usersMap); 
-        updatePodium(".rank-2", top3[1], usersMap); 
-        updatePodium(".rank-3", top3[2], usersMap); 
+        // --- UPDATE TAMPILAN ---
+        // Pastikan array top3 memiliki minimal data yang dibutuhkan, jika tidak kirim object kosong
+        updatePodium(".rank-1", top3[0] || {}, usersMap); 
+        updatePodium(".rank-2", top3[1] || {}, usersMap); 
+        updatePodium(".rank-3", top3[2] || {}, usersMap); 
 
     } catch (error) {
         console.error("Gagal Load Leaderboard:", error);
@@ -115,22 +114,26 @@ async function loadLeaderboard() {
     }
 }
 
-function setLoadingState(selector) {
-    const card = document.querySelector(selector);
-    if(card) {
-        const elName = card.querySelector('.bp-name');
-        const elAmount = card.querySelector('.bp-amount');
-        if(elName) elName.textContent = "Memuat...";
-        if(elAmount) elAmount.textContent = "-";
-    }
+function setLoadingState() {
+    [".rank-1", ".rank-2", ".rank-3"].forEach(sel => {
+        const card = document.querySelector(sel);
+        if(card) {
+            const nameEl = card.querySelector('.bp-name');
+            const amtEl = card.querySelector('.bp-amount');
+            if(nameEl) nameEl.textContent = "Memuat...";
+            if(amtEl) amtEl.textContent = "-";
+        }
+    });
 }
 
 function showErrorState(msg) {
     [".rank-1", ".rank-2", ".rank-3"].forEach(sel => {
         const card = document.querySelector(sel);
         if(card) {
-            card.querySelector('.bp-name').textContent = msg;
-            card.querySelector('.bp-amount').textContent = "-";
+            const nameEl = card.querySelector('.bp-name');
+            const amtEl = card.querySelector('.bp-amount');
+            if(nameEl) nameEl.textContent = msg;
+            if(amtEl) amtEl.textContent = "-";
         }
     });
 }
@@ -146,8 +149,11 @@ function updatePodium(selectorClass, data, usersMap) {
     if (data && data.idKaryawan) {
         const idCari = String(data.idKaryawan).trim();
         const userProfile = usersMap[idCari];
+        
+        // Nama: Prioritas dari Firebase > ID Karyawan
         const displayName = userProfile ? userProfile.nama : `ID: ${data.idKaryawan}`;
         
+        // Foto: Prioritas dari Firebase > Avatar Default
         let displayPhoto = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`;
         if (userProfile && userProfile.foto) {
             displayPhoto = userProfile.foto;
@@ -158,8 +164,10 @@ function updatePodium(selectorClass, data, usersMap) {
         if (elImg) elImg.src = displayPhoto;
 
     } else {
+        // Data kosong (misal cuma ada 2 juara, juara 3 kosong)
         if (elName) elName.textContent = "-";
         if (elAmount) elAmount.textContent = "";
+        // Reset foto ke default/kosong jika mau
     }
 }
 
