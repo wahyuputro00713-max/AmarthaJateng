@@ -14,7 +14,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
 // 🔴 GANTI URL INI DENGAN URL APPS SCRIPT TERBARU ANDA (/exec) 🔴
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyukYV8miaVWFHg6TWaomRodRFQPAYHnq2UlArNNHy73qR6TdUiz3PMYSvgaKZXmXX-/exec";
+const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev";
 
 // State Data Global
 let globalData = [];
