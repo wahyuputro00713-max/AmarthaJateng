@@ -13,10 +13,9 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
-// 🔴 GUNAKAN URL APPS SCRIPT LANGSUNG (Bypass Cloudflare sementara agar stabil) 🔴
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzh6MheAVZOleG5x_3rJ_CfLGuSXlbknm-1axsx3_PCqx_fDsS5X_F6qRNxmgiweM7Z/exec";
+// URL Apps Script Langsung
+const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev";
 
-// Variabel Global
 let globalData = [];
 
 // Elemen DOM
@@ -25,22 +24,27 @@ const filterPoint = document.getElementById('filterPoint');
 const filterDPD = document.getElementById('filterDPD');
 const filterHari = document.getElementById('filterHari');
 const filterStatus = document.getElementById('filterStatus');
+
+const btnSubmit = document.getElementById('btnSubmit');
 const btnReset = document.getElementById('btnReset');
+
 const dataContainer = document.getElementById('dataContainer');
 const emptyState = document.getElementById('emptyState');
+const welcomeState = document.getElementById('welcomeState');
 const loadingOverlay = document.getElementById('loadingOverlay');
 const totalDataEl = document.getElementById('totalData');
 
 // 1. Cek Login
 onAuthStateChanged(auth, (user) => {
     if (user) {
+        // Ambil data untuk mengisi dropdown, tapi JANGAN tampilkan kartu dulu
         fetchDataModal();
     } else {
         window.location.replace("index.html");
     }
 });
 
-// 2. Fetch Data (Optimized)
+// 2. Fetch Data (Hanya untuk Populasi Filter)
 async function fetchDataModal() {
     try {
         if(loadingOverlay) loadingOverlay.classList.remove('d-none');
@@ -60,9 +64,10 @@ async function fetchDataModal() {
             console.log(`Berhasil: ${result.data.length} data diterima.`);
             globalData = result.data;
             
-            // Render awal
+            // HANYA Isi Filter Dropdown (Agar user bisa milih)
             populateFilters(globalData);
-            requestAnimationFrame(() => renderData(globalData)); // Render di frame berikutnya agar UI tidak freeze
+            
+            // Tampilan tetap di 'Welcome State' (Silakan pilih filter...)
             
         } else {
             console.error("Gagal:", result);
@@ -77,9 +82,8 @@ async function fetchDataModal() {
     }
 }
 
-// 3. Populate Filter (Cepat)
+// 3. Populate Dropdown (Agar user bisa memilih)
 function populateFilters(data) {
-    // Menggunakan Set untuk performa pencarian unique value yang cepat
     const areas = [...new Set(data.map(i => i.area).filter(i => i && i !== "-"))].sort();
     const points = [...new Set(data.map(i => i.point).filter(i => i && i !== "-"))].sort();
     const dpds = [...new Set(data.map(i => i.dpd).filter(i => i && i !== "0"))].sort((a,b) => a-b);
@@ -95,18 +99,19 @@ function fillSelect(element, items) {
     if (!element) return;
     const currentVal = element.value;
     
-    // Build options string sekaligus (lebih cepat daripada appendChild berulang)
-    let optionsHTML = element.options[0].outerHTML; // Simpan opsi 'Semua'
+    let optionsHTML = element.options[0].outerHTML; 
     optionsHTML += items.map(item => `<option value="${item}">${item}</option>`).join('');
     
     element.innerHTML = optionsHTML;
-    
     if(items.includes(currentVal)) element.value = currentVal;
 }
 
-// 4. Render Data (SUPER CEPAT - ANTI FORCE CLOSE)
+// 4. Render Data (Hanya dipanggil saat Tombol Submit diklik)
 function renderData(data) {
     if (!dataContainer) return;
+    
+    // Sembunyikan pesan selamat datang
+    if(welcomeState) welcomeState.classList.add('d-none');
 
     // Ambil nilai filter
     const fArea = filterArea ? filterArea.value.toLowerCase() : "";
@@ -127,7 +132,7 @@ function renderData(data) {
     // Update Counter
     if(totalDataEl) totalDataEl.textContent = filtered.length;
 
-    // Kosongkan container
+    // Cek Hasil Filter
     if (filtered.length === 0) {
         dataContainer.innerHTML = "";
         if(emptyState) emptyState.classList.remove('d-none');
@@ -135,8 +140,7 @@ function renderData(data) {
     }
     if(emptyState) emptyState.classList.add('d-none');
 
-    // TEKNIK OPTIMASI: Build string HTML dulu, baru masukkan ke DOM sekali saja.
-    // Ini mencegah browser melakukan re-layout ratusan kali yang bikin HP freeze.
+    // Optimasi Render (Anti Lag)
     const cardsHTML = filtered.map(item => {
         const statusText = String(item.status).toLowerCase();
         const isBelum = statusText.includes("belum");
@@ -170,21 +174,40 @@ function renderData(data) {
                 </div>
             </div>
         `;
-    }).join(''); // Gabungkan jadi satu string panjang
+    }).join(''); 
 
-    // Masukkan ke layar sekaligus (Hanya 1x proses render)
     dataContainer.innerHTML = cardsHTML;
 }
 
 // 5. Event Listeners
-const filters = [filterArea, filterPoint, filterDPD, filterHari, filterStatus];
-filters.forEach(el => {
-    if(el) el.addEventListener('change', () => renderData(globalData));
-});
+// Tombol Submit: Baru render data
+if(btnSubmit) {
+    btnSubmit.addEventListener('click', () => {
+        // Efek loading sesaat agar user tahu ada proses
+        if(loadingOverlay) {
+            loadingOverlay.querySelector('p').textContent = "Menampilkan data...";
+            loadingOverlay.classList.remove('d-none');
+            
+            // Gunakan timeout agar UI loading sempat muncul sebelum proses berat render
+            setTimeout(() => {
+                renderData(globalData);
+                loadingOverlay.classList.add('d-none');
+            }, 100); 
+        } else {
+            renderData(globalData);
+        }
+    });
+}
 
+// Tombol Reset: Bersihkan filter dan kembalikan ke Welcome State
 if(btnReset) {
     btnReset.addEventListener('click', () => {
-        filters.forEach(el => { if(el) el.value = ""; });
-        renderData(globalData);
+        [filterArea, filterPoint, filterDPD, filterHari, filterStatus].forEach(el => { if(el) el.value = ""; });
+        
+        // Kembalikan ke tampilan awal
+        dataContainer.innerHTML = "";
+        if(welcomeState) welcomeState.classList.remove('d-none');
+        if(emptyState) emptyState.classList.add('d-none');
+        if(totalDataEl) totalDataEl.textContent = "-";
     });
 }
