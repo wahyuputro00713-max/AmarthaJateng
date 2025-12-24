@@ -38,7 +38,6 @@
             position: relative;
         }
         
-        /* SETTING UMUM AVATAR AGAR TIDAK KETUTUP */
         .avatar-ring {
             position: relative; 
             z-index: 10;        
@@ -50,63 +49,44 @@
 
         /* JUARA 1 */
         .rank-1 { width: 38%; z-index: 5; }
-        .rank-1 .avatar-ring {
-            width: 70px; height: 70px;
-            border: 3px solid #FFD700;
-        }
+        .rank-1 .avatar-ring { width: 70px; height: 70px; border: 3px solid #FFD700; }
         .rank-1 .avatar-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; background: #eee; }
-        .rank-1 .crown {
-            position: absolute; top: -25px; color: #FFD700; font-size: 24px;
-            animation: bounce 2s infinite; z-index: 11;
-        }
+        .rank-1 .crown { position: absolute; top: -25px; color: #FFD700; font-size: 24px; animation: bounce 2s infinite; z-index: 11; }
         .rank-1 .podium-box {
             background: linear-gradient(to bottom, #FFD700, #FDB931);
-            width: 100%;
-            height: 110px; 
-            border-radius: 10px 10px 0 0;
+            width: 100%; height: 110px; border-radius: 10px 10px 0 0;
             display: flex; flex-direction: column; justify-content: center;
-            color: white;
-            padding-top: 15px; 
+            color: white; padding-top: 15px; 
             box-shadow: 0 4px 10px rgba(253, 185, 49, 0.4);
         }
 
         /* JUARA 2 */
         .rank-2 { width: 30%; }
-        .rank-2 .avatar-ring {
-            width: 55px; height: 55px;
-            border: 3px solid #C0C0C0;
-        }
+        .rank-2 .avatar-ring { width: 55px; height: 55px; border: 3px solid #C0C0C0; }
         .rank-2 .avatar-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; background: #eee; }
         .rank-2 .podium-box {
             background: linear-gradient(to bottom, #C0C0C0, #9aa0a6);
-            width: 100%;
-            height: 80px; 
-            border-radius: 8px 8px 0 0;
+            width: 100%; height: 80px; border-radius: 8px 8px 0 0;
             display: flex; flex-direction: column; justify-content: center;
-            color: white;
-            padding-top: 15px; 
+            color: white; padding-top: 15px; 
         }
 
         /* JUARA 3 */
         .rank-3 { width: 30%; }
-        .rank-3 .avatar-ring {
-            width: 55px; height: 55px;
-            border: 3px solid #CD7F32;
-        }
+        .rank-3 .avatar-ring { width: 55px; height: 55px; border: 3px solid #CD7F32; }
         .rank-3 .avatar-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; background: #eee; }
         .rank-3 .podium-box {
             background: linear-gradient(to bottom, #CD7F32, #a05a2c);
-            width: 100%;
-            height: 65px; 
-            border-radius: 8px 8px 0 0;
+            width: 100%; height: 65px; border-radius: 8px 8px 0 0;
             display: flex; flex-direction: column; justify-content: center;
-            color: white;
-            padding-top: 15px; 
+            color: white; padding-top: 15px; 
         }
 
         /* TEXT STYLING */
-        .bp-name { font-size: 11px; font-weight: bold; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-        .bp-amount { font-size: 10px; opacity: 0.9; }
+        .bp-name { font-size: 11px; font-weight: bold; margin-bottom: 0px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+        /* Style baru untuk Point */
+        .bp-point { font-size: 9px; opacity: 0.85; margin-bottom: 2px; } 
+        .bp-amount { font-size: 10px; opacity: 1.0; font-weight: 600; }
         
         @keyframes bounce {
             0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
@@ -115,78 +95,43 @@
         }
 
         /* --- CSS SALJU --- */
-        .snowflake {
-            position: fixed;
-            top: -10px;
-            z-index: 99999;
-            color: #dbeeff;
-            text-shadow: 0 0 5px rgba(0,0,0,0.1);
-            user-select: none;
-            pointer-events: none;
-            cursor: default;
-            animation-name: fall;
-            animation-timing-function: linear;
-            animation-iteration-count: infinite;
-        }
-
-        @keyframes fall {
-            to {
-                transform: translateY(105vh);
-            }
-        }
+        .snowflake { position: fixed; top: -10px; z-index: 99999; color: #dbeeff; text-shadow: 0 0 5px rgba(0,0,0,0.1); user-select: none; pointer-events: none; cursor: default; animation-name: fall; animation-timing-function: linear; animation-iteration-count: infinite; }
+        @keyframes fall { to { transform: translateY(105vh); } }
     </style>
 </head>
 <body>
 
     <header class="hero-header">
         <div class="top-bar">
-            <div class="brand-text">
-                <i class="fa-solid fa-layer-group me-2"></i>Amartha
-            </div>
+            <div class="brand-text"><i class="fa-solid fa-layer-group me-2"></i>Amartha</div>
             <div class="d-flex gap-2">
-                <a href="profil.html" class="btn-icon-glass">
-                    <i class="fa-regular fa-user"></i>
-                </a>
-                <button id="logoutBtn" class="btn-icon-glass bg-danger border-0">
-                    <i class="fa-solid fa-power-off"></i>
-                </button>
+                <a href="profil.html" class="btn-icon-glass"><i class="fa-regular fa-user"></i></a>
+                <button id="logoutBtn" class="btn-icon-glass bg-danger border-0"><i class="fa-solid fa-power-off"></i></button>
             </div>
         </div>
-
-        <div class="user-welcome">
-            <p>Selamat Bekerja,</p>
-            <h2 id="userName">Loading...</h2>
-        </div>
+        <div class="user-welcome"><p>Selamat Bekerja,</p><h2 id="userName">Loading...</h2></div>
     </header>
 
     <div class="main-container">
         
         <a href="absensi.html" class="card-absensi">
             <div class="d-flex align-items-center">
-                <div class="icon-absensi">
-                    <i class="fa-solid fa-fingerprint"></i>
-                </div>
-                <div class="text-absensi">
-                    <h5>Absensi Harian</h5>
-                    <span>Masuk</span>
-                </div>
+                <div class="icon-absensi"><i class="fa-solid fa-fingerprint"></i></div>
+                <div class="text-absensi"><h5>Absensi Harian</h5><span>Masuk</span></div>
             </div>
             <i class="fa-solid fa-chevron-right text-muted"></i>
         </a>
 
         <div class="leaderboard-section">
-            <div class="leaderboard-title">
-                <i class="fa-solid fa-trophy text-warning me-2"></i>Top Disbursement
-            </div>
-            
+            <div class="leaderboard-title"><i class="fa-solid fa-trophy text-warning me-2"></i>Top Disbursement</div>
             <div class="podium-container">
                 <div class="podium-card rank-2">
                     <div class="avatar-ring">
-                        <img src="https://ui-avatars.com/api/?name=Budi+Santoso&background=random" class="avatar-img" alt="Juara 2">
+                        <img src="" class="avatar-img" alt="Juara 2">
                     </div>
                     <div class="podium-box">
-                        <div class="bp-name">Budi S.</div>
-                        <div class="bp-amount">Rp 85jt</div>
+                        <div class="bp-name">-</div>
+                        <div class="bp-point">-</div> <div class="bp-amount">-</div>
                         <small class="fw-bold" style="font-size: 10px;">#2</small>
                     </div>
                 </div>
@@ -194,115 +139,57 @@
                 <div class="podium-card rank-1">
                     <i class="fa-solid fa-crown crown"></i>
                     <div class="avatar-ring">
-                        <img src="https://ui-avatars.com/api/?name=Siti+Aminah&background=random" class="avatar-img" alt="Juara 1">
+                        <img src="" class="avatar-img" alt="Juara 1">
                     </div>
                     <div class="podium-box">
-                        <div class="bp-name">Siti Aminah</div>
-                        <div class="bp-amount">Rp 120jt</div>
+                        <div class="bp-name">-</div>
+                        <div class="bp-point">-</div> <div class="bp-amount">-</div>
                         <div class="badge bg-white text-warning mt-1" style="font-size: 9px; align-self: center; color: #FDB931 !important;">JUARA 1</div>
                     </div>
                 </div>
 
                 <div class="podium-card rank-3">
                     <div class="avatar-ring">
-                        <img src="https://ui-avatars.com/api/?name=Andi+Pratama&background=random" class="avatar-img" alt="Juara 3">
+                        <img src="" class="avatar-img" alt="Juara 3">
                     </div>
                     <div class="podium-box">
-                        <div class="bp-name">Andi P.</div>
-                        <div class="bp-amount">Rp 60jt</div>
+                        <div class="bp-name">-</div>
+                        <div class="bp-point">-</div> <div class="bp-amount">-</div>
                         <small class="fw-bold" style="font-size: 10px;">#3</small>
                     </div>
                 </div>
             </div>
-            
             <div class="mt-3">
                 <a href="#" style="font-size: 11px; text-decoration: none; color: #8e26d4;">Lihat Peringkat Lengkap ></a>
             </div>
         </div>
+
         <span class="section-label">Menu Laporan</span>
-        
         <div class="menu-grid">
-            
-            <a href="report_validasi.html" class="menu-card">
-                <div class="menu-icon" style="background: #9b59b6; color: white;">
-                    <i class="fa-solid fa-clipboard-check"></i>
-                </div>
-                <div class="menu-title">Validasi<br>Lapangan</div>
-            </a>
-
-            <a href="report_collection.html" class="menu-card">
-                <div class="menu-icon" style="background: #9b59b6; color: white;">
-                    <i class="fa-solid fa-hand-holding-dollar"></i>
-                </div>
-                <div class="menu-title">Collection<br>Harian</div>
-            </a>
-
-            <a href="closing_modal.html" class="menu-card">
-                <div class="menu-icon" style="background: #9b59b6; color: white;">
-                    <i class="fa-solid fa-wallet"></i>
-                </div>
-                <div class="menu-title">Closing<br>Modal</div>
-            </a>
-
-            <a href="report_sosialisasi.html" class="menu-card">
-                <div class="menu-icon" style="background: #9b59b6; color: white;">
-                    <i class="fa-solid fa-users-rectangle"></i>
-                </div>
-                <div class="menu-title">Laporan<br>Sosialisasi</div>
-            </a>
-
-            <a href="report_celengan.html" class="menu-card">
-                <div class="menu-icon" style="background: #9b59b6; color: white;">
-                    <i class="fa-solid fa-piggy-bank"></i>
-                </div>
-                <div class="menu-title">Laporan<br>Celengan</div>
-            </a>
-
-            <a href="dashboard_modal.html" class="menu-card">
-                <div class="menu-icon" style="background: #9b59b6; color: white;">
-                    <i class="fa-solid fa-chart-line"></i>
-                </div>
-                <div class="menu-title">Dashboard<br>Modal</div>
-            </a>
-
+            <a href="report_validasi.html" class="menu-card"><div class="menu-icon" style="background: #9b59b6; color: white;"><i class="fa-solid fa-clipboard-check"></i></div><div class="menu-title">Validasi<br>Lapangan</div></a>
+            <a href="report_collection.html" class="menu-card"><div class="menu-icon" style="background: #9b59b6; color: white;"><i class="fa-solid fa-hand-holding-dollar"></i></div><div class="menu-title">Collection<br>Harian</div></a>
+            <a href="closing_modal.html" class="menu-card"><div class="menu-icon" style="background: #9b59b6; color: white;"><i class="fa-solid fa-wallet"></i></div><div class="menu-title">Closing<br>Modal</div></a>
+            <a href="report_sosialisasi.html" class="menu-card"><div class="menu-icon" style="background: #9b59b6; color: white;"><i class="fa-solid fa-users-rectangle"></i></div><div class="menu-title">Laporan<br>Sosialisasi</div></a>
+            <a href="report_celengan.html" class="menu-card"><div class="menu-icon" style="background: #9b59b6; color: white;"><i class="fa-solid fa-piggy-bank"></i></div><div class="menu-title">Laporan<br>Celengan</div></a>
+            <a href="dashboard_modal.html" class="menu-card"><div class="menu-icon" style="background: #9b59b6; color: white;"><i class="fa-solid fa-chart-line"></i></div><div class="menu-title">Dashboard<br>Modal</div></a>
         </div>
-
-        <div class="footer-info">
-            &copy; 2025 Amartha Regional Jawa Tengah 1
-        </div>
-
+        <div class="footer-info">&copy; 2025 Amartha Regional Jawa Tengah 1</div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script type="module" src="./js/home.js"></script>
-    
     <script>
     document.addEventListener("DOMContentLoaded", function() {
-        const snowSymbol = '❄'; 
-        const spawnRate = 200; 
-        
+        const snowSymbol = '❄'; const spawnRate = 200; 
         function createSnowflake() {
-            const snowflake = document.createElement('div');
-            snowflake.classList.add('snowflake');
-            snowflake.innerHTML = snowSymbol;
-            
+            const snowflake = document.createElement('div'); snowflake.classList.add('snowflake'); snowflake.innerHTML = snowSymbol;
             snowflake.style.left = Math.random() * 100 + 'vw';
-            
-            const size = Math.random() * 15 + 10;
-            snowflake.style.fontSize = size + 'px';
-            
-            const duration = Math.random() * 5 + 3;
-            snowflake.style.animationDuration = duration + 's';
-            
+            const size = Math.random() * 15 + 10; snowflake.style.fontSize = size + 'px';
+            const duration = Math.random() * 5 + 3; snowflake.style.animationDuration = duration + 's';
             snowflake.style.opacity = Math.random() * 0.7 + 0.3;
-
             document.body.appendChild(snowflake);
-
-            setTimeout(() => {
-                snowflake.remove();
-            }, duration * 1000);
+            setTimeout(() => { snowflake.remove(); }, duration * 1000);
         }
-
         setInterval(createSnowflake, spawnRate);
     });
     </script>
