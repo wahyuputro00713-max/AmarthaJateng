@@ -19,7 +19,7 @@ const db = getDatabase(app);
 
 // 🔴 PENTING: Pastikan ini URL Web App Google Script TERBARU (akhiran /exec)
 // Jika pakai Cloudflare Worker, gunakan URL Worker.
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyukYV8miaVWFHg6TWaomRodRFQPAYHnq2UlArNNHy73qR6TdUiz3PMYSvgaKZXmXX-/exec"; 
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzThXmn-mXptz26pAQR-eM_XdEt0UnI5JQxm-8EU6xGh677nqxlH8VJyyHpoKh6R3AU/exec"; 
 
 // Elemen DOM
 const userNameSpan = document.getElementById('userName') || document.getElementById('welcomeName'); 
