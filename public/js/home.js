@@ -17,9 +17,8 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app); 
 
-// 🔴 PENTING: Pastikan ini URL Web App Google Script TERBARU (akhiran /exec)
-// Jika pakai Cloudflare Worker, gunakan URL Worker.
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzThXmn-mXptz26pAQR-eM_XdEt0UnI5JQxm-8EU6xGh677nqxlH8VJyyHpoKh6R3AU/exec"; 
+// URL WEB APP APPS SCRIPT (Pastikan ini URL 'New Version' /exec)
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyukYV8miaVWFHg6TWaomRodRFQPAYHnq2UlArNNHy73qR6TdUiz3PMYSvgaKZXmXX-/exec"; 
 
 // Elemen DOM
 const userNameSpan = document.getElementById('userName') || document.getElementById('welcomeName'); 
@@ -28,6 +27,7 @@ const logoutBtn = document.getElementById('logoutBtn');
 // 1. Cek Status Login
 onAuthStateChanged(auth, (user) => {
     if (user) {
+        // Ambil Nama User Sendiri
         const userRef = ref(db, 'users/' + user.uid);
         get(userRef).then((snapshot) => {
             if (snapshot.exists()) {
@@ -37,7 +37,7 @@ onAuthStateChanged(auth, (user) => {
             } else {
                 if (userNameSpan) userNameSpan.textContent = user.email;
             }
-        });
+        }).catch(err => console.log("Gagal load profil sendiri:", err));
 
         loadLeaderboard();
         
@@ -55,62 +55,63 @@ if (logoutBtn) {
     });
 }
 
-// 3. FUNGSI LEADERBOARD
+// 3. FUNGSI LEADERBOARD (ANTI ERROR)
 async function loadLeaderboard() {
     try {
         console.log("Memuat Leaderboard...");
         setLoadingState();
 
-        // --- FETCH DATA ---
-        // Trik: Gunakan text/plain untuk menghindari CORS Preflight (OPTIONS request) yang sering gagal di GAS
+        // --- STEP A: Fetch Data Spreadsheet (Apps Script) ---
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify({ action: "get_leaderboard" }),
             redirect: "follow",
-            headers: { 
-                "Content-Type": "text/plain;charset=utf-8" 
-            }
+            headers: { "Content-Type": "text/plain;charset=utf-8" } 
         });
         
         const result = await response.json();
-        console.log("Data Leaderboard Diterima:", result);
+        console.log("Data Spreadsheet:", result);
 
-        // Validasi Data
-        if (result.result !== "success" || !result.data || !Array.isArray(result.data)) {
-            console.warn("Format data salah atau kosong:", result);
-            showErrorState("Data Kosong");
+        if (result.result !== "success" || !result.data || result.data.length === 0) {
+            showErrorState("Belum Ada Data");
             return;
         }
 
         const top3 = result.data; 
 
-        // --- AMBIL DATA USER FIREBASE ---
-        const dbRef = ref(db);
-        const snapshot = await get(child(dbRef, `users`));
+        // --- STEP B: Ambil Data Profil User Firebase (Dengan Pengaman) ---
+        // Kita pisahkan try-catch di sini agar jika permission denied, leaderboard TETAP MUNCUL
         let usersMap = {}; 
-
-        if (snapshot.exists()) {
-            snapshot.forEach((childSnapshot) => {
-                const userData = childSnapshot.val();
-                if (userData.idKaryawan) {
-                    const cleanID = String(userData.idKaryawan).trim();
-                    usersMap[cleanID] = {
-                        nama: userData.nama || "Tanpa Nama",
-                        foto: userData.fotoProfil || null
-                    };
-                }
-            });
+        try {
+            const dbRef = ref(db);
+            // Ini yang bikin error Permission Denied sebelumnya
+            const snapshot = await get(child(dbRef, `users`));
+            
+            if (snapshot.exists()) {
+                snapshot.forEach((childSnapshot) => {
+                    const userData = childSnapshot.val();
+                    if (userData.idKaryawan) {
+                        const cleanID = String(userData.idKaryawan).trim();
+                        usersMap[cleanID] = {
+                            nama: userData.nama || "Tanpa Nama",
+                            foto: userData.fotoProfil || null
+                        };
+                    }
+                });
+            }
+        } catch (dbError) {
+            console.warn("Gagal ambil detail user (Permission Denied). Menggunakan ID Karyawan saja.");
+            // Tidak perlu stop function, lanjut tampilkan data seadanya
         }
 
-        // --- UPDATE TAMPILAN ---
-        // Pastikan array top3 memiliki minimal data yang dibutuhkan, jika tidak kirim object kosong
-        updatePodium(".rank-1", top3[0] || {}, usersMap); 
-        updatePodium(".rank-2", top3[1] || {}, usersMap); 
-        updatePodium(".rank-3", top3[2] || {}, usersMap); 
+        // --- STEP C: Update Tampilan ---
+        updatePodium(".rank-1", top3[0], usersMap); 
+        updatePodium(".rank-2", top3[1], usersMap); 
+        updatePodium(".rank-3", top3[2], usersMap); 
 
     } catch (error) {
-        console.error("Gagal Load Leaderboard:", error);
-        showErrorState("Gagal Muat");
+        console.error("Critical Error Leaderboard:", error);
+        showErrorState("Gagal Koneksi");
     }
 }
 
@@ -118,24 +119,20 @@ function setLoadingState() {
     [".rank-1", ".rank-2", ".rank-3"].forEach(sel => {
         const card = document.querySelector(sel);
         if(card) {
-            const nameEl = card.querySelector('.bp-name');
-            const amtEl = card.querySelector('.bp-amount');
-            if(nameEl) nameEl.textContent = "Memuat...";
-            if(amtEl) amtEl.textContent = "-";
+            const elName = card.querySelector('.bp-name');
+            const elAmount = card.querySelector('.bp-amount');
+            if(elName) elName.textContent = "Memuat...";
+            if(elAmount) elAmount.textContent = "-";
         }
     });
 }
 
 function showErrorState(msg) {
-    [".rank-1", ".rank-2", ".rank-3"].forEach(sel => {
-        const card = document.querySelector(sel);
-        if(card) {
-            const nameEl = card.querySelector('.bp-name');
-            const amtEl = card.querySelector('.bp-amount');
-            if(nameEl) nameEl.textContent = msg;
-            if(amtEl) amtEl.textContent = "-";
-        }
-    });
+    const card1 = document.querySelector(".rank-1");
+    if(card1) {
+        card1.querySelector('.bp-name').innerHTML = `<span style="color:red; font-size:10px;">${msg}</span>`;
+        card1.querySelector('.bp-amount').textContent = "";
+    }
 }
 
 function updatePodium(selectorClass, data, usersMap) {
@@ -148,12 +145,14 @@ function updatePodium(selectorClass, data, usersMap) {
 
     if (data && data.idKaryawan) {
         const idCari = String(data.idKaryawan).trim();
+        
+        // Cek apakah data user berhasil diambil dari Firebase
         const userProfile = usersMap[idCari];
         
-        // Nama: Prioritas dari Firebase > ID Karyawan
+        // Jika berhasil, pakai Nama Asli. Jika gagal (Permission Denied), pakai ID Karyawan.
         const displayName = userProfile ? userProfile.nama : `ID: ${data.idKaryawan}`;
         
-        // Foto: Prioritas dari Firebase > Avatar Default
+        // Foto Profil
         let displayPhoto = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`;
         if (userProfile && userProfile.foto) {
             displayPhoto = userProfile.foto;
@@ -164,10 +163,8 @@ function updatePodium(selectorClass, data, usersMap) {
         if (elImg) elImg.src = displayPhoto;
 
     } else {
-        // Data kosong (misal cuma ada 2 juara, juara 3 kosong)
         if (elName) elName.textContent = "-";
         if (elAmount) elAmount.textContent = "";
-        // Reset foto ke default/kosong jika mau
     }
 }
 
