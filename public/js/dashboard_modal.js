@@ -15,11 +15,22 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// URL APPS SCRIPT
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyukYV8miaVWFHg6TWaomRodRFQPAYHnq2UlArNNHy73qR6TdUiz3PMYSvgaKZXmXX-/exec";
+// URL APPS SCRIPT LANGSUNG (Agar Stabil)
+const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev";
+
+// --- DATA POINT STATIS (Sama seperti Collection/Sosialisasi) ---
+const dataPoints = {
+    "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucuk"],
+    "Magelang": ["Grabag", "Mungkid", "Pakis", "Salam"],
+    "Solo": ["Banjarsari", "Gemolong", "Masaran", "Tangen"],
+    "Solo 2": ["Gatak", "Jumantono", "Karanganyar", "Nguter", "Pasar kliwon"],
+    "Yogyakarta": ["01 Sleman", "Kalasan", "Ngaglik", "Umbulharjo"],
+    "Yogyakarta 2": ["01 Pandak", "01 Pengasih", "01 Pleret", "Kutoarjo", "Purworejo", "Saptosari"],
+    "Wonogiri": ["Jatisrono", "Ngadirojo", "Ngawen 2", "Pracimantoro", "Wonosari"]
+};
 
 let globalData = [];
-let userProfile = { area: "", point: "" }; 
+let userProfile = { area: "", point: "" };
 
 // Elemen DOM
 const filterArea = document.getElementById('filterArea');
@@ -37,18 +48,60 @@ const welcomeState = document.getElementById('welcomeState');
 const loadingOverlay = document.getElementById('loadingOverlay');
 const totalDataEl = document.getElementById('totalData');
 
-// 1. Cek Login & Load Profil
+// 1. Inisialisasi Dropdown Area & Point (Langsung saat load)
+populateStaticDropdowns();
+
+// 2. Cek Login & Load Profil
 onAuthStateChanged(auth, (user) => {
     if (user) {
         getUserProfile(user.uid).then(() => {
-            fetchDataModal();
+            fetchDataModal(); // Ambil data tabel di background
         });
     } else {
         window.location.replace("index.html");
     }
 });
 
-// 2. Fungsi Ambil Profil User
+// 3. Fungsi Isi Dropdown (Statis)
+function populateStaticDropdowns() {
+    // Isi Area
+    filterArea.innerHTML = '<option value="">Semua Area</option>';
+    Object.keys(dataPoints).forEach(area => {
+        const option = document.createElement('option');
+        option.value = area;
+        option.textContent = area;
+        filterArea.appendChild(option);
+    });
+
+    // Listener Perubahan Area
+    filterArea.addEventListener('change', function() {
+        updatePointsDropdown(this.value);
+    });
+}
+
+// Update Dropdown Point Berdasarkan Area yang Dipilih
+function updatePointsDropdown(selectedArea) {
+    const points = dataPoints[selectedArea] || [];
+    
+    // Reset Point
+    filterPoint.innerHTML = '<option value="">Semua Point</option>';
+    
+    if (points.length > 0) {
+        filterPoint.disabled = false;
+        points.forEach(point => {
+            const option = document.createElement('option');
+            option.value = point;
+            option.textContent = point;
+            filterPoint.appendChild(option);
+        });
+    } else {
+        // Jika area kosong/tidak dipilih, point dimatikan atau reset
+        filterPoint.value = "";
+        // Opsional: filterPoint.disabled = true; 
+    }
+}
+
+// 4. Ambil Profil User (Firebase)
 async function getUserProfile(uid) {
     try {
         const snapshot = await get(ref(db, 'users/' + uid));
@@ -56,13 +109,23 @@ async function getUserProfile(uid) {
             const val = snapshot.val();
             userProfile.area = val.area || "";
             userProfile.point = val.point || "";
+            
+            // Auto-fill Filter sesuai Profil
+            if (userProfile.area && filterArea) {
+                filterArea.value = userProfile.area;
+                updatePointsDropdown(userProfile.area); // Trigger update point list
+                
+                if (userProfile.point && filterPoint) {
+                    filterPoint.value = userProfile.point;
+                }
+            }
         }
     } catch (err) {
         console.error("Gagal load profil:", err);
     }
 }
 
-// 3. Fetch Data Modal
+// 5. Fetch Data Modal (Data Tabel)
 async function fetchDataModal() {
     try {
         if(loadingOverlay) loadingOverlay.classList.remove('d-none');
@@ -78,95 +141,23 @@ async function fetchDataModal() {
         const result = await response.json();
         
         if (result.result === "success" && Array.isArray(result.data)) {
+            console.log(`Berhasil: ${result.data.length} data diterima.`);
             globalData = result.data;
-            
-            // 1. Isi Dropdown Area (Semua Area yang ada)
-            populateAreaDropdown(globalData);
-            
-            // 2. Set Default Area dari Profil (Jika ada)
-            if(userProfile.area && filterArea) {
-                filterArea.value = userProfile.area;
-            }
-
-            // 3. Update Dropdown Point (Sesuai Area yang terpilih saat ini)
-            updatePointDropdown(filterArea.value);
-
-            // 4. Set Default Point dari Profil (Jika ada dan sesuai Area)
-            if(userProfile.point && filterPoint) {
-                // Cek apakah point user ada di dalam opsi point yang baru digenerate
-                const options = Array.from(filterPoint.options).map(opt => opt.value);
-                if(options.includes(userProfile.point)) {
-                    filterPoint.value = userProfile.point;
-                }
-            }
-
+            // Kita tidak perlu populate filter lagi karena sudah pakai data statis
         } else {
             console.error("Gagal:", result);
-            alert("Gagal mengambil data: " + (result.error || "Data kosong"));
+            // Jangan alert error kalau data kosong, cukup log saja biar ga ganggu UX
         }
 
     } catch (error) {
         console.error("Error Fetch:", error);
-        alert("Terjadi kesalahan koneksi.");
+        alert("Terjadi kesalahan koneksi saat mengambil data.");
     } finally {
         if(loadingOverlay) loadingOverlay.classList.add('d-none');
     }
 }
 
-// --- LOGIKA FILTER BERJENJANG (DEPENDENT DROPDOWN) ---
-
-// Fungsi 1: Isi Area (Hanya sekali saat awal)
-function populateAreaDropdown(data) {
-    const areas = [...new Set(data.map(i => i.area).filter(i => i && i !== "-"))].sort();
-    fillSelect(filterArea, areas);
-}
-
-// Fungsi 2: Update Isi Point Berdasarkan Area yang Dipilih
-function updatePointDropdown(selectedArea) {
-    // Jika ada Area dipilih, ambil data HANYA dari area itu.
-    // Jika tidak ada (Semua Area), ambil SEMUA data.
-    const relevantData = selectedArea 
-        ? globalData.filter(item => item.area === selectedArea)
-        : globalData;
-
-    // Ambil daftar point unik dari data yang sudah disaring
-    const points = [...new Set(relevantData.map(i => i.point).filter(i => i && i !== "-"))].sort();
-    
-    // Isi Dropdown Point
-    fillSelect(filterPoint, points);
-}
-
-// Event Listener: Saat Area Berubah -> Update Point
-if(filterArea) {
-    filterArea.addEventListener('change', () => {
-        // Reset pilihan Point ke "Semua Point" agar tidak nyangkut di point area lain
-        filterPoint.value = ""; 
-        updatePointDropdown(filterArea.value);
-    });
-}
-
-// Helper: Mengisi Select Option
-function fillSelect(element, items) {
-    if (!element) return;
-    const currentVal = element.value; // Simpan nilai lama (untuk preserve selection jika valid)
-    
-    // Simpan opsi pertama ("Semua ...")
-    let optionsHTML = element.options[0].outerHTML; 
-    
-    // Tambahkan opsi baru
-    optionsHTML += items.map(item => `<option value="${item}">${item}</option>`).join('');
-    
-    element.innerHTML = optionsHTML;
-    
-    // Kembalikan nilai lama jika masih valid di daftar baru
-    if(items.includes(currentVal)) {
-        element.value = currentVal;
-    } else {
-        element.value = ""; // Reset jika nilai lama tidak valid lagi (misal pindah area)
-    }
-}
-
-// 4. Render Data (Saat Tombol Diklik)
+// 6. Render Data (Saat Tombol Tampilkan Diklik)
 function renderData(data) {
     if (!dataContainer) return;
     
@@ -187,9 +178,11 @@ function renderData(data) {
         const matchArea = fArea === "" || String(item.area).toLowerCase() === fArea;
         const matchPoint = fPoint === "" || String(item.point).toLowerCase() === fPoint;
         const matchStatus = fStatus === "" || String(item.status).toLowerCase().includes(fStatus);
-        const matchHari = fHari === "" || itemHari === fHari;
         
-        // Filter DPD (Includes)
+        // Match Hari (Exact)
+        const matchHari = fHari === "" || itemHari === fHari;
+
+        // Match DPD (Includes agar lebih fleksibel)
         const matchDPD = fDPD === "" || fDPD.includes(itemDPD) || itemDPD.includes(fDPD);
 
         return matchArea && matchPoint && matchStatus && matchHari && matchDPD;
@@ -240,7 +233,7 @@ function renderData(data) {
     dataContainer.innerHTML = cardsHTML;
 }
 
-// 5. Event Listeners Tombol
+// 7. Event Listeners Tombol
 if(btnSubmit) {
     btnSubmit.addEventListener('click', () => {
         if(loadingOverlay) {
@@ -261,17 +254,15 @@ if(btnReset) {
         // Reset Area kembali ke PROFIL USER
         if(filterArea) {
             filterArea.value = userProfile.area;
-            updatePointDropdown(userProfile.area); // Trigger update point
+            updatePointsDropdown(userProfile.area); // Trigger update point list
         }
         
-        // Reset Point kembali ke PROFIL USER (jika valid di area tsb)
+        // Reset Point kembali ke PROFIL USER
         if(filterPoint) {
-            // Cek apakah point user valid di area ini
-            const options = Array.from(filterPoint.options).map(opt => opt.value);
-            if(options.includes(userProfile.point)) {
-                filterPoint.value = userProfile.point;
+            if (userProfile.point) {
+                 filterPoint.value = userProfile.point;
             } else {
-                filterPoint.value = "";
+                 filterPoint.value = "";
             }
         }
 
