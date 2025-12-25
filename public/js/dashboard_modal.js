@@ -15,8 +15,8 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// URL APPS SCRIPT
-const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev";
+// URL APPS SCRIPT LANGSUNG (Agar Data Update Terbaca)
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyukYV8miaVWFHg6TWaomRodRFQPAYHnq2UlArNNHy73qR6TdUiz3PMYSvgaKZXmXX-/exec";
 
 let globalData = [];
 let userProfile = { area: "", point: "" };
@@ -144,7 +144,7 @@ function fillSelect(element, items) {
     }
 }
 
-// 5. RENDER DATA (MODE TABEL/LIST SIMPLE)
+// 5. RENDER DATA (TABEL DENGAN CUSTOMER NUMBER)
 function renderData(data) {
     if (!dataContainer) return;
     if(welcomeState) welcomeState.classList.add('d-none');
@@ -182,17 +182,14 @@ function renderData(data) {
     if(emptyState) emptyState.classList.add('d-none');
 
     // --- RENDER TABEL ---
-   const cardsHTML = filtered.map(item => {
+    const rowsHTML = filtered.map(item => {
         const statusText = String(item.status).toLowerCase();
         const isBelum = statusText.includes("belum");
-        
-        const statusClass = isBelum ? "status-belum" : "status-bayar";
         const badgeClass = isBelum ? "bg-belum" : "bg-bayar";
         
-        // Link Menuju Closing Modal dengan Parameter
-        // Kita kirim data via URL: closing_modal.html?custNo=12345
+        // Link ke Closing Modal
         const linkClosing = `closing_modal.html?custNo=${encodeURIComponent(item.cust_no)}`;
-
+        
         return `
             <tr>
                 <td>
