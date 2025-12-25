@@ -16,7 +16,25 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
+// --- LOGIKA AUTO-FILL DARI URL (Tambahkan ini) ---
+window.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const custNoParam = urlParams.get('custNo');
 
+    if (custNoParam) {
+        // GANTI 'customerNumber' dengan ID input costumer number yang sebenarnya di HTML Anda
+        // Contoh: id="customerNumber" atau id="inputCustNo"
+        const inputField = document.getElementById('customerNumber'); 
+        
+        if (inputField) {
+            inputField.value = custNoParam;
+            
+            // Opsional: Beri efek highlight agar user sadar sudah terisi
+            inputField.style.backgroundColor = "#e8f0fe";
+            inputField.style.borderColor = "#4285f4";
+        }
+    }
+});
 // ⚠️ PASTE URL APPS SCRIPT YANG BARU DI SINI ⚠️
 const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; 
 
