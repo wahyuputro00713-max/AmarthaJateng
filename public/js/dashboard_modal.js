@@ -182,11 +182,17 @@ function renderData(data) {
     if(emptyState) emptyState.classList.add('d-none');
 
     // --- RENDER TABEL ---
-    const rowsHTML = filtered.map(item => {
+   const cardsHTML = filtered.map(item => {
         const statusText = String(item.status).toLowerCase();
         const isBelum = statusText.includes("belum");
+        
+        const statusClass = isBelum ? "status-belum" : "status-bayar";
         const badgeClass = isBelum ? "bg-belum" : "bg-bayar";
         
+        // Link Menuju Closing Modal dengan Parameter
+        // Kita kirim data via URL: closing_modal.html?custNo=12345
+        const linkClosing = `closing_modal.html?custNo=${encodeURIComponent(item.cust_no)}`;
+
         return `
             <tr>
                 <td>
@@ -194,13 +200,18 @@ function renderData(data) {
                     <small class="text-muted" style="font-size: 10px;">${item.majelis || "-"}</small>
                 </td>
                 <td>
-                    <span class="d-block">${item.nama_bp || "-"}</span>
-                    <small class="text-muted" style="font-size: 10px;">${item.point || "-"} (${item.area || "-"})</small>
+                    <a href="${linkClosing}" class="text-decoration-none fw-bold text-primary" style="font-size: 11px;">
+                        <i class="fa-solid fa-up-right-from-square me-1"></i>${item.cust_no || "-"}
+                    </a>
+                    <div class="d-block text-muted" style="font-size: 9px;">${item.nama_bp || "-"}</div>
                 </td>
-                <td class="text-center">${item.hari || "-"}</td>
+                <td class="text-center">
+                    <div>${item.hari || "-"}</div>
+                    <small class="text-muted" style="font-size: 9px;">${item.point || "-"}</small>
+                </td>
                 <td class="text-end">
-                    <span class="badge ${badgeClass}" style="font-size: 10px;">${item.status}</span>
-                    <div class="text-danger fw-bold" style="font-size: 10px;">${item.dpd} DPD</div>
+                    <span class="badge ${badgeClass}" style="font-size: 9px;">${item.status}</span>
+                    <div class="text-danger fw-bold" style="font-size: 9px;">${item.dpd} DPD</div>
                 </td>
             </tr>
         `;
