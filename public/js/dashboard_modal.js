@@ -15,7 +15,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// URL APPS SCRIPT LANGSUNG (Agar Data Update Terbaca)
+// URL APPS SCRIPT LANGSUNG
 const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev";
 
 let globalData = [];
@@ -27,6 +27,7 @@ const filterPoint = document.getElementById('filterPoint');
 const filterDPD = document.getElementById('filterDPD');
 const filterHari = document.getElementById('filterHari');
 const filterStatus = document.getElementById('filterStatus');
+const filterStatusKirim = document.getElementById('filterStatusKirim'); // NEW
 const searchBP = document.getElementById('searchBP');
 
 const btnSubmit = document.getElementById('btnSubmit');
@@ -88,7 +89,6 @@ async function fetchDataModal() {
             if(userProfile.area && filterArea) {
                 filterArea.value = userProfile.area;
             }
-            // Update Point sesuai Area terpilih
             updatePointDropdown(filterArea.value);
 
             if(userProfile.point && filterPoint) {
@@ -99,7 +99,7 @@ async function fetchDataModal() {
             }
         } else {
             console.error("Gagal:", result);
-            alert("Gagal mengambil data: " + (result.error || "Data kosong"));
+            // Jangan alert jika data kosong, biarkan user filter dulu
         }
 
     } catch (error) {
@@ -144,26 +144,25 @@ function fillSelect(element, items) {
     }
 }
 
-// 5. RENDER DATA (UPDATE: Tambah Status Kirim)
+// 5. RENDER DATA
 function renderData(data) {
     if (!dataContainer) return;
     if(welcomeState) welcomeState.classList.add('d-none');
 
-    // ... (Logika filter sama) ...
-    // ... (Pastikan Anda tetap memakai logika filter yang sudah ada) ...
-    // Saya tulis ulang logika filter agar lengkap:
-    
+    // Ambil Filter
     const fArea = filterArea ? filterArea.value.toLowerCase() : "";
     const fPoint = filterPoint ? filterPoint.value.toLowerCase() : "";
     const fDPD = filterDPD ? filterDPD.value.toLowerCase() : "";
     const fHari = filterHari ? filterHari.value.toLowerCase() : "";
     const fStatus = filterStatus ? filterStatus.value.toLowerCase() : "";
+    const fStatusKirim = filterStatusKirim ? filterStatusKirim.value.toLowerCase() : ""; // NEW
     const fSearch = searchBP ? searchBP.value.toLowerCase().trim() : "";
 
     const filtered = data.filter(item => {
         const itemDPD = String(item.dpd).toLowerCase();
         const itemHari = String(item.hari).toLowerCase();
         const itemBP = String(item.nama_bp).toLowerCase();
+        const itemStatusKirim = String(item.status_kirim || "").toLowerCase(); // Ambil dari Kolom J
 
         const matchArea = fArea === "" || String(item.area).toLowerCase() === fArea;
         const matchPoint = fPoint === "" || String(item.point).toLowerCase() === fPoint;
@@ -171,8 +170,18 @@ function renderData(data) {
         const matchHari = fHari === "" || itemHari === fHari;
         const matchDPD = fDPD === "" || fDPD.includes(itemDPD) || itemDPD.includes(fDPD);
         const matchSearch = fSearch === "" || itemBP.includes(fSearch);
+        
+        // Logika Filter Status Kirim (Pending/Terkirim)
+        // "Terkirim" -> Cocokkan jika mengandung kata "sudah"
+        // "Pending" -> Cocokkan jika mengandung kata "belum"
+        let matchKirim = true;
+        if (fStatusKirim === "terkirim") {
+            matchKirim = itemStatusKirim.includes("sudah");
+        } else if (fStatusKirim === "pending") {
+            matchKirim = itemStatusKirim.includes("belum");
+        }
 
-        return matchArea && matchPoint && matchStatus && matchHari && matchDPD && matchSearch;
+        return matchArea && matchPoint && matchStatus && matchHari && matchDPD && matchSearch && matchKirim;
     });
 
     if(totalDataEl) totalDataEl.textContent = filtered.length;
@@ -190,11 +199,9 @@ function renderData(data) {
         const isBelum = statusText.includes("belum");
         const badgeClass = isBelum ? "bg-belum" : "bg-bayar";
         
-        // Cek Status Kirim (Kolom J)
-        // Misal isinya "Sudah" -> Hijau, "Belum" -> Merah/Abu
+        // Status Kirim Icon
         const statusKirim = item.status_kirim || "-";
         let iconKirim = "";
-        
         if (String(statusKirim).toLowerCase().includes("sudah")) {
             iconKirim = `<span class="badge bg-success" style="font-size: 8px;">Terkirim</span>`;
         } else if (String(statusKirim).toLowerCase().includes("belum")) {
@@ -203,6 +210,7 @@ function renderData(data) {
              iconKirim = `<span class="badge bg-light text-dark border" style="font-size: 8px;">${statusKirim}</span>`;
         }
 
+        // Link ke Closing Modal
         const linkClosing = `closing_modal.html?custNo=${encodeURIComponent(item.cust_no)}`;
         
         return `
@@ -250,6 +258,7 @@ function renderData(data) {
         </div>
     `;
 }
+
 // 6. Listeners
 if(btnSubmit) {
     btnSubmit.addEventListener('click', () => {
@@ -287,6 +296,7 @@ if(btnReset) {
         if(filterHari) filterHari.value = "";
         if(filterDPD) filterDPD.value = "";
         if(filterStatus) filterStatus.value = "";
+        if(filterStatusKirim) filterStatusKirim.value = ""; // Reset
         if(searchBP) searchBP.value = "";
 
         dataContainer.innerHTML = "";
