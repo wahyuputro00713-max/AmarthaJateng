@@ -16,7 +16,7 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 // URL APPS SCRIPT LANGSUNG
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyukYV8miaVWFHg6TWaomRodRFQPAYHnq2UlArNNHy73qR6TdUiz3PMYSvgaKZXmXX-/exec";
+const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev";
 
 let globalData = [];
 let userProfile = { idKaryawan: "", area: "", point: "" };
