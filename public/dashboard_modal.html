@@ -12,8 +12,8 @@
         .back-btn { color: white; font-size: 1.2rem; text-decoration: none; margin-right: 15px; }
         
         .filter-card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        .form-select-sm, .form-control-sm { border-radius: 8px; border: 1px solid #eee; background-color: #f9f9f9; font-size: 12px; margin-bottom: 10px; }
-        .form-label { font-size: 11px; font-weight: bold; color: #666; margin-bottom: 3px; }
+        .form-select-sm, .form-control-sm { border-radius: 8px; border: 1px solid #eee; background-color: #f9f9f9; font-size: 11px; margin-bottom: 10px; }
+        .form-label { font-size: 10px; font-weight: bold; color: #666; margin-bottom: 3px; }
         
         /* Status Badge */
         .bg-bayar { background-color: #d5f5e3; color: #27ae60; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 10px; }
@@ -53,40 +53,49 @@
                     <label class="form-label">Point</label>
                     <select id="filterPoint" class="form-select form-select-sm"><option value="">Semua Point</option></select>
                 </div>
-                <div class="col-4">
+
+                <div class="col-3">
                     <label class="form-label">DPD</label>
                     <select id="filterDPD" class="form-select form-select-sm">
-                        <option value="">Semua</option>
-                        <option value="01. Current">01. Current</option>
-                        <option value="02. 1-7 DPD">02. 1-7 DPD</option>
-                        <option value="03. 8-14 DPD">03. 8-14 DPD</option>
-                        <option value="04. 15-21 DPD">04. 15-21 DPD</option>
-                        <option value="05. 22-30 DPD">05. 22-30 DPD</option>
-                        <option value="06. 31-60 DPD">06. 31-60 DPD</option>
-                        <option value="07. 61-90 DPD">07. 61-90 DPD</option>
-                        <option value="08. 91-120 DPD">08. 91-120 DPD</option>
-                        <option value="09. 121-150 DPD">09. 121-150 DPD</option>
-                        <option value="10. 151-180 DPD">10. 151-180 DPD</option>
-                        <option value="11. >180 DPD">11. >180 DPD</option>
+                        <option value="">All</option>
+                        <option value="01. Current">Current</option>
+                        <option value="02. 1-7 DPD">1-7</option>
+                        <option value="03. 8-14 DPD">8-14</option>
+                        <option value="04. 15-21 DPD">15-21</option>
+                        <option value="05. 22-30 DPD">22-30</option>
+                        <option value="06. 31-60 DPD">31-60</option>
+                        <option value="07. 61-90 DPD">61-90</option>
+                        <option value="08. 91-120 DPD">91-120</option>
+                        <option value="09. 121-150 DPD">121-150</option>
+                        <option value="10. 151-180 DPD">151-180</option>
+                        <option value="11. >180 DPD">>180</option>
                     </select>
                 </div>
-                <div class="col-4">
+                <div class="col-3">
                     <label class="form-label">Hari</label>
                     <select id="filterHari" class="form-select form-select-sm">
-                        <option value="">Semua</option>
-                        <option value="Senin">Senin</option>
-                        <option value="Selasa">Selasa</option>
-                        <option value="Rabu">Rabu</option>
-                        <option value="Kamis">Kamis</option>
-                        <option value="Jumat">Jumat</option>
+                        <option value="">All</option>
+                        <option value="Senin">Sen</option>
+                        <option value="Selasa">Sel</option>
+                        <option value="Rabu">Rab</option>
+                        <option value="Kamis">Kam</option>
+                        <option value="Jumat">Jum</option>
                     </select>
                 </div>
-                <div class="col-4">
-                    <label class="form-label">Status</label>
+                <div class="col-3">
+                    <label class="form-label">Bayar</label>
                     <select id="filterStatus" class="form-select form-select-sm">
-                        <option value="">Semua</option>
+                        <option value="">All</option>
                         <option value="Bayar">Bayar</option>
-                        <option value="Belum Bayar">Belum Bayar</option>
+                        <option value="Belum Bayar">Belum</option>
+                    </select>
+                </div>
+                <div class="col-3">
+                    <label class="form-label">Kirim</label>
+                    <select id="filterStatusKirim" class="form-select form-select-sm">
+                        <option value="">All</option>
+                        <option value="Terkirim">Sudah</option>
+                        <option value="Pending">Belum</option>
                     </select>
                 </div>
             </div>
