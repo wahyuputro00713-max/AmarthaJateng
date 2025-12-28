@@ -8,7 +8,6 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         body { background-color: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding-bottom: 80px; }
-        /* Warna Header Ungu Sesuai Icon */
         .header-bar { background: linear-gradient(135deg, #9b59b6, #8e44ad); padding: 20px 15px; color: white; border-radius: 0 0 20px 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px; }
         .back-btn { color: white; font-size: 1.2rem; text-decoration: none; margin-right: 15px; }
         
@@ -16,7 +15,6 @@
         .form-select-sm, .form-control-sm { border-radius: 8px; border: 1px solid #eee; background-color: #f9f9f9; font-size: 11px; margin-bottom: 10px; }
         .form-label { font-size: 10px; font-weight: bold; color: #666; margin-bottom: 3px; }
 
-        /* Accordion Style */
         .accordion-item { border: none; margin-bottom: 10px; border-radius: 10px !important; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
         .accordion-button { background-color: white; color: #333; font-weight: bold; font-size: 13px; padding: 15px; }
         .accordion-button:not(.collapsed) { background-color: #f3e5f5; color: #8e44ad; box-shadow: none; }
@@ -24,12 +22,10 @@
         
         .majelis-badge { background: #9b59b6; color: white; padding: 2px 8px; border-radius: 10px; font-size: 10px; margin-left: 8px; }
         
-        /* Table Style */
         .table-mitra { font-size: 11px; margin-bottom: 0; }
         .table-mitra td { vertical-align: middle; padding: 12px 10px; }
         .btn-kirim { font-size: 10px; padding: 5px 12px; border-radius: 20px; font-weight: bold; }
 
-        /* Status Pills */
         .status-pill { font-size: 9px; padding: 3px 8px; border-radius: 10px; font-weight: bold; display: inline-block; }
         .pill-bayar { background: #d4edda; color: #155724; }
         .pill-belum { background: #f8d7da; color: #721c24; }
@@ -61,6 +57,12 @@
                     <label class="form-label">Point</label>
                     <select id="filterPoint" class="form-select form-select-sm"><option value="">Semua Point</option></select>
                 </div>
+                
+                <div class="col-6">
+                    <label class="form-label">Nama BP</label>
+                    <select id="filterBP" class="form-select form-select-sm"><option value="">Semua BP</option></select>
+                </div>
+
                 <div class="col-6">
                     <label class="form-label">Hari</label>
                     <select id="filterHari" class="form-select form-select-sm">
@@ -71,10 +73,6 @@
                         <option value="Kamis">Kamis</option>
                         <option value="Jumat">Jumat</option>
                     </select>
-                </div>
-                <div class="col-6">
-                    <label class="form-label">Cari BP</label>
-                    <input type="text" id="searchBP" class="form-control form-control-sm" placeholder="Nama BP...">
                 </div>
             </div>
             
