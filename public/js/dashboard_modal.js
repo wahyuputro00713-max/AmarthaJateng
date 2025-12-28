@@ -144,12 +144,15 @@ function fillSelect(element, items) {
     }
 }
 
-// 5. RENDER DATA (TABEL DENGAN CUSTOMER NUMBER)
+// 5. RENDER DATA (UPDATE: Tambah Status Kirim)
 function renderData(data) {
     if (!dataContainer) return;
     if(welcomeState) welcomeState.classList.add('d-none');
 
-    // Ambil Filter
+    // ... (Logika filter sama) ...
+    // ... (Pastikan Anda tetap memakai logika filter yang sudah ada) ...
+    // Saya tulis ulang logika filter agar lengkap:
+    
     const fArea = filterArea ? filterArea.value.toLowerCase() : "";
     const fPoint = filterPoint ? filterPoint.value.toLowerCase() : "";
     const fDPD = filterDPD ? filterDPD.value.toLowerCase() : "";
@@ -187,7 +190,19 @@ function renderData(data) {
         const isBelum = statusText.includes("belum");
         const badgeClass = isBelum ? "bg-belum" : "bg-bayar";
         
-        // Link ke Closing Modal
+        // Cek Status Kirim (Kolom J)
+        // Misal isinya "Sudah" -> Hijau, "Belum" -> Merah/Abu
+        const statusKirim = item.status_kirim || "-";
+        let iconKirim = "";
+        
+        if (String(statusKirim).toLowerCase().includes("sudah")) {
+            iconKirim = `<span class="badge bg-success" style="font-size: 8px;">Terkirim</span>`;
+        } else if (String(statusKirim).toLowerCase().includes("belum")) {
+            iconKirim = `<span class="badge bg-secondary" style="font-size: 8px;">Pending</span>`;
+        } else {
+             iconKirim = `<span class="badge bg-light text-dark border" style="font-size: 8px;">${statusKirim}</span>`;
+        }
+
         const linkClosing = `closing_modal.html?custNo=${encodeURIComponent(item.cust_no)}`;
         
         return `
@@ -208,7 +223,8 @@ function renderData(data) {
                 </td>
                 <td class="text-end">
                     <span class="badge ${badgeClass}" style="font-size: 9px;">${item.status}</span>
-                    <div class="text-danger fw-bold" style="font-size: 9px;">${item.dpd} DPD</div>
+                    <div class="text-danger fw-bold mb-1" style="font-size: 9px;">${item.dpd} DPD</div>
+                    <div>${iconKirim}</div>
                 </td>
             </tr>
         `;
@@ -220,10 +236,10 @@ function renderData(data) {
                 <table class="table table-hover table-custom mb-0 w-100">
                     <thead>
                         <tr>
-                            <th style="width: 35%;">Mitra/Mjl</th>
-                            <th style="width: 30%;">BP/Point</th>
+                            <th style="width: 30%;">Mitra/Mjl</th>
+                            <th style="width: 20%;">Cust No</th>
                             <th style="width: 15%;" class="text-center">Hari</th>
-                            <th style="width: 20%;" class="text-end">Status</th>
+                            <th style="width: 35%;" class="text-end">Status</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -234,7 +250,6 @@ function renderData(data) {
         </div>
     `;
 }
-
 // 6. Listeners
 if(btnSubmit) {
     btnSubmit.addEventListener('click', () => {
