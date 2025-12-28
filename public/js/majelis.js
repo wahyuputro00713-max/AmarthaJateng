@@ -15,7 +15,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// URL APPS SCRIPT
+// URL APPS SCRIPT LANGSUNG (Gunakan URL ini agar data terbaru terbaca)
 const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev";
 
 let globalData = [];
@@ -23,8 +23,8 @@ let userProfile = { idKaryawan: "", area: "", point: "" };
 
 const filterArea = document.getElementById('filterArea');
 const filterPoint = document.getElementById('filterPoint');
+const filterBP = document.getElementById('filterBP'); // ELEMENT BARU
 const filterHari = document.getElementById('filterHari');
-const searchBP = document.getElementById('searchBP');
 const btnTampilkan = document.getElementById('btnTampilkan');
 const majelisContainer = document.getElementById('majelisContainer');
 const loadingOverlay = document.getElementById('loadingOverlay');
@@ -72,17 +72,27 @@ async function fetchData() {
         
         if (result.result === "success" && Array.isArray(result.data)) {
             globalData = result.data;
+            
+            // Populasi Filter Area (Induk)
             populateFilters(globalData);
             
+            // Auto Select Filter Berdasarkan Profil User
             if(userProfile.area) {
                 filterArea.value = userProfile.area;
+                // Trigger update manual agar Point & BP terisi sesuai Area user
                 updatePointDropdown(userProfile.area);
+                updateBPDropdown(); 
             }
+            
             if(userProfile.point && filterPoint) {
                 const options = Array.from(filterPoint.options).map(o => o.value);
-                if(options.includes(userProfile.point)) filterPoint.value = userProfile.point;
+                if(options.includes(userProfile.point)) {
+                    filterPoint.value = userProfile.point;
+                    updateBPDropdown(); // Trigger update BP lagi karena Point sudah terpilih
+                }
             }
 
+            // Render Awal
             renderGroupedData(globalData);
         } else {
             console.error("Gagal data:", result);
@@ -96,47 +106,85 @@ async function fetchData() {
     }
 }
 
-// 4. Dropdown Logic
+// 4. Logika Dropdown Berjenjang (Cascading)
 function populateFilters(data) {
     const areas = [...new Set(data.map(i => i.area).filter(i => i && i !== "-"))].sort();
     fillSelect(filterArea, areas);
 }
 
+// Update Point saat Area berubah
 function updatePointDropdown(selectedArea) {
     const relevant = selectedArea ? globalData.filter(i => i.area === selectedArea) : globalData;
     const points = [...new Set(relevant.map(i => i.point).filter(i => i && i !== "-"))].sort();
     fillSelect(filterPoint, points);
 }
 
+// Update BP saat Area/Point berubah
+function updateBPDropdown() {
+    const selectedArea = filterArea.value;
+    const selectedPoint = filterPoint.value;
+    
+    // Filter data sesuai Area & Point yang dipilih saat ini
+    let relevant = globalData;
+    if (selectedArea) {
+        relevant = relevant.filter(i => i.area === selectedArea);
+    }
+    if (selectedPoint) {
+        relevant = relevant.filter(i => i.point === selectedPoint);
+    }
+
+    // Ambil list BP unik dari data yang sudah disaring
+    const bps = [...new Set(relevant.map(i => i.nama_bp).filter(i => i && i !== "-"))].sort();
+    fillSelect(filterBP, bps);
+}
+
+// EVENT LISTENERS FILTER
 if(filterArea) {
     filterArea.addEventListener('change', () => {
-        filterPoint.value = "";
+        filterPoint.value = ""; // Reset Point
+        filterBP.value = "";    // Reset BP
         updatePointDropdown(filterArea.value);
+        updateBPDropdown();
+    });
+}
+
+if(filterPoint) {
+    filterPoint.addEventListener('change', () => {
+        filterBP.value = "";    // Reset BP
+        updateBPDropdown();
     });
 }
 
 function fillSelect(el, items) {
     const current = el.value;
-    let html = el.options[0].outerHTML;
+    let html = el.options[0].outerHTML; // Simpan opsi default "Semua..."
     html += items.map(i => `<option value="${i}">${i}</option>`).join('');
     el.innerHTML = html;
+    // Coba kembalikan nilai lama jika masih valid
     if(items.includes(current)) el.value = current;
+    else el.value = "";
 }
 
-// 5. RENDER DATA (GROUP BY MAJELIS) + Dropdown Jenis Bayar
+// 5. RENDER DATA (GROUP BY MAJELIS)
 function renderGroupedData(data) {
     majelisContainer.innerHTML = "";
     
+    // Ambil Nilai Filter
     const fArea = filterArea.value.toLowerCase();
     const fPoint = filterPoint.value.toLowerCase();
+    const fBP = filterBP.value; // Tidak perlu toLowerCase karena ini exact match dari dropdown
     const fHari = filterHari.value.toLowerCase();
-    const fBP = searchBP.value.toLowerCase();
 
+    // Filter Data
     const filtered = data.filter(item => {
-        return (fArea === "" || String(item.area).toLowerCase() === fArea) &&
-               (fPoint === "" || String(item.point).toLowerCase() === fPoint) &&
-               (fHari === "" || String(item.hari).toLowerCase() === fHari) &&
-               (fBP === "" || String(item.nama_bp).toLowerCase().includes(fBP));
+        const matchArea = fArea === "" || String(item.area).toLowerCase() === fArea;
+        const matchPoint = fPoint === "" || String(item.point).toLowerCase() === fPoint;
+        const matchHari = fHari === "" || String(item.hari).toLowerCase() === fHari;
+        
+        // Filter BP (Exact Match karena dari dropdown)
+        const matchBP = fBP === "" || item.nama_bp === fBP;
+
+        return matchArea && matchPoint && matchHari && matchBP;
     });
 
     if (filtered.length === 0) {
@@ -147,6 +195,7 @@ function renderGroupedData(data) {
     }
     emptyState.classList.add('d-none');
 
+    // Grouping Data
     const grouped = {};
     filtered.forEach(item => {
         const majelis = item.majelis || "Tanpa Majelis";
@@ -166,19 +215,14 @@ function renderGroupedData(data) {
             const statusBayar = String(m.status).toLowerCase();
             const statusKirim = String(m.status_kirim || "").toLowerCase();
             const isSent = statusKirim.includes("sudah");
-            
             const badgeClass = statusBayar.includes("belum") ? "pill-belum" : "pill-bayar";
             
-            // Unique ID untuk dropdown berdasarkan Cust No
             const selectId = `payment-${m.cust_no}`;
-
             let actionHtml = "";
             
             if(isSent) {
-                // Jika sudah terkirim: Tampilkan Badge & Disable Dropdown/Button
                 actionHtml = `<button class="btn btn-secondary btn-kirim" disabled><i class="fa-solid fa-check"></i> Terkirim</button>`;
             } else {
-                // Jika belum terkirim: Tampilkan Dropdown + Tombol Kirim
                 const safeName = m.nama_bp.replace(/'/g, "");
                 const safeMitra = m.mitra.replace(/'/g, "");
 
@@ -190,7 +234,6 @@ function renderGroupedData(data) {
                             <option value="Partial">Partial</option>
                             <option value="Par Payment">Par Payment</option>
                         </select>
-                        
                         <button class="btn btn-primary btn-kirim" 
                             onclick="window.kirimData(this, '${safeName}', '${m.cust_no}', '${safeMitra}', '${selectId}')"
                             style="background-color: #9b59b6; border:none; height: 26px; display: flex; align-items: center;">
@@ -236,7 +279,7 @@ function renderGroupedData(data) {
                                 <tr>
                                     <th class="ps-3">Mitra / Cust No</th>
                                     <th class="text-center">Status</th>
-                                    <th class="text-end pe-3">Jenis Bayar & Kirim</th>
+                                    <th class="text-end pe-3">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>${rows}</tbody>
@@ -264,13 +307,11 @@ btnTampilkan.addEventListener('click', () => {
 
 // 6. FUNGSI KIRIM DATA (Global)
 window.kirimData = async function(btn, namaBP, custNo, namaMitra, selectId) {
-    // Ambil nilai dari dropdown
     const selectEl = document.getElementById(selectId);
     const jenisBayar = selectEl ? selectEl.value : "Normal";
 
     if(!confirm(`Kirim laporan closing untuk mitra: ${namaMitra}\nJenis Pembayaran: ${jenisBayar}?`)) return;
 
-    // Loading State
     const originalContent = btn.innerHTML;
     btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
     btn.disabled = true;
@@ -282,7 +323,7 @@ window.kirimData = async function(btn, namaBP, custNo, namaMitra, selectId) {
             idKaryawan: userProfile.idKaryawan || "Unknown",
             namaBP: namaBP,
             customerNumber: custNo,
-            jenisPembayaran: jenisBayar // Kirim nilai dropdown
+            jenisPembayaran: jenisBayar
         };
 
         const response = await fetch(SCRIPT_URL, {
@@ -295,8 +336,6 @@ window.kirimData = async function(btn, namaBP, custNo, namaMitra, selectId) {
         const result = await response.json();
 
         if (result.result === 'success') {
-            // Sukses: Ubah Tampilan jadi Terkirim
-            // Ganti parent div (yang berisi select + btn) menjadi tombol Terkirim saja
             const parentDiv = btn.parentElement;
             parentDiv.innerHTML = `<button class="btn btn-secondary btn-kirim" disabled><i class="fa-solid fa-check"></i> Terkirim</button>`;
         } else {
