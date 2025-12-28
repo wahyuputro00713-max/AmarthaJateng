@@ -15,7 +15,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// Gunakan URL Script yang sama dengan Dashboard Modal
+// URL APPS SCRIPT
 const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev";
 
 let globalData = [];
@@ -41,7 +41,7 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
-// 2. Load Profil (Untuk mendapatkan ID Karyawan pelapor)
+// 2. Load Profil
 async function getUserProfile(uid) {
     try {
         const snapshot = await get(ref(db, 'users/' + uid));
@@ -56,7 +56,7 @@ async function getUserProfile(uid) {
     }
 }
 
-// 3. Fetch Data (Action: get_data_modal)
+// 3. Fetch Data
 async function fetchData() {
     try {
         if(loadingOverlay) loadingOverlay.classList.remove('d-none');
@@ -72,11 +72,8 @@ async function fetchData() {
         
         if (result.result === "success" && Array.isArray(result.data)) {
             globalData = result.data;
-            
-            // Populasi Filter Area & Point
             populateFilters(globalData);
             
-            // Auto Select Filter berdasarkan Profil User
             if(userProfile.area) {
                 filterArea.value = userProfile.area;
                 updatePointDropdown(userProfile.area);
@@ -86,7 +83,6 @@ async function fetchData() {
                 if(options.includes(userProfile.point)) filterPoint.value = userProfile.point;
             }
 
-            // Tampilkan Data Awal
             renderGroupedData(globalData);
         } else {
             console.error("Gagal data:", result);
@@ -100,7 +96,7 @@ async function fetchData() {
     }
 }
 
-// 4. Logika Filter Dropdown
+// 4. Dropdown Logic
 function populateFilters(data) {
     const areas = [...new Set(data.map(i => i.area).filter(i => i && i !== "-"))].sort();
     fillSelect(filterArea, areas);
@@ -127,17 +123,15 @@ function fillSelect(el, items) {
     if(items.includes(current)) el.value = current;
 }
 
-// 5. RENDER DATA (GROUP BY MAJELIS)
+// 5. RENDER DATA (GROUP BY MAJELIS) + Dropdown Jenis Bayar
 function renderGroupedData(data) {
     majelisContainer.innerHTML = "";
     
-    // Ambil Nilai Filter
     const fArea = filterArea.value.toLowerCase();
     const fPoint = filterPoint.value.toLowerCase();
     const fHari = filterHari.value.toLowerCase();
     const fBP = searchBP.value.toLowerCase();
 
-    // Filter Data
     const filtered = data.filter(item => {
         return (fArea === "" || String(item.area).toLowerCase() === fArea) &&
                (fPoint === "" || String(item.point).toLowerCase() === fPoint) &&
@@ -153,7 +147,6 @@ function renderGroupedData(data) {
     }
     emptyState.classList.add('d-none');
 
-    // Grouping
     const grouped = {};
     filtered.forEach(item => {
         const majelis = item.majelis || "Tanpa Majelis";
@@ -164,36 +157,47 @@ function renderGroupedData(data) {
     document.getElementById('totalMajelis').innerText = `Total: ${Object.keys(grouped).length} Majelis`;
     document.getElementById('totalMitra').innerText = `${filtered.length} Mitra`;
 
-    // Buat HTML Accordion
     let htmlContent = "";
     Object.keys(grouped).sort().forEach((majelis, index) => {
         const mitras = grouped[majelis];
         const bpName = mitras[0].nama_bp || "-";
         
-        // Generate Baris Mitra
         const rows = mitras.map(m => {
             const statusBayar = String(m.status).toLowerCase();
             const statusKirim = String(m.status_kirim || "").toLowerCase();
             const isSent = statusKirim.includes("sudah");
             
-            // Badge Status Bayar
             const badgeClass = statusBayar.includes("belum") ? "pill-belum" : "pill-bayar";
             
-            // Tombol Aksi
-            let btnAction = "";
+            // Unique ID untuk dropdown berdasarkan Cust No
+            const selectId = `payment-${m.cust_no}`;
+
+            let actionHtml = "";
+            
             if(isSent) {
-                btnAction = `<button class="btn btn-secondary btn-kirim" disabled><i class="fa-solid fa-check"></i> Terkirim</button>`;
+                // Jika sudah terkirim: Tampilkan Badge & Disable Dropdown/Button
+                actionHtml = `<button class="btn btn-secondary btn-kirim" disabled><i class="fa-solid fa-check"></i> Terkirim</button>`;
             } else {
-                // Data yang akan dikirim saat tombol diklik
-                // Kita encode ke attribute agar aman
+                // Jika belum terkirim: Tampilkan Dropdown + Tombol Kirim
                 const safeName = m.nama_bp.replace(/'/g, "");
                 const safeMitra = m.mitra.replace(/'/g, "");
-                
-                btnAction = `<button class="btn btn-primary btn-kirim" 
-                                onclick="window.kirimData(this, '${safeName}', '${m.cust_no}', '${safeMitra}')"
-                                style="background-color: #9b59b6; border:none;">
-                                <i class="fa-solid fa-paper-plane"></i> Kirim
-                             </button>`;
+
+                actionHtml = `
+                    <div class="d-flex justify-content-end align-items-center gap-1">
+                        <select id="${selectId}" class="form-select form-select-sm p-0 px-1" style="width: auto; height: 26px; font-size: 10px; border-radius: 6px;">
+                            <option value="Normal">Normal</option>
+                            <option value="PAR">PAR</option>
+                            <option value="Partial">Partial</option>
+                            <option value="Par Payment">Par Payment</option>
+                        </select>
+                        
+                        <button class="btn btn-primary btn-kirim" 
+                            onclick="window.kirimData(this, '${safeName}', '${m.cust_no}', '${safeMitra}', '${selectId}')"
+                            style="background-color: #9b59b6; border:none; height: 26px; display: flex; align-items: center;">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </div>
+                `;
             }
 
             return `
@@ -206,7 +210,7 @@ function renderGroupedData(data) {
                         <span class="status-pill ${badgeClass}">${m.status}</span>
                     </td>
                     <td class="text-end">
-                        ${btnAction}
+                        ${actionHtml}
                     </td>
                 </tr>
             `;
@@ -232,7 +236,7 @@ function renderGroupedData(data) {
                                 <tr>
                                     <th class="ps-3">Mitra / Cust No</th>
                                     <th class="text-center">Status</th>
-                                    <th class="text-end pe-3">Aksi</th>
+                                    <th class="text-end pe-3">Jenis Bayar & Kirim</th>
                                 </tr>
                             </thead>
                             <tbody>${rows}</tbody>
@@ -246,7 +250,6 @@ function renderGroupedData(data) {
     majelisContainer.innerHTML = htmlContent;
 }
 
-// 6. Tombol Tampilkan
 btnTampilkan.addEventListener('click', () => {
     if(loadingOverlay) {
         loadingOverlay.classList.remove('d-none');
@@ -259,22 +262,27 @@ btnTampilkan.addEventListener('click', () => {
     }
 });
 
-// 7. FUNGSI GLOBAL KIRIM DATA (Agar bisa dipanggil dari onclick HTML)
-window.kirimData = async function(btn, namaBP, custNo, namaMitra) {
-    if(!confirm(`Kirim laporan closing untuk mitra: ${namaMitra}?`)) return;
+// 6. FUNGSI KIRIM DATA (Global)
+window.kirimData = async function(btn, namaBP, custNo, namaMitra, selectId) {
+    // Ambil nilai dari dropdown
+    const selectEl = document.getElementById(selectId);
+    const jenisBayar = selectEl ? selectEl.value : "Normal";
 
-    // Loading State Button
+    if(!confirm(`Kirim laporan closing untuk mitra: ${namaMitra}\nJenis Pembayaran: ${jenisBayar}?`)) return;
+
+    // Loading State
     const originalContent = btn.innerHTML;
     btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
     btn.disabled = true;
+    if(selectEl) selectEl.disabled = true;
 
     try {
         const payload = {
-            jenisLaporan: "ClosingModal", // Sesuai Backend
+            jenisLaporan: "ClosingModal",
             idKaryawan: userProfile.idKaryawan || "Unknown",
             namaBP: namaBP,
             customerNumber: custNo,
-            jenisPembayaran: "Setoran Harian" // Default Value
+            jenisPembayaran: jenisBayar // Kirim nilai dropdown
         };
 
         const response = await fetch(SCRIPT_URL, {
@@ -287,17 +295,18 @@ window.kirimData = async function(btn, namaBP, custNo, namaMitra) {
         const result = await response.json();
 
         if (result.result === 'success') {
-            // Jika sukses, ubah tombol jadi Terkirim
-            btn.className = "btn btn-secondary btn-kirim";
-            btn.innerHTML = `<i class="fa-solid fa-check"></i> Terkirim`;
-            // Kita tidak refresh semua data agar user tidak kehilangan posisi scroll
+            // Sukses: Ubah Tampilan jadi Terkirim
+            // Ganti parent div (yang berisi select + btn) menjadi tombol Terkirim saja
+            const parentDiv = btn.parentElement;
+            parentDiv.innerHTML = `<button class="btn btn-secondary btn-kirim" disabled><i class="fa-solid fa-check"></i> Terkirim</button>`;
         } else {
             throw new Error(result.error || "Gagal menyimpan data.");
         }
 
     } catch (error) {
         alert("Gagal Kirim: " + error.message);
-        btn.innerHTML = originalContent; // Kembalikan tombol jika gagal
+        btn.innerHTML = originalContent;
         btn.disabled = false;
+        if(selectEl) selectEl.disabled = false;
     }
 };
