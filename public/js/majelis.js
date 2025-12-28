@@ -1,351 +1,111 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-
-const firebaseConfig = {
-    apiKey: "AIzaSyC8wOUkyZTa4W2hHHGZq_YKnGFqYEGOuH8",
-    authDomain: "amarthajatengwebapp.firebaseapp.com",
-    projectId: "amarthajatengwebapp",
-    storageBucket: "amarthajatengwebapp.firebasestorage.app",
-    messagingSenderId: "22431520744",
-    appId: "1:22431520744:web:711af76a5335d97179765d"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getDatabase(app);
-
-// URL APPS SCRIPT LANGSUNG (Gunakan URL ini agar data terbaru terbaca)
-const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev";
-
-let globalData = [];
-let userProfile = { idKaryawan: "", area: "", point: "" };
-
-const filterArea = document.getElementById('filterArea');
-const filterPoint = document.getElementById('filterPoint');
-const filterBP = document.getElementById('filterBP'); // ELEMENT BARU
-const filterHari = document.getElementById('filterHari');
-const btnTampilkan = document.getElementById('btnTampilkan');
-const majelisContainer = document.getElementById('majelisContainer');
-const loadingOverlay = document.getElementById('loadingOverlay');
-const emptyState = document.getElementById('emptyState');
-
-// 1. Cek Login
-onAuthStateChanged(auth, (user) => {
-    if (user) {
-        getUserProfile(user.uid).then(() => {
-            fetchData();
-        });
-    } else {
-        window.location.replace("index.html");
-    }
-});
-
-// 2. Load Profil
-async function getUserProfile(uid) {
-    try {
-        const snapshot = await get(ref(db, 'users/' + uid));
-        if (snapshot.exists()) {
-            const val = snapshot.val();
-            userProfile.idKaryawan = val.idKaryawan || "Unknown";
-            userProfile.area = val.area || "";
-            userProfile.point = val.point || "";
-        }
-    } catch (err) {
-        console.error("Gagal load profil:", err);
-    }
-}
-
-// 3. Fetch Data
-async function fetchData() {
-    try {
-        if(loadingOverlay) loadingOverlay.classList.remove('d-none');
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tugas Repayment - Amartha</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding-bottom: 80px; }
+        .header-bar { background: linear-gradient(135deg, #9b59b6, #8e44ad); padding: 20px 15px; color: white; border-radius: 0 0 20px 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .back-btn { color: white; font-size: 1.2rem; text-decoration: none; margin-right: 15px; }
         
-        const response = await fetch(SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: "get_data_modal" }),
-            redirect: "follow",
-            headers: { "Content-Type": "text/plain;charset=utf-8" }
-        });
+        .filter-card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .form-select-sm, .form-control-sm { border-radius: 8px; border: 1px solid #eee; background-color: #f9f9f9; font-size: 11px; margin-bottom: 10px; }
+        .form-label { font-size: 10px; font-weight: bold; color: #666; margin-bottom: 3px; }
 
-        const result = await response.json();
+        .accordion-item { border: none; margin-bottom: 10px; border-radius: 10px !important; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .accordion-button { background-color: white; color: #333; font-weight: bold; font-size: 13px; padding: 15px; }
+        .accordion-button:not(.collapsed) { background-color: #f3e5f5; color: #8e44ad; box-shadow: none; }
+        .accordion-button:focus { box-shadow: none; }
         
-        if (result.result === "success" && Array.isArray(result.data)) {
-            globalData = result.data;
-            
-            // Populasi Filter Area (Induk)
-            populateFilters(globalData);
-            
-            // Auto Select Filter Berdasarkan Profil User
-            if(userProfile.area) {
-                filterArea.value = userProfile.area;
-                // Trigger update manual agar Point & BP terisi sesuai Area user
-                updatePointDropdown(userProfile.area);
-                updateBPDropdown(); 
-            }
-            
-            if(userProfile.point && filterPoint) {
-                const options = Array.from(filterPoint.options).map(o => o.value);
-                if(options.includes(userProfile.point)) {
-                    filterPoint.value = userProfile.point;
-                    updateBPDropdown(); // Trigger update BP lagi karena Point sudah terpilih
-                }
-            }
-
-            // Render Awal
-            renderGroupedData(globalData);
-        } else {
-            console.error("Gagal data:", result);
-            alert("Gagal mengambil data dari server.");
-        }
-    } catch (error) {
-        console.error(error);
-        alert("Terjadi kesalahan koneksi.");
-    } finally {
-        if(loadingOverlay) loadingOverlay.classList.add('d-none');
-    }
-}
-
-// 4. Logika Dropdown Berjenjang (Cascading)
-function populateFilters(data) {
-    const areas = [...new Set(data.map(i => i.area).filter(i => i && i !== "-"))].sort();
-    fillSelect(filterArea, areas);
-}
-
-// Update Point saat Area berubah
-function updatePointDropdown(selectedArea) {
-    const relevant = selectedArea ? globalData.filter(i => i.area === selectedArea) : globalData;
-    const points = [...new Set(relevant.map(i => i.point).filter(i => i && i !== "-"))].sort();
-    fillSelect(filterPoint, points);
-}
-
-// Update BP saat Area/Point berubah
-function updateBPDropdown() {
-    const selectedArea = filterArea.value;
-    const selectedPoint = filterPoint.value;
-    
-    // Filter data sesuai Area & Point yang dipilih saat ini
-    let relevant = globalData;
-    if (selectedArea) {
-        relevant = relevant.filter(i => i.area === selectedArea);
-    }
-    if (selectedPoint) {
-        relevant = relevant.filter(i => i.point === selectedPoint);
-    }
-
-    // Ambil list BP unik dari data yang sudah disaring
-    const bps = [...new Set(relevant.map(i => i.nama_bp).filter(i => i && i !== "-"))].sort();
-    fillSelect(filterBP, bps);
-}
-
-// EVENT LISTENERS FILTER
-if(filterArea) {
-    filterArea.addEventListener('change', () => {
-        filterPoint.value = ""; // Reset Point
-        filterBP.value = "";    // Reset BP
-        updatePointDropdown(filterArea.value);
-        updateBPDropdown();
-    });
-}
-
-if(filterPoint) {
-    filterPoint.addEventListener('change', () => {
-        filterBP.value = "";    // Reset BP
-        updateBPDropdown();
-    });
-}
-
-function fillSelect(el, items) {
-    const current = el.value;
-    let html = el.options[0].outerHTML; // Simpan opsi default "Semua..."
-    html += items.map(i => `<option value="${i}">${i}</option>`).join('');
-    el.innerHTML = html;
-    // Coba kembalikan nilai lama jika masih valid
-    if(items.includes(current)) el.value = current;
-    else el.value = "";
-}
-
-// 5. RENDER DATA (GROUP BY MAJELIS)
-function renderGroupedData(data) {
-    majelisContainer.innerHTML = "";
-    
-    // Ambil Nilai Filter
-    const fArea = filterArea.value.toLowerCase();
-    const fPoint = filterPoint.value.toLowerCase();
-    const fBP = filterBP.value; // Tidak perlu toLowerCase karena ini exact match dari dropdown
-    const fHari = filterHari.value.toLowerCase();
-
-    // Filter Data
-    const filtered = data.filter(item => {
-        const matchArea = fArea === "" || String(item.area).toLowerCase() === fArea;
-        const matchPoint = fPoint === "" || String(item.point).toLowerCase() === fPoint;
-        const matchHari = fHari === "" || String(item.hari).toLowerCase() === fHari;
+        .majelis-badge { background: #9b59b6; color: white; padding: 2px 8px; border-radius: 10px; font-size: 10px; margin-left: 8px; }
         
-        // Filter BP (Exact Match karena dari dropdown)
-        const matchBP = fBP === "" || item.nama_bp === fBP;
+        .table-mitra { font-size: 11px; margin-bottom: 0; }
+        .table-mitra td { vertical-align: middle; padding: 12px 10px; }
+        .btn-kirim { font-size: 10px; padding: 5px 12px; border-radius: 20px; font-weight: bold; }
 
-        return matchArea && matchPoint && matchHari && matchBP;
-    });
-
-    if (filtered.length === 0) {
-        emptyState.classList.remove('d-none');
-        document.getElementById('totalMajelis').innerText = "Total: 0";
-        document.getElementById('totalMitra').innerText = "0 Mitra";
-        return;
-    }
-    emptyState.classList.add('d-none');
-
-    // Grouping Data
-    const grouped = {};
-    filtered.forEach(item => {
-        const majelis = item.majelis || "Tanpa Majelis";
-        if (!grouped[majelis]) grouped[majelis] = [];
-        grouped[majelis].push(item);
-    });
-
-    document.getElementById('totalMajelis').innerText = `Total: ${Object.keys(grouped).length} Majelis`;
-    document.getElementById('totalMitra').innerText = `${filtered.length} Mitra`;
-
-    let htmlContent = "";
-    Object.keys(grouped).sort().forEach((majelis, index) => {
-        const mitras = grouped[majelis];
-        const bpName = mitras[0].nama_bp || "-";
+        .status-pill { font-size: 9px; padding: 3px 8px; border-radius: 10px; font-weight: bold; display: inline-block; }
+        .pill-bayar { background: #d4edda; color: #155724; }
+        .pill-belum { background: #f8d7da; color: #721c24; }
         
-        const rows = mitras.map(m => {
-            const statusBayar = String(m.status).toLowerCase();
-            const statusKirim = String(m.status_kirim || "").toLowerCase();
-            const isSent = statusKirim.includes("sudah");
-            const badgeClass = statusBayar.includes("belum") ? "pill-belum" : "pill-bayar";
-            
-            const selectId = `payment-${m.cust_no}`;
-            let actionHtml = "";
-            
-            if(isSent) {
-                actionHtml = `<button class="btn btn-secondary btn-kirim" disabled><i class="fa-solid fa-check"></i> Terkirim</button>`;
-            } else {
-                const safeName = m.nama_bp.replace(/'/g, "");
-                const safeMitra = m.mitra.replace(/'/g, "");
+        .mitra-name { font-weight: 700; color: #2c3e50; display: block; }
+        .mitra-id { color: #7f8c8d; font-size: 10px; }
+        
+        /* New Style for Amount */
+        .nominal-text { font-weight: 600; color: #2c3e50; font-size: 10px; }
+        .nominal-label { font-size: 8px; color: #7f8c8d; display: block; }
 
-                actionHtml = `
-                    <div class="d-flex justify-content-end align-items-center gap-1">
-                        <select id="${selectId}" class="form-select form-select-sm p-0 px-1" style="width: auto; height: 26px; font-size: 10px; border-radius: 6px;">
-                            <option value="Normal">Normal</option>
-                            <option value="PAR">PAR</option>
-                            <option value="Partial">Partial</option>
-                            <option value="Par Payment">Par Payment</option>
-                        </select>
-                        <button class="btn btn-primary btn-kirim" 
-                            onclick="window.kirimData(this, '${safeName}', '${m.cust_no}', '${safeMitra}', '${selectId}')"
-                            style="background-color: #9b59b6; border:none; height: 26px; display: flex; align-items: center;">
-                            <i class="fa-solid fa-paper-plane"></i>
-                        </button>
-                    </div>
-                `;
-            }
+        #loadingOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 9999; display: flex; justify-content: center; align-items: center; flex-direction: column; }
+    </style>
+</head>
+<body>
 
-            return `
-                <tr>
-                    <td>
-                        <span class="mitra-name">${m.mitra}</span>
-                        <span class="mitra-id"><i class="fa-regular fa-id-card me-1"></i>${m.cust_no}</span>
-                    </td>
-                    <td class="text-center">
-                        <span class="status-pill ${badgeClass}">${m.status}</span>
-                    </td>
-                    <td class="text-end">
-                        ${actionHtml}
-                    </td>
-                </tr>
-            `;
-        }).join('');
+    <div class="header-bar d-flex align-items-center">
+        <a href="home.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
+        <div>
+            <h5 class="m-0 fw-bold">Tugas Repayment</h5>
+            <small style="opacity: 0.9;">Monitoring & Laporan Cepat</small>
+        </div>
+    </div>
 
-        htmlContent += `
-            <div class="accordion-item">
-                <h2 class="accordion-header" id="heading${index}">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse${index}">
-                        <div class="d-flex flex-column w-100">
-                            <div class="d-flex justify-content-between align-items-center w-100 pe-2">
-                                <span><i class="fa-solid fa-users me-2"></i>${majelis}</span>
-                                <span class="majelis-badge">${mitras.length}</span>
-                            </div>
-                            <small class="text-muted fw-normal mt-1" style="font-size: 11px;">BP: ${bpName}</small>
-                        </div>
-                    </button>
-                </h2>
-                <div id="collapse${index}" class="accordion-collapse collapse" data-bs-parent="#majelisContainer">
-                    <div class="accordion-body p-0">
-                        <table class="table table-striped table-mitra mb-0 w-100">
-                            <thead class="bg-light">
-                                <tr>
-                                    <th class="ps-3">Mitra / Cust No</th>
-                                    <th class="text-center">Status</th>
-                                    <th class="text-end pe-3">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody>${rows}</tbody>
-                        </table>
-                    </div>
+    <div class="container">
+        <div class="filter-card">
+            <div class="row g-2">
+                <div class="col-6">
+                    <label class="form-label">Area</label>
+                    <select id="filterArea" class="form-select form-select-sm"><option value="">Semua Area</option></select>
+                </div>
+                <div class="col-6">
+                    <label class="form-label">Point</label>
+                    <select id="filterPoint" class="form-select form-select-sm"><option value="">Semua Point</option></select>
+                </div>
+                
+                <div class="col-6">
+                    <label class="form-label">Nama BP</label>
+                    <select id="filterBP" class="form-select form-select-sm"><option value="">Semua BP</option></select>
+                </div>
+
+                <div class="col-6">
+                    <label class="form-label">Hari</label>
+                    <select id="filterHari" class="form-select form-select-sm">
+                        <option value="">Semua</option>
+                        <option value="Senin">Senin</option>
+                        <option value="Selasa">Selasa</option>
+                        <option value="Rabu">Rabu</option>
+                        <option value="Kamis">Kamis</option>
+                        <option value="Jumat">Jumat</option>
+                    </select>
                 </div>
             </div>
-        `;
-    });
+            
+            <div class="d-grid mt-2">
+                <button id="btnTampilkan" class="btn btn-sm btn-primary fw-bold" style="background-color: #9b59b6; border-color: #9b59b6;">
+                    <i class="fa-solid fa-filter me-1"></i> Tampilkan Data
+                </button>
+            </div>
+        </div>
 
-    majelisContainer.innerHTML = htmlContent;
-}
+        <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+            <span class="text-muted small fw-bold" id="totalMajelis">Total: 0 Majelis</span>
+            <span class="text-muted small fw-bold" id="totalMitra">0 Mitra</span>
+        </div>
 
-btnTampilkan.addEventListener('click', () => {
-    if(loadingOverlay) {
-        loadingOverlay.classList.remove('d-none');
-        setTimeout(() => {
-            renderGroupedData(globalData);
-            loadingOverlay.classList.add('d-none');
-        }, 100);
-    } else {
-        renderGroupedData(globalData);
-    }
-});
+        <div class="accordion" id="majelisContainer"></div>
+        
+        <div id="emptyState" class="text-center py-5 d-none">
+            <img src="https://cdn-icons-png.flaticon.com/512/7486/7486777.png" width="60" style="opacity: 0.5;">
+            <p class="text-muted mt-2 small">Data tidak ditemukan<br>Silakan atur filter dan klik Tampilkan</p>
+        </div>
+    </div>
 
-// 6. FUNGSI KIRIM DATA (Global)
-window.kirimData = async function(btn, namaBP, custNo, namaMitra, selectId) {
-    const selectEl = document.getElementById(selectId);
-    const jenisBayar = selectEl ? selectEl.value : "Normal";
+    <div id="loadingOverlay">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-2 small text-muted">Menyiapkan Data...</p>
+    </div>
 
-    if(!confirm(`Kirim laporan closing untuk mitra: ${namaMitra}\nJenis Pembayaran: ${jenisBayar}?`)) return;
-
-    const originalContent = btn.innerHTML;
-    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
-    btn.disabled = true;
-    if(selectEl) selectEl.disabled = true;
-
-    try {
-        const payload = {
-            jenisLaporan: "ClosingModal",
-            idKaryawan: userProfile.idKaryawan || "Unknown",
-            namaBP: namaBP,
-            customerNumber: custNo,
-            jenisPembayaran: jenisBayar
-        };
-
-        const response = await fetch(SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify(payload),
-            redirect: "follow",
-            headers: { "Content-Type": "text/plain;charset=utf-8" }
-        });
-
-        const result = await response.json();
-
-        if (result.result === 'success') {
-            const parentDiv = btn.parentElement;
-            parentDiv.innerHTML = `<button class="btn btn-secondary btn-kirim" disabled><i class="fa-solid fa-check"></i> Terkirim</button>`;
-        } else {
-            throw new Error(result.error || "Gagal menyimpan data.");
-        }
-
-    } catch (error) {
-        alert("Gagal Kirim: " + error.message);
-        btn.innerHTML = originalContent;
-        btn.disabled = false;
-        if(selectEl) selectEl.disabled = false;
-    }
-};
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="./js/majelis.js"></script>
+</body>
+</html>
