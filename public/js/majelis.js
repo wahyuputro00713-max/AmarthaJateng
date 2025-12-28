@@ -15,7 +15,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// URL APPS SCRIPT LANGSUNG
+// Gunakan URL Script yang sama dengan Dashboard Modal
 const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev";
 
 let globalData = [];
@@ -41,13 +41,13 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
-// 2. Load Profil
+// 2. Load Profil (Untuk mendapatkan ID Karyawan pelapor)
 async function getUserProfile(uid) {
     try {
         const snapshot = await get(ref(db, 'users/' + uid));
         if (snapshot.exists()) {
             const val = snapshot.val();
-            userProfile.idKaryawan = val.idKaryawan || "";
+            userProfile.idKaryawan = val.idKaryawan || "Unknown";
             userProfile.area = val.area || "";
             userProfile.point = val.point || "";
         }
@@ -56,10 +56,10 @@ async function getUserProfile(uid) {
     }
 }
 
-// 3. Fetch Data dari Spreadsheet
+// 3. Fetch Data (Action: get_data_modal)
 async function fetchData() {
     try {
-        loadingOverlay.classList.remove('d-none');
+        if(loadingOverlay) loadingOverlay.classList.remove('d-none');
         
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
@@ -72,48 +72,52 @@ async function fetchData() {
         
         if (result.result === "success" && Array.isArray(result.data)) {
             globalData = result.data;
+            
+            // Populasi Filter Area & Point
             populateFilters(globalData);
             
-            // Set Default Filters
+            // Auto Select Filter berdasarkan Profil User
             if(userProfile.area) {
                 filterArea.value = userProfile.area;
                 updatePointDropdown(userProfile.area);
             }
             if(userProfile.point && filterPoint) {
-                // Check if point exists in options
                 const options = Array.from(filterPoint.options).map(o => o.value);
                 if(options.includes(userProfile.point)) filterPoint.value = userProfile.point;
             }
 
-            // Render awal
+            // Tampilkan Data Awal
             renderGroupedData(globalData);
         } else {
-            alert("Gagal ambil data: " + result.error);
+            console.error("Gagal data:", result);
+            alert("Gagal mengambil data dari server.");
         }
     } catch (error) {
         console.error(error);
-        alert("Koneksi Error");
+        alert("Terjadi kesalahan koneksi.");
     } finally {
-        loadingOverlay.classList.add('d-none');
+        if(loadingOverlay) loadingOverlay.classList.add('d-none');
     }
 }
 
-// 4. Populate Filters
+// 4. Logika Filter Dropdown
 function populateFilters(data) {
-    const areas = [...new Set(data.map(i => i.area).filter(Boolean))].sort();
+    const areas = [...new Set(data.map(i => i.area).filter(i => i && i !== "-"))].sort();
     fillSelect(filterArea, areas);
 }
 
 function updatePointDropdown(selectedArea) {
     const relevant = selectedArea ? globalData.filter(i => i.area === selectedArea) : globalData;
-    const points = [...new Set(relevant.map(i => i.point).filter(Boolean))].sort();
+    const points = [...new Set(relevant.map(i => i.point).filter(i => i && i !== "-"))].sort();
     fillSelect(filterPoint, points);
 }
 
-filterArea.addEventListener('change', () => {
-    filterPoint.value = "";
-    updatePointDropdown(filterArea.value);
-});
+if(filterArea) {
+    filterArea.addEventListener('change', () => {
+        filterPoint.value = "";
+        updatePointDropdown(filterArea.value);
+    });
+}
 
 function fillSelect(el, items) {
     const current = el.value;
@@ -123,16 +127,17 @@ function fillSelect(el, items) {
     if(items.includes(current)) el.value = current;
 }
 
-// 5. RENDER UTAMA (Grouping Majelis)
+// 5. RENDER DATA (GROUP BY MAJELIS)
 function renderGroupedData(data) {
     majelisContainer.innerHTML = "";
     
-    // FILTERING
+    // Ambil Nilai Filter
     const fArea = filterArea.value.toLowerCase();
     const fPoint = filterPoint.value.toLowerCase();
     const fHari = filterHari.value.toLowerCase();
     const fBP = searchBP.value.toLowerCase();
 
+    // Filter Data
     const filtered = data.filter(item => {
         return (fArea === "" || String(item.area).toLowerCase() === fArea) &&
                (fPoint === "" || String(item.point).toLowerCase() === fPoint) &&
@@ -148,7 +153,7 @@ function renderGroupedData(data) {
     }
     emptyState.classList.add('d-none');
 
-    // GROUPING BY MAJELIS
+    // Grouping
     const grouped = {};
     filtered.forEach(item => {
         const majelis = item.majelis || "Tanpa Majelis";
@@ -156,35 +161,37 @@ function renderGroupedData(data) {
         grouped[majelis].push(item);
     });
 
-    // Update Counter
     document.getElementById('totalMajelis').innerText = `Total: ${Object.keys(grouped).length} Majelis`;
     document.getElementById('totalMitra').innerText = `${filtered.length} Mitra`;
 
-    // GENERATE HTML
+    // Buat HTML Accordion
     let htmlContent = "";
     Object.keys(grouped).sort().forEach((majelis, index) => {
         const mitras = grouped[majelis];
         const bpName = mitras[0].nama_bp || "-";
         
-        // Generate Rows Mitra
+        // Generate Baris Mitra
         const rows = mitras.map(m => {
-            const statusBayar = m.status || "-";
-            const statusKirim = m.status_kirim || "-";
-            const isSent = String(statusKirim).toLowerCase().includes("sudah");
+            const statusBayar = String(m.status).toLowerCase();
+            const statusKirim = String(m.status_kirim || "").toLowerCase();
+            const isSent = statusKirim.includes("sudah");
             
+            // Badge Status Bayar
+            const badgeClass = statusBayar.includes("belum") ? "pill-belum" : "pill-bayar";
+            
+            // Tombol Aksi
             let btnAction = "";
             if(isSent) {
                 btnAction = `<button class="btn btn-secondary btn-kirim" disabled><i class="fa-solid fa-check"></i> Terkirim</button>`;
             } else {
-                // Tombol Kirim memicu fungsi kirimData()
-                // Kita simpan data di attribut data-dataset agar mudah diambil
-                const dataPayload = JSON.stringify({
-                    namaBP: m.nama_bp,
-                    custNo: m.cust_no,
-                    mitra: m.mitra
-                }).replace(/"/g, '&quot;');
-
-                btnAction = `<button class="btn btn-primary btn-kirim" onclick="kirimData(this, ${dataPayload})">
+                // Data yang akan dikirim saat tombol diklik
+                // Kita encode ke attribute agar aman
+                const safeName = m.nama_bp.replace(/'/g, "");
+                const safeMitra = m.mitra.replace(/'/g, "");
+                
+                btnAction = `<button class="btn btn-primary btn-kirim" 
+                                onclick="window.kirimData(this, '${safeName}', '${m.cust_no}', '${safeMitra}')"
+                                style="background-color: #9b59b6; border:none;">
                                 <i class="fa-solid fa-paper-plane"></i> Kirim
                              </button>`;
             }
@@ -192,11 +199,11 @@ function renderGroupedData(data) {
             return `
                 <tr>
                     <td>
-                        <div class="fw-bold">${m.mitra}</div>
-                        <div class="text-muted small">${m.cust_no}</div>
+                        <span class="mitra-name">${m.mitra}</span>
+                        <span class="mitra-id"><i class="fa-regular fa-id-card me-1"></i>${m.cust_no}</span>
                     </td>
                     <td class="text-center">
-                        <span class="status-pill ${statusBayar.includes('Bayar') ? 'pill-success' : 'pill-danger'}">${statusBayar}</span>
+                        <span class="status-pill ${badgeClass}">${m.status}</span>
                     </td>
                     <td class="text-end">
                         ${btnAction}
@@ -205,7 +212,6 @@ function renderGroupedData(data) {
             `;
         }).join('');
 
-        // Accordion Item
         htmlContent += `
             <div class="accordion-item">
                 <h2 class="accordion-header" id="heading${index}">
@@ -224,14 +230,12 @@ function renderGroupedData(data) {
                         <table class="table table-striped table-mitra mb-0 w-100">
                             <thead class="bg-light">
                                 <tr>
-                                    <th class="ps-3">Nama Mitra</th>
+                                    <th class="ps-3">Mitra / Cust No</th>
                                     <th class="text-center">Status</th>
                                     <th class="text-end pe-3">Aksi</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                ${rows}
-                            </tbody>
+                            <tbody>${rows}</tbody>
                         </table>
                     </div>
                 </div>
@@ -242,9 +246,9 @@ function renderGroupedData(data) {
     majelisContainer.innerHTML = htmlContent;
 }
 
+// 6. Tombol Tampilkan
 btnTampilkan.addEventListener('click', () => {
     if(loadingOverlay) {
-        loadingOverlay.querySelector('p').textContent = "Memfilter Data...";
         loadingOverlay.classList.remove('d-none');
         setTimeout(() => {
             renderGroupedData(globalData);
@@ -255,22 +259,22 @@ btnTampilkan.addEventListener('click', () => {
     }
 });
 
-// 6. FUNGSI KIRIM DATA (GLOBAL SCOPE AGAR BISA DIKLIK DARI HTML)
-window.kirimData = async function(btn, data) {
-    if(!confirm(`Kirim data closing untuk mitra: ${data.mitra}?`)) return;
+// 7. FUNGSI GLOBAL KIRIM DATA (Agar bisa dipanggil dari onclick HTML)
+window.kirimData = async function(btn, namaBP, custNo, namaMitra) {
+    if(!confirm(`Kirim laporan closing untuk mitra: ${namaMitra}?`)) return;
 
-    // Ubah tombol jadi loading
-    const originalText = btn.innerHTML;
+    // Loading State Button
+    const originalContent = btn.innerHTML;
     btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
     btn.disabled = true;
 
     try {
         const payload = {
-            jenisLaporan: "ClosingModal", // Sesuai request: sama dengan input Closing Modal
+            jenisLaporan: "ClosingModal", // Sesuai Backend
             idKaryawan: userProfile.idKaryawan || "Unknown",
-            namaBP: data.namaBP,
-            customerNumber: data.custNo,
-            jenisPembayaran: "Setoran Harian" // Default Value (bisa diganti)
+            namaBP: namaBP,
+            customerNumber: custNo,
+            jenisPembayaran: "Setoran Harian" // Default Value
         };
 
         const response = await fetch(SCRIPT_URL, {
@@ -283,17 +287,17 @@ window.kirimData = async function(btn, data) {
         const result = await response.json();
 
         if (result.result === 'success') {
-            // Sukses
+            // Jika sukses, ubah tombol jadi Terkirim
             btn.className = "btn btn-secondary btn-kirim";
             btn.innerHTML = `<i class="fa-solid fa-check"></i> Terkirim`;
-            // Opsional: Refresh data agar status 'Belum' berubah jadi 'Sudah' (Jika backend update otomatis)
+            // Kita tidak refresh semua data agar user tidak kehilangan posisi scroll
         } else {
-            throw new Error(result.error);
+            throw new Error(result.error || "Gagal menyimpan data.");
         }
 
     } catch (error) {
         alert("Gagal Kirim: " + error.message);
-        btn.innerHTML = originalText;
+        btn.innerHTML = originalContent; // Kembalikan tombol jika gagal
         btn.disabled = false;
     }
 };
