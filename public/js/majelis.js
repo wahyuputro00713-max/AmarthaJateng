@@ -56,7 +56,7 @@ async function getUserProfile(uid) {
     }
 }
 
-// 3. Fetch Data
+// 3. Fetch Data (Hanya ambil data & isi filter, JANGAN render list)
 async function fetchData() {
     try {
         if(loadingOverlay) loadingOverlay.classList.remove('d-none');
@@ -73,8 +73,10 @@ async function fetchData() {
         if (result.result === "success" && Array.isArray(result.data)) {
             globalData = result.data;
             
+            // Populasi Filter saja
             populateFilters(globalData);
             
+            // Set Default Filter dari Profil User
             if(userProfile.area) {
                 filterArea.value = userProfile.area;
                 updatePointDropdown(userProfile.area);
@@ -89,7 +91,9 @@ async function fetchData() {
                 }
             }
 
-            renderGroupedData(globalData);
+            // PERUBAHAN: Tidak memanggil renderGroupedData() di sini.
+            // Biarkan tampilan kosong sampai user klik tombol.
+            
         } else {
             console.error("Gagal data:", result);
             alert("Gagal mengambil data dari server.");
@@ -155,7 +159,7 @@ function fillSelect(el, items) {
     else el.value = "";
 }
 
-// 5. RENDER DATA (GROUP BY MAJELIS) -- UPDATED WITH ANGSURAN & PARTIAL
+// 5. RENDER DATA (Hanya dipanggil saat tombol diklik)
 function renderGroupedData(data) {
     majelisContainer.innerHTML = "";
     
@@ -172,8 +176,16 @@ function renderGroupedData(data) {
         return matchArea && matchPoint && matchHari && matchBP;
     });
 
+    // Handle Empty State
     if (filtered.length === 0) {
         emptyState.classList.remove('d-none');
+        // Ubah pesan jika filter belum dipilih vs data memang kosong
+        if (fArea === "" && fPoint === "" && fBP === "" && fHari === "") {
+             emptyState.querySelector('p').innerHTML = "Silakan pilih filter dan klik <b>Tampilkan Data</b>";
+        } else {
+             emptyState.querySelector('p').textContent = "Data tidak ditemukan sesuai filter.";
+        }
+        
         document.getElementById('totalMajelis').innerText = "Total: 0";
         document.getElementById('totalMitra').innerText = "0 Mitra";
         return;
@@ -201,10 +213,8 @@ function renderGroupedData(data) {
             const isSent = statusKirim.includes("sudah");
             const badgeClass = statusBayar.includes("belum") ? "pill-belum" : "pill-bayar";
             
-            // Format Rupiah helper
             const formatRupiah = (val) => {
                 if(!val || val === "0" || val === "-") return "-";
-                // remove non-digits just in case
                 const cleanVal = String(val).replace(/[^0-9]/g, '');
                 if(!cleanVal) return "-";
                 return "Rp " + parseInt(cleanVal).toLocaleString('id-ID');
@@ -248,7 +258,6 @@ function renderGroupedData(data) {
                     <td>
                         <div class="nominal-text">${valAngsuran}</div>
                         <span class="nominal-label">Angsuran</span>
-                        
                         <div class="nominal-text mt-1 text-danger">${valPartial}</div>
                         <span class="nominal-label">Partial</span>
                     </td>
@@ -281,7 +290,8 @@ function renderGroupedData(data) {
                             <thead class="bg-light">
                                 <tr>
                                     <th class="ps-3">Mitra</th>
-                                    <th>Tagihan</th> <th class="text-center">Status</th>
+                                    <th>Tagihan</th>
+                                    <th class="text-center">Status</th>
                                     <th class="text-end pe-3">Aksi</th>
                                 </tr>
                             </thead>
@@ -296,8 +306,10 @@ function renderGroupedData(data) {
     majelisContainer.innerHTML = htmlContent;
 }
 
+// 6. Tombol Tampilkan -> Baru Render Data
 btnTampilkan.addEventListener('click', () => {
     if(loadingOverlay) {
+        loadingOverlay.querySelector('p').textContent = "Menampilkan data...";
         loadingOverlay.classList.remove('d-none');
         setTimeout(() => {
             renderGroupedData(globalData);
@@ -308,7 +320,7 @@ btnTampilkan.addEventListener('click', () => {
     }
 });
 
-// 6. FUNGSI KIRIM DATA (Global)
+// 7. FUNGSI KIRIM DATA
 window.kirimData = async function(btn, namaBP, custNo, namaMitra, selectId) {
     const selectEl = document.getElementById(selectId);
     const jenisBayar = selectEl ? selectEl.value : "Normal";
