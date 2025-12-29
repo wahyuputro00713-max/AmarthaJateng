@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kelola Akun - Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding-bottom: 80px; }
+        .header-bar { background: linear-gradient(135deg, #2c3e50, #4ca1af); padding: 20px 15px; color: white; border-radius: 0 0 20px 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .back-btn { color: white; font-size: 1.2rem; text-decoration: none; margin-right: 15px; }
+        
+        .user-card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; }
+        .user-info h6 { margin: 0; font-weight: bold; color: #2c3e50; font-size: 14px; }
+        .user-info p { margin: 0; font-size: 11px; color: #7f8c8d; }
+        .btn-edit { background: #e0f2f1; color: #009688; border: none; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        
+        #loadingOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 9999; display: flex; justify-content: center; align-items: center; flex-direction: column; }
+    </style>
+</head>
+<body>
+
+    <div class="header-bar d-flex align-items-center">
+        <a href="home.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
+        <div>
+            <h5 class="m-0 fw-bold">Kelola Akun</h5>
+            <small style="opacity: 0.8;">Admin Only (ID: 17246)</small>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="mb-3">
+            <input type="text" id="searchUser" class="form-control form-control-sm" placeholder="Cari Nama atau ID Karyawan...">
+        </div>
+
+        <div id="usersContainer"></div>
+        
+        <div id="emptyState" class="text-center py-5 d-none">
+            <p class="text-muted small">Data pengguna tidak ditemukan.</p>
+        </div>
+    </div>
+
+    <div class="modal fade" id="editModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Data Akun</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="editUid">
+                    
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Nama Karyawan</label>
+                        <input type="text" id="editNama" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">ID Karyawan</label>
+                        <input type="text" id="editIdKaryawan" class="form-control">
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label small fw-bold">Area</label>
+                            <input type="text" id="editArea" class="form-control">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-bold">Point</label>
+                            <input type="text" id="editPoint" class="form-control">
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-warning mt-3 small">
+                        <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                        <strong>Catatan:</strong> Password tidak dapat diubah dari sini demi keamanan. User harus menggunakan fitur "Lupa Password" di halaman login.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                    <button type="button" id="btnSimpan" class="btn btn-primary btn-sm">Simpan Perubahan</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="loadingOverlay">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-2 small text-muted">Memuat Data...</p>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="./js/admin_users.js"></script>
+</body>
+</html>
