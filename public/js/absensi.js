@@ -1,9 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-// UPDATE: Menambahkan 'set' untuk menyimpan status absen
 import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// --- CONFIG ---
 const firebaseConfig = {
     apiKey: "AIzaSyC8wOUkyZTa4W2hHHGZq_YKnGFqYEGOuH8",
     authDomain: "amarthajatengwebapp.firebaseapp.com",
@@ -16,7 +14,7 @@ const firebaseConfig = {
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw8NOnFJU9TsyitHVlUWy743X5PgUyBpAEvg-JetVJfSRReQkDXdZmiIbcXmMRPQnKu/exec"; 
 
-// 1. DAFTAR POINT PER AREA (Untuk Dropdown)
+// --- DATA POINT & KOORDINAT ---
 const DATA_POINTS = {
     "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucuk"],
     "Magelang": ["Grabag", "Mungkid", "Pakis", "Salam"],
@@ -27,47 +25,44 @@ const DATA_POINTS = {
     "Wonogiri": ["Jatisrono", "Ngadirojo", "Ngawen 2", "Pracimantoro", "Wonosari"]
 };
 
-// 2. DATABASE KOORDINAT (WAJIB DIISI LAT/LNG ASLI)
 const DATABASE_KOORDINAT_POINT = {
     "01 Wedi":       { lat: -7.7166853, lng: 110.586997 }, 
     "Karangnongko":  { lat: -7.673078, lng: 110.56044 }, 
     "Mojosongo":     { lat: -7.5403421, lng: 110.6208683 },
-    "Polanharjo":     { lat: -7.620437, lng: 110.696366 },
-    "Trucuk":      { lat: -7.688590, lng: 110.695219 },
-    "Grabag":      { lat: -7.369339, lng: 110.308800 },
-    "Mungkid":      { lat: -7.5389326, lng: 110.2280005 },
-    "Pakis":      { lat: -7.4706756, lng: 110.242976 },
-    "Salam":      { lat: -7.5955596, lng: 110.291043 },
-    "Banjarsari":      { lat: -7.5334328, lng: 110.822223 },
+    "Polanharjo":    { lat: -7.620437, lng: 110.696366 },
+    "Trucuk":        { lat: -7.688590, lng: 110.695219 },
+    "Grabag":        { lat: -7.369339, lng: 110.308800 },
+    "Mungkid":       { lat: -7.5389326, lng: 110.2280005 },
+    "Pakis":         { lat: -7.4706756, lng: 110.242976 },
+    "Salam":         { lat: -7.5955596, lng: 110.291043 },
+    "Banjarsari":    { lat: -7.5334328, lng: 110.822223 },
     "Gemolong":      { lat: -7.3953056, lng: 110.817814 },
-    "Masaran":      { lat: -7.4426716, lng: 110.9972224 },
-    "Tangen":      { lat: -7.33208, lng: 111.059155 },
-    "Gatak":      { lat: -7.572387, lng: 110.742497 },
-    "Karanganyar":      { lat: -7.5930712, lng: 110.9244555 },
-    "Jumantono":      { lat: -7.6597196, lng: 111.0073048 },
-    "Nguter":      { lat: -7.671181, lng: 110.8458981 },
-    "Pasar Kliwon":      { lat: -7.5752547, lng: 110.8351221 },
-    "Jatisrono":      { lat: -7.8244875, lng: 111.1820156 },
-    "Ngadirojo":      { lat: -7.812753, lng: 110.992722 },
+    "Masaran":       { lat: -7.4426716, lng: 110.9972224 },
+    "Tangen":        { lat: -7.33208, lng: 111.059155 },
+    "Gatak":         { lat: -7.572387, lng: 110.742497 },
+    "Karanganyar":   { lat: -7.5930712, lng: 110.9244555 },
+    "Jumantono":     { lat: -7.6597196, lng: 111.0073048 },
+    "Nguter":        { lat: -7.671181, lng: 110.8458981 },
+    "Pasar Kliwon":  { lat: -7.5752547, lng: 110.8351221 },
+    "Jatisrono":     { lat: -7.8244875, lng: 111.1820156 },
+    "Ngadirojo":     { lat: -7.812753, lng: 110.992722 },
     "Ngawen 2":      { lat: -7.8339547, lng: 110.693915 },
-    "Pracimantoro":      { lat: -8.031819, lng: 110.819615 },
+    "Pracimantoro":  { lat: -8.031819, lng: 110.819615 },
     "Wonosari":      { lat: -7.956726, lng: 110.603569 },
-    "01 Sleman":      { lat: -7.7826631, lng: 110.3176677 },
-    "Kalasan":      { lat: -7.7461157, lng: 110.4479074 },
-    "Ngaglik":      { lat: -7.7448999, lng: 110.3953837 },
-    "Umbulharjo":      { lat: -7.8221304, lng: 110.3877378 },
-    "01 Pandak":      { lat: -7.898319, lng: 110.3041433 },
-    "01 Pengasih":      { lat: -7.8499644, lng: 110.1694607 },
-    "01 Pleret":      { lat: -7.856949, lng: 110.4097071 },
+    "01 Sleman":     { lat: -7.7826631, lng: 110.3176677 },
+    "Kalasan":       { lat: -7.7461157, lng: 110.4479074 },
+    "Ngaglik":       { lat: -7.7448999, lng: 110.3953837 },
+    "Umbulharjo":    { lat: -7.8221304, lng: 110.3877378 },
+    "01 Pandak":     { lat: -7.898319, lng: 110.3041433 },
+    "01 Pengasih":   { lat: -7.8499644, lng: 110.1694607 },
+    "01 Pleret":     { lat: -7.856949, lng: 110.4097071 },
     "Kutoarjo":      { lat: -7.724611, lng: 109.915361 },
-    "Purworejo":      { lat: -7.7150278, lng: 110.00125 },
-    "Saptosari":      { lat: -8.0493889, lng: 110.5098611 },
-    
-    // ... Masukkan semua koordinat point disini ...
+    "Purworejo":     { lat: -7.7150278, lng: 110.00125 },
+    "Saptosari":     { lat: -8.0493889, lng: 110.5098611 },
 };
 
 const MAX_JARAK_METER = 300;
-const MAX_JAM_ABSEN = "08:15";
+const MAX_JAM_ABSEN = "08:20";
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -77,7 +72,7 @@ const ui = {
     nama: document.getElementById('namaKaryawan'),
     id: document.getElementById('idKaryawan'),
     area: document.getElementById('areaKaryawan'),
-    pointSelect: document.getElementById('pointKaryawan'), // Selector Baru
+    pointSelect: document.getElementById('pointKaryawan'),
     jam: document.getElementById('jamRealtime'),
     tanggal: document.getElementById('tanggalHariIni'),
     statusWaktu: document.getElementById('statusWaktu'),
@@ -90,19 +85,25 @@ const ui = {
     preview: document.getElementById('previewContainer')
 };
 
-let userPointData = null; // Koordinat Tujuan Absen
+let userPointData = null; 
 let isValidTime = false;
 let isValidLocation = false;
 
-// EVENT LISTENER: SAAT GANTI POINT
+// --- FUNGSI HELPER TANGGAL LOKAL ---
+function getLocalTodayDate() {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`; 
+}
+// -----------------------------------
+
 if (ui.pointSelect) {
     ui.pointSelect.addEventListener('change', function() {
         const selectedPoint = this.value;
-        
-        // Update Koordinat Tujuan
         if (DATABASE_KOORDINAT_POINT[selectedPoint]) {
             userPointData = DATABASE_KOORDINAT_POINT[selectedPoint];
-            // Reset Status Lokasi agar dihitung ulang
             ui.statusLokasi.className = "status-box status-loading";
             ui.statusLokasi.innerHTML = `<span><i class="fa-solid fa-sync fa-spin me-2"></i>Menghitung Ulang...</span>`;
         } else {
@@ -114,20 +115,18 @@ if (ui.pointSelect) {
 
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        // UPDATE: CEK STATUS ABSEN HARI INI
         checkIfAlreadyAbsent(user.uid);
-
         loadUserData(user.uid);
         mulaiJam();
-        cekLokasiUser(); // Start GPS
+        cekLokasiUser(); 
     } else {
         window.location.replace("index.html");
     }
 });
 
-// FUNGSI BARU: Cek Apakah Sudah Absen
+// FUNGSI CEK STATUS (Updated)
 async function checkIfAlreadyAbsent(uid) {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalTodayDate(); // Pakai Fungsi Tanggal Lokal
     const absensiRef = ref(db, `absensi/${today}/${uid}`);
     try {
         const snapshot = await get(absensiRef);
@@ -150,7 +149,6 @@ function loadUserData(uid) {
             ui.id.value = data.idKaryawan || "-";
             ui.area.value = data.area || "-";
             
-            // 1. POPULASI DROPDOWN POINT BERDASARKAN AREA
             if (data.area && DATA_POINTS[data.area]) {
                 ui.pointSelect.innerHTML = '<option value="" disabled selected>Pilih Point...</option>';
                 DATA_POINTS[data.area].forEach(pt => {
@@ -164,10 +162,9 @@ function loadUserData(uid) {
                 ui.pointSelect.innerHTML = '<option disabled selected>Area tidak valid</option>';
             }
 
-            // 2. SET DEFAULT POINT DARI PROFIL
             if (data.point && DATABASE_KOORDINAT_POINT[data.point]) {
                 ui.pointSelect.value = data.point;
-                userPointData = DATABASE_KOORDINAT_POINT[data.point]; // Set Koordinat Awal
+                userPointData = DATABASE_KOORDINAT_POINT[data.point]; 
             }
         }
     });
@@ -200,7 +197,6 @@ function cekLokasiUser() {
     }
 
     navigator.geolocation.watchPosition((pos) => {
-        // Jika User belum pilih point, jangan hitung jarak
         if (!userPointData) return;
 
         const userLat = pos.coords.latitude;
@@ -283,14 +279,15 @@ document.getElementById('absensiForm').addEventListener('submit', async (e) => {
     try {
         const file = ui.fotoInput.files[0];
         const base64 = await toBase64(file);
+        const today = getLocalTodayDate(); // Pakai Fungsi Tanggal Lokal
 
         const formData = {
             jenisLaporan: "Absensi",
             idKaryawan: ui.id.value,
             namaBP: ui.nama.value,
             area: ui.area.value,
-            point: ui.pointSelect.value, // Ambil Value dari Select
-            tanggal: new Date().toISOString().split('T')[0],
+            point: ui.pointSelect.value, 
+            tanggal: today,
             jamAbsen: ui.jam.textContent,
             geotag: document.getElementById('geotagInput').value,
             foto: base64.replace(/^data:image\/(png|jpeg|jpg);base64,/, ""),
@@ -308,11 +305,9 @@ document.getElementById('absensiForm').addEventListener('submit', async (e) => {
         const result = await response.json();
         
         if (result.result === 'success') {
-            
-            // UPDATE: SIMPAN STATUS KE FIREBASE DATABASE SETELAH SUKSES
             const user = auth.currentUser;
             if (user) {
-                const today = new Date().toISOString().split('T')[0];
+                // SIMPAN KE FIREBASE DENGAN TANGGAL LOKAL
                 await set(ref(db, `absensi/${today}/${user.uid}`), {
                     timestamp: new Date().toISOString(),
                     nama: ui.nama.value,
