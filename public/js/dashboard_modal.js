@@ -27,7 +27,7 @@ const filterPoint = document.getElementById('filterPoint');
 const filterDPD = document.getElementById('filterDPD');
 const filterHari = document.getElementById('filterHari');
 const filterStatus = document.getElementById('filterStatus');
-const filterStatusKirim = document.getElementById('filterStatusKirim'); // NEW
+const filterStatusKirim = document.getElementById('filterStatusKirim'); 
 const searchBP = document.getElementById('searchBP');
 
 const btnSubmit = document.getElementById('btnSubmit');
@@ -82,10 +82,8 @@ async function fetchDataModal() {
         if (result.result === "success" && Array.isArray(result.data)) {
             globalData = result.data;
             
-            // Isi Filter Area
             populateAreaDropdown(globalData);
             
-            // Set Default dari Profil
             if(userProfile.area && filterArea) {
                 filterArea.value = userProfile.area;
             }
@@ -99,7 +97,6 @@ async function fetchDataModal() {
             }
         } else {
             console.error("Gagal:", result);
-            // Jangan alert jika data kosong, biarkan user filter dulu
         }
 
     } catch (error) {
@@ -144,25 +141,24 @@ function fillSelect(element, items) {
     }
 }
 
-// 5. RENDER DATA
+// 5. RENDER DATA (UPDATE LOGIKA WARNA STATUS)
 function renderData(data) {
     if (!dataContainer) return;
     if(welcomeState) welcomeState.classList.add('d-none');
 
-    // Ambil Filter
     const fArea = filterArea ? filterArea.value.toLowerCase() : "";
     const fPoint = filterPoint ? filterPoint.value.toLowerCase() : "";
     const fDPD = filterDPD ? filterDPD.value.toLowerCase() : "";
     const fHari = filterHari ? filterHari.value.toLowerCase() : "";
     const fStatus = filterStatus ? filterStatus.value.toLowerCase() : "";
-    const fStatusKirim = filterStatusKirim ? filterStatusKirim.value.toLowerCase() : ""; // NEW
+    const fStatusKirim = filterStatusKirim ? filterStatusKirim.value.toLowerCase() : ""; 
     const fSearch = searchBP ? searchBP.value.toLowerCase().trim() : "";
 
     const filtered = data.filter(item => {
         const itemDPD = String(item.dpd).toLowerCase();
         const itemHari = String(item.hari).toLowerCase();
         const itemBP = String(item.nama_bp).toLowerCase();
-        const itemStatusKirim = String(item.status_kirim || "").toLowerCase(); // Ambil dari Kolom J
+        const itemStatusKirim = String(item.status_kirim || "").toLowerCase();
 
         const matchArea = fArea === "" || String(item.area).toLowerCase() === fArea;
         const matchPoint = fPoint === "" || String(item.point).toLowerCase() === fPoint;
@@ -171,9 +167,6 @@ function renderData(data) {
         const matchDPD = fDPD === "" || fDPD.includes(itemDPD) || itemDPD.includes(fDPD);
         const matchSearch = fSearch === "" || itemBP.includes(fSearch);
         
-        // Logika Filter Status Kirim (Pending/Terkirim)
-        // "Terkirim" -> Cocokkan jika mengandung kata "sudah"
-        // "Pending" -> Cocokkan jika mengandung kata "belum"
         let matchKirim = true;
         if (fStatusKirim === "terkirim") {
             matchKirim = itemStatusKirim.includes("sudah");
@@ -196,10 +189,13 @@ function renderData(data) {
     // --- RENDER TABEL ---
     const rowsHTML = filtered.map(item => {
         const statusText = String(item.status).toLowerCase();
-        const isBelum = statusText.includes("belum");
-        const badgeClass = isBelum ? "bg-belum" : "bg-bayar";
         
-        // Status Kirim Icon
+        // --- PERBAIKAN LOGIKA WARNA MERAH ---
+        // Merah jika: "belum", "telat", "par", "macet", atau "tunggakan"
+        const isRed = statusText.includes("belum") || statusText.includes("telat") || statusText.includes("par") || statusText.includes("macet") || statusText.includes("tunggakan");
+        const badgeClass = isRed ? "bg-belum" : "bg-bayar"; // Merah vs Hijau
+        
+        // Icon Status Kirim
         const statusKirim = item.status_kirim || "-";
         let iconKirim = "";
         if (String(statusKirim).toLowerCase().includes("sudah")) {
@@ -210,7 +206,6 @@ function renderData(data) {
              iconKirim = `<span class="badge bg-light text-dark border" style="font-size: 8px;">${statusKirim}</span>`;
         }
 
-        // Link ke Closing Modal
         const linkClosing = `closing_modal.html?custNo=${encodeURIComponent(item.cust_no)}`;
         
         return `
@@ -296,7 +291,7 @@ if(btnReset) {
         if(filterHari) filterHari.value = "";
         if(filterDPD) filterDPD.value = "";
         if(filterStatus) filterStatus.value = "";
-        if(filterStatusKirim) filterStatusKirim.value = ""; // Reset
+        if(filterStatusKirim) filterStatusKirim.value = ""; 
         if(searchBP) searchBP.value = "";
 
         dataContainer.innerHTML = "";
