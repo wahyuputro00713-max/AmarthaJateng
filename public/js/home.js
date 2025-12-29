@@ -16,18 +16,59 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// URL APPS SCRIPT LANGSUNG (Gunakan ini agar leaderboard jalan)
+// URL APPS SCRIPT LANGSUNG (Untuk Leaderboard)
 const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev";
 
 const userNameSpan = document.getElementById('userName') || document.getElementById('welcomeName');
 const logoutBtn = document.getElementById('logoutBtn');
-const btnAdmin = document.getElementById('btnAdmin'); // Tombol Admin (Hidden by Default)
+const btnAdmin = document.getElementById('btnAdmin'); 
 
 // ID ADMIN (Yang berhak melihat menu Kelola Akun)
 const ADMIN_ID = "17246";
 
+// --- FUNGSI HELPER: AMBIL TANGGAL LOKAL (WIB/HP User) ---
+function getLocalTodayDate() {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`; // Format: YYYY-MM-DD
+}
+
+// --- FUNGSI CEK STATUS ABSENSI ---
+async function checkAbsensiStatus(uid) {
+    const today = getLocalTodayDate();
+    const absensiRef = ref(db, `absensi/${today}/${uid}`);
+
+    try {
+        const snapshot = await get(absensiRef);
+        // Cari tombol absen berdasarkan ID yang baru ditambahkan di HTML
+        const btnAbsen = document.getElementById('btnAbsen') || document.querySelector('a[href="absensi.html"]');
+
+        if (snapshot.exists() && btnAbsen) {
+            // Matikan Tombol
+            btnAbsen.style.pointerEvents = "none";
+            btnAbsen.style.opacity = "0.7";
+            btnAbsen.style.filter = "grayscale(100%)"; // Bikin jadi abu-abu
+
+            // Ubah Teks "Masuk" jadi "Sudah Absen"
+            const textEl = btnAbsen.querySelector('.menu-text');
+            if (textEl) {
+                textEl.innerText = "Sudah Absen";
+                textEl.style.fontWeight = "bold";
+            }
+        }
+    } catch (error) {
+        console.error("Gagal cek absensi:", error);
+    }
+}
+
 onAuthStateChanged(auth, (user) => {
     if (user) {
+        // 1. Cek Status Absen Hari Ini
+        checkAbsensiStatus(user.uid);
+
+        // 2. Ambil Profil User
         const userRef = ref(db, 'users/' + user.uid);
         get(userRef).then((snapshot) => {
             if (snapshot.exists()) {
@@ -46,7 +87,9 @@ onAuthStateChanged(auth, (user) => {
             }
         }).catch(err => console.log("Gagal load profil sendiri:", err));
 
+        // 3. Load Leaderboard
         loadLeaderboard();
+
     } else {
         window.location.replace("index.html");
     }
@@ -60,6 +103,7 @@ if (logoutBtn) {
     });
 }
 
+// --- LOGIKA LEADERBOARD ---
 async function loadLeaderboard() {
     try {
         console.log("Memuat Leaderboard...");
