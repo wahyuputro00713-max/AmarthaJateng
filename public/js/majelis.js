@@ -211,7 +211,14 @@ function renderGroupedData(data) {
             const statusBayar = String(m.status).toLowerCase();
             const statusKirim = String(m.status_kirim || "").toLowerCase();
             const isSent = statusKirim.includes("sudah");
-            const badgeClass = statusBayar.includes("belum") ? "pill-belum" : "pill-bayar";
+            
+            // --- UPDATE WARNA STATUS ---
+            // Jika "Telat" -> text-danger (Merah)
+            // Selain itu (Bayar, dll) -> text-success (Hijau)
+            let badgeClass = "text-success"; 
+            if (statusBayar === "telat") {
+                badgeClass = "text-danger";
+            }
             
             const formatRupiah = (val) => {
                 if(!val || val === "0" || val === "-") return "-";
@@ -262,7 +269,7 @@ function renderGroupedData(data) {
                         <span class="nominal-label">Partial</span>
                     </td>
                     <td class="text-center">
-                        <span class="status-pill ${badgeClass}">${m.status}</span>
+                        <span class="${badgeClass} fw-bold" style="font-size: 12px;">${m.status}</span>
                     </td>
                     <td class="text-end">
                         ${actionHtml}
@@ -345,22 +352,4 @@ window.kirimData = async function(btn, namaBP, custNo, namaMitra, selectId) {
             method: 'POST',
             body: JSON.stringify(payload),
             redirect: "follow",
-            headers: { "Content-Type": "text/plain;charset=utf-8" }
-        });
-
-        const result = await response.json();
-
-        if (result.result === 'success') {
-            const parentDiv = btn.parentElement;
-            parentDiv.innerHTML = `<button class="btn btn-secondary btn-kirim" disabled><i class="fa-solid fa-check"></i> Terkirim</button>`;
-        } else {
-            throw new Error(result.error || "Gagal menyimpan data.");
-        }
-
-    } catch (error) {
-        alert("Gagal Kirim: " + error.message);
-        btn.innerHTML = originalContent;
-        btn.disabled = false;
-        if(selectEl) selectEl.disabled = false;
-    }
-};
+            headers: { "Content-Type": "text/plain;charset=utf-8
