@@ -1,6 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+// UPDATE: Menambahkan 'set' untuk menyimpan status absen
+import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // --- CONFIG ---
 const firebaseConfig = {
@@ -32,35 +33,35 @@ const DATABASE_KOORDINAT_POINT = {
     "Karangnongko":  { lat: -7.673078, lng: 110.56044 }, 
     "Mojosongo":     { lat: -7.5403421, lng: 110.6208683 },
     "Polanharjo":     { lat: -7.620437, lng: 110.696366 },
-    "Trucuk":     { lat: -7.688590, lng: 110.695219 },
-    "Grabag":     { lat: -7.369339, lng: 110.308800 },
-    "Mungkid":     { lat: -7.5389326, lng: 110.2280005 },
-    "Pakis":     { lat: -7.4706756, lng: 110.242976 },
-    "Salam":     { lat: -7.5955596, lng: 110.291043 },
-    "Banjarsari":     { lat: -7.5334328, lng: 110.822223 },
-    "Gemolong":     { lat: -7.3953056, lng: 110.817814 },
-    "Masaran":     { lat: -7.4426716, lng: 110.9972224 },
-    "Tangen":     { lat: -7.33208, lng: 111.059155 },
-    "Gatak":     { lat: -7.572387, lng: 110.742497 },
-    "Karanganyar":     { lat: -7.5930712, lng: 110.9244555 },
-    "Jumantono":     { lat: -7.6597196, lng: 111.0073048 },
-    "Nguter":     { lat: -7.671181, lng: 110.8458981 },
-    "Pasar Kliwon":     { lat: -7.5752547, lng: 110.8351221 },
-    "Jatisrono":     { lat: -7.8244875, lng: 111.1820156 },
-    "Ngadirojo":     { lat: -7.812753, lng: 110.992722 },
-    "Ngawen 2":     { lat: -7.8339547, lng: 110.693915 },
-    "Pracimantoro":     { lat: -8.031819, lng: 110.819615 },
-    "Wonosari":     { lat: -7.956726, lng: 110.603569 },
-    "01 Sleman":     { lat: -7.7826631, lng: 110.3176677 },
-    "Kalasan":     { lat: -7.7461157, lng: 110.4479074 },
-    "Ngaglik":     { lat: -7.7448999, lng: 110.3953837 },
-    "Umbulharjo":     { lat: -7.8221304, lng: 110.3877378 },
-    "01 Pandak":     { lat: -7.898319, lng: 110.3041433 },
-    "01 Pengasih":     { lat: -7.8499644, lng: 110.1694607 },
-    "01 Pleret":     { lat: -7.856949, lng: 110.4097071 },
-    "Kutoarjo":     { lat: -7.724611, lng: 109.915361 },
-    "Purworejo":     { lat: -7.7150278, lng: 110.00125 },
-    "Saptosari":     { lat: -8.0493889, lng: 110.5098611 },
+    "Trucuk":      { lat: -7.688590, lng: 110.695219 },
+    "Grabag":      { lat: -7.369339, lng: 110.308800 },
+    "Mungkid":      { lat: -7.5389326, lng: 110.2280005 },
+    "Pakis":      { lat: -7.4706756, lng: 110.242976 },
+    "Salam":      { lat: -7.5955596, lng: 110.291043 },
+    "Banjarsari":      { lat: -7.5334328, lng: 110.822223 },
+    "Gemolong":      { lat: -7.3953056, lng: 110.817814 },
+    "Masaran":      { lat: -7.4426716, lng: 110.9972224 },
+    "Tangen":      { lat: -7.33208, lng: 111.059155 },
+    "Gatak":      { lat: -7.572387, lng: 110.742497 },
+    "Karanganyar":      { lat: -7.5930712, lng: 110.9244555 },
+    "Jumantono":      { lat: -7.6597196, lng: 111.0073048 },
+    "Nguter":      { lat: -7.671181, lng: 110.8458981 },
+    "Pasar Kliwon":      { lat: -7.5752547, lng: 110.8351221 },
+    "Jatisrono":      { lat: -7.8244875, lng: 111.1820156 },
+    "Ngadirojo":      { lat: -7.812753, lng: 110.992722 },
+    "Ngawen 2":      { lat: -7.8339547, lng: 110.693915 },
+    "Pracimantoro":      { lat: -8.031819, lng: 110.819615 },
+    "Wonosari":      { lat: -7.956726, lng: 110.603569 },
+    "01 Sleman":      { lat: -7.7826631, lng: 110.3176677 },
+    "Kalasan":      { lat: -7.7461157, lng: 110.4479074 },
+    "Ngaglik":      { lat: -7.7448999, lng: 110.3953837 },
+    "Umbulharjo":      { lat: -7.8221304, lng: 110.3877378 },
+    "01 Pandak":      { lat: -7.898319, lng: 110.3041433 },
+    "01 Pengasih":      { lat: -7.8499644, lng: 110.1694607 },
+    "01 Pleret":      { lat: -7.856949, lng: 110.4097071 },
+    "Kutoarjo":      { lat: -7.724611, lng: 109.915361 },
+    "Purworejo":      { lat: -7.7150278, lng: 110.00125 },
+    "Saptosari":      { lat: -8.0493889, lng: 110.5098611 },
     
     // ... Masukkan semua koordinat point disini ...
 };
@@ -94,23 +95,28 @@ let isValidTime = false;
 let isValidLocation = false;
 
 // EVENT LISTENER: SAAT GANTI POINT
-ui.pointSelect.addEventListener('change', function() {
-    const selectedPoint = this.value;
-    
-    // Update Koordinat Tujuan
-    if (DATABASE_KOORDINAT_POINT[selectedPoint]) {
-        userPointData = DATABASE_KOORDINAT_POINT[selectedPoint];
-        // Reset Status Lokasi agar dihitung ulang
-        ui.statusLokasi.className = "status-box status-loading";
-        ui.statusLokasi.innerHTML = `<span><i class="fa-solid fa-sync fa-spin me-2"></i>Menghitung Ulang...</span>`;
-    } else {
-        userPointData = null;
-        showErrorLokasi("Koordinat Point ini belum ada di Database.");
-    }
-});
+if (ui.pointSelect) {
+    ui.pointSelect.addEventListener('change', function() {
+        const selectedPoint = this.value;
+        
+        // Update Koordinat Tujuan
+        if (DATABASE_KOORDINAT_POINT[selectedPoint]) {
+            userPointData = DATABASE_KOORDINAT_POINT[selectedPoint];
+            // Reset Status Lokasi agar dihitung ulang
+            ui.statusLokasi.className = "status-box status-loading";
+            ui.statusLokasi.innerHTML = `<span><i class="fa-solid fa-sync fa-spin me-2"></i>Menghitung Ulang...</span>`;
+        } else {
+            userPointData = null;
+            showErrorLokasi("Koordinat Point ini belum ada di Database.");
+        }
+    });
+}
 
 onAuthStateChanged(auth, (user) => {
     if (user) {
+        // UPDATE: CEK STATUS ABSEN HARI INI
+        checkIfAlreadyAbsent(user.uid);
+
         loadUserData(user.uid);
         mulaiJam();
         cekLokasiUser(); // Start GPS
@@ -118,6 +124,21 @@ onAuthStateChanged(auth, (user) => {
         window.location.replace("index.html");
     }
 });
+
+// FUNGSI BARU: Cek Apakah Sudah Absen
+async function checkIfAlreadyAbsent(uid) {
+    const today = new Date().toISOString().split('T')[0];
+    const absensiRef = ref(db, `absensi/${today}/${uid}`);
+    try {
+        const snapshot = await get(absensiRef);
+        if (snapshot.exists()) {
+            alert("Anda sudah melakukan absensi hari ini!");
+            window.location.replace("home.html");
+        }
+    } catch (e) {
+        console.error("Gagal cek status absen:", e);
+    }
+}
 
 function loadUserData(uid) {
     const userRef = ref(db, 'users/' + uid);
@@ -151,8 +172,6 @@ function loadUserData(uid) {
         }
     });
 }
-
-// ... (FUNGSI JAM, LOKASI, dan SUBMIT TETAP SAMA SEPERTI SEBELUMNYA) ...
 
 function mulaiJam() {
     setInterval(() => {
@@ -237,8 +256,8 @@ function updateTombol() {
         ui.btnAbsen.disabled = true;
         ui.btnAbsen.innerHTML = `<i class="fa-solid fa-ban me-2"></i> ABSEN TERKUNCI`;
         
-        if (!isValidTime) ui.errorMsg.textContent = "Absen ditutup lewat 08:15.";
-        else if (!isValidLocation) ui.errorMsg.textContent = "Di luar radius kantor (Maks 25m).";
+        if (!isValidTime) ui.errorMsg.textContent = "Absen ditutup lewat 08:20.";
+        else if (!isValidLocation) ui.errorMsg.textContent = `Di luar radius kantor (Maks ${MAX_JARAK_METER}m).`;
     }
 }
 
@@ -280,22 +299,37 @@ document.getElementById('absensiForm').addEventListener('submit', async (e) => {
         };
 
         const response = await fetch(SCRIPT_URL, { 
-    method: 'POST', 
-    body: JSON.stringify(formData),
-    // Wajib ada agar browser mau mengikuti balasan dari Google
-    redirect: "follow", 
-    // Opsional: Memastikan tipe konten text/plain agar tidak kena Preflight Check
-    headers: { "Content-Type": "text/plain;charset=utf-8" } 
-});
+            method: 'POST', 
+            body: JSON.stringify(formData),
+            redirect: "follow", 
+            headers: { "Content-Type": "text/plain;charset=utf-8" } 
+        });
+        
         const result = await response.json();
         
         if (result.result === 'success') {
+            
+            // UPDATE: SIMPAN STATUS KE FIREBASE DATABASE SETELAH SUKSES
+            const user = auth.currentUser;
+            if (user) {
+                const today = new Date().toISOString().split('T')[0];
+                await set(ref(db, `absensi/${today}/${user.uid}`), {
+                    timestamp: new Date().toISOString(),
+                    nama: ui.nama.value,
+                    point: ui.pointSelect.value,
+                    status: "Hadir"
+                });
+            }
+
             alert("✅ Absen Berhasil!");
             window.location.href = "home.html";
         } else { throw new Error(result.error); }
 
-    } catch (error) { alert("Gagal: " + error.message); } 
-    finally { loadingOverlay.style.display = 'none'; }
+    } catch (error) { 
+        alert("Gagal: " + error.message); 
+    } finally { 
+        loadingOverlay.style.display = 'none'; 
+    }
 });
 
 const toBase64 = file => new Promise((resolve, reject) => {
