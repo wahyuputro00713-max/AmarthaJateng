@@ -352,4 +352,22 @@ window.kirimData = async function(btn, namaBP, custNo, namaMitra, selectId) {
             method: 'POST',
             body: JSON.stringify(payload),
             redirect: "follow",
-            headers: { "Content-Type": "text/plain;charset=utf-8
+            headers: { "Content-Type": "text/plain;charset=utf-8" }
+        });
+
+        const result = await response.json();
+
+        if (result.result === 'success') {
+            const parentDiv = btn.parentElement;
+            parentDiv.innerHTML = `<button class="btn btn-secondary btn-kirim" disabled><i class="fa-solid fa-check"></i> Terkirim</button>`;
+        } else {
+            throw new Error(result.error || "Gagal menyimpan data.");
+        }
+
+    } catch (error) {
+        alert("Gagal Kirim: " + error.message);
+        btn.innerHTML = originalContent;
+        btn.disabled = false;
+        if(selectEl) selectEl.disabled = false;
+    }
+};
