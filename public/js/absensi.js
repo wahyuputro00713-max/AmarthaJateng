@@ -43,7 +43,7 @@ const DATABASE_KOORDINAT_POINT = {
     "Tangen":     { lat: -7.33208, lng: 111.059155 },
     "Gatak":     { lat: -7.572387, lng: 110.742497 },
     "Karanganyar":     { lat: -7.5930712, lng: 110.9244555 },
-    "Jumantono":     { lat: -7.6904468, lng: 110.628811 },
+    "Jumantono":     { lat: -7.6597196, lng: 111.0073048 },
     "Nguter":     { lat: -7.671181, lng: 110.8458981 },
     "Pasar Kliwon":     { lat: -7.5752547, lng: 110.8351221 },
     "Jatisrono":     { lat: -7.8244875, lng: 111.1820156 },
