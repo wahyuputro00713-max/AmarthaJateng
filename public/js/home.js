@@ -14,13 +14,17 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getDatabase(app); 
+const db = getDatabase(app);
 
-// 🔴🔴 PASTE URL APPS SCRIPT BARU DI SINI 🔴🔴
-const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; 
+// URL APPS SCRIPT LANGSUNG (Gunakan ini agar leaderboard jalan)
+const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev";
 
-const userNameSpan = document.getElementById('userName') || document.getElementById('welcomeName'); 
+const userNameSpan = document.getElementById('userName') || document.getElementById('welcomeName');
 const logoutBtn = document.getElementById('logoutBtn');
+const btnAdmin = document.getElementById('btnAdmin'); // Tombol Admin (Hidden by Default)
+
+// ID ADMIN (Yang berhak melihat menu Kelola Akun)
+const ADMIN_ID = "17246";
 
 onAuthStateChanged(auth, (user) => {
     if (user) {
@@ -29,7 +33,14 @@ onAuthStateChanged(auth, (user) => {
             if (snapshot.exists()) {
                 const data = snapshot.val();
                 const realName = data.nama || data.idKaryawan || user.email;
+                
                 if (userNameSpan) userNameSpan.textContent = realName;
+
+                // --- LOGIKA TAMPILKAN TOMBOL ADMIN ---
+                if (String(data.idKaryawan).trim() === ADMIN_ID) {
+                    if (btnAdmin) btnAdmin.classList.remove('d-none');
+                }
+
             } else {
                 if (userNameSpan) userNameSpan.textContent = user.email;
             }
@@ -58,7 +69,7 @@ async function loadLeaderboard() {
             method: 'POST',
             body: JSON.stringify({ action: "get_leaderboard" }),
             redirect: "follow",
-            headers: { "Content-Type": "text/plain;charset=utf-8" } 
+            headers: { "Content-Type": "text/plain;charset=utf-8" }
         });
         
         const result = await response.json();
@@ -69,9 +80,10 @@ async function loadLeaderboard() {
             return;
         }
 
-        const top3 = result.data; 
+        const top3 = result.data;
 
-        let usersMap = {}; 
+        // Ambil Data Profil User Lain dari Firebase untuk Nama & Foto
+        let usersMap = {};
         try {
             const dbRef = ref(db);
             const snapshot = await get(child(dbRef, `users`));
@@ -91,9 +103,9 @@ async function loadLeaderboard() {
             console.warn("Gagal ambil detail user, lanjut tampilkan ID saja.");
         }
 
-        updatePodium(".rank-1", top3[0], usersMap); 
-        updatePodium(".rank-2", top3[1], usersMap); 
-        updatePodium(".rank-3", top3[2], usersMap); 
+        updatePodium(".rank-1", top3[0], usersMap);
+        updatePodium(".rank-2", top3[1], usersMap);
+        updatePodium(".rank-3", top3[2], usersMap);
 
     } catch (error) {
         console.error("Critical Error Leaderboard:", error);
@@ -129,7 +141,7 @@ function updatePodium(selectorClass, data, usersMap) {
     if (!card) return;
 
     const elName = card.querySelector('.bp-name');
-    const elPoint = card.querySelector('.bp-point'); // Elemen Baru
+    const elPoint = card.querySelector('.bp-point');
     const elAmount = card.querySelector('.bp-amount');
     const elImg = card.querySelector('.avatar-img');
 
@@ -145,7 +157,7 @@ function updatePodium(selectorClass, data, usersMap) {
         }
 
         if (elName) elName.textContent = displayName;
-        if (elPoint) elPoint.textContent = data.point || "-"; // Tampilkan Point
+        if (elPoint) elPoint.textContent = data.point || "-";
         if (elAmount) elAmount.textContent = formatJuta(data.amount);
         if (elImg) elImg.src = displayPhoto;
 
