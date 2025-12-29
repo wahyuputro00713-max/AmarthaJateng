@@ -1,6 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getDatabase, ref, get, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+// UPDATE 1: Menambahkan 'remove' ke dalam import agar bisa hapus data
+import { getDatabase, ref, get, update, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyC8wOUkyZTa4W2hHHGZq_YKnGFqYEGOuH8",
@@ -22,7 +23,9 @@ let allUsers = [];
 const usersContainer = document.getElementById('usersContainer');
 const loadingOverlay = document.getElementById('loadingOverlay');
 const searchUser = document.getElementById('searchUser');
-const editModal = new bootstrap.Modal(document.getElementById('editModal'));
+// Pastikan Bootstrap sudah terload di HTML
+const editModalElement = document.getElementById('editModal');
+const editModal = editModalElement ? new bootstrap.Modal(editModalElement) : null;
 
 // 1. Cek Login & Hak Akses
 onAuthStateChanged(auth, (user) => {
@@ -70,12 +73,14 @@ async function fetchAllUsers() {
             
             renderUsers(allUsers);
         } else {
-            document.getElementById('emptyState').classList.remove('d-none');
+            if(document.getElementById('emptyState')) {
+                document.getElementById('emptyState').classList.remove('d-none');
+            }
         }
     } catch (err) {
         alert("Gagal mengambil data user: " + err.message);
     } finally {
-        loadingOverlay.classList.add('d-none');
+        if(loadingOverlay) loadingOverlay.classList.add('d-none');
     }
 }
 
@@ -84,39 +89,53 @@ function renderUsers(users) {
     usersContainer.innerHTML = "";
     
     if (users.length === 0) {
-        document.getElementById('emptyState').classList.remove('d-none');
+        if(document.getElementById('emptyState')) {
+            document.getElementById('emptyState').classList.remove('d-none');
+        }
         return;
     }
-    document.getElementById('emptyState').classList.add('d-none');
+    if(document.getElementById('emptyState')) {
+        document.getElementById('emptyState').classList.add('d-none');
+    }
 
     users.forEach(u => {
         const div = document.createElement('div');
         div.className = "user-card";
+        
+        // UPDATE 2: Menambahkan Tombol Hapus disamping tombol Edit
+        // Saya menggunakan d-flex gap-2 untuk merapikan posisi tombol
         div.innerHTML = `
             <div class="user-info">
                 <h6>${u.nama || "Tanpa Nama"}</h6>
                 <p><i class="fa-regular fa-id-badge me-1"></i>${u.idKaryawan || "-"}</p>
                 <p><i class="fa-solid fa-location-dot me-1"></i>${u.point || "-"} (${u.area || "-"})</p>
             </div>
-            <button class="btn-edit" onclick="window.openEditModal('${u.uid}')">
-                <i class="fa-solid fa-pen"></i>
-            </button>
+            <div class="d-flex gap-2 align-items-center">
+                <button class="btn-edit" onclick="window.openEditModal('${u.uid}')" title="Edit User">
+                    <i class="fa-solid fa-pen"></i>
+                </button>
+                <button class="btn-edit" onclick="window.hapusUser('${u.uid}', '${u.nama}')" style="background: #ffebee; color: #c62828;" title="Hapus User">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </div>
         `;
         usersContainer.appendChild(div);
     });
 }
 
 // 5. Fungsi Search
-searchUser.addEventListener('input', (e) => {
-    const term = e.target.value.toLowerCase();
-    const filtered = allUsers.filter(u => 
-        (u.nama && u.nama.toLowerCase().includes(term)) ||
-        (u.idKaryawan && String(u.idKaryawan).includes(term))
-    );
-    renderUsers(filtered);
-});
+if(searchUser) {
+    searchUser.addEventListener('input', (e) => {
+        const term = e.target.value.toLowerCase();
+        const filtered = allUsers.filter(u => 
+            (u.nama && u.nama.toLowerCase().includes(term)) ||
+            (u.idKaryawan && String(u.idKaryawan).includes(term))
+        );
+        renderUsers(filtered);
+    });
+}
 
-// 6. Logic Edit Modal (Global Scope agar bisa diakses onclick HTML)
+// 6. Logic Edit Modal
 window.openEditModal = function(uid) {
     const user = allUsers.find(u => u.uid === uid);
     if (!user) return;
@@ -127,46 +146,70 @@ window.openEditModal = function(uid) {
     document.getElementById('editArea').value = user.area || "";
     document.getElementById('editPoint').value = user.point || "";
     
-    editModal.show();
+    if(editModal) editModal.show();
 };
 
 // 7. Simpan Perubahan
-document.getElementById('btnSimpan').addEventListener('click', async () => {
-    const uid = document.getElementById('editUid').value;
-    const updates = {
-        nama: document.getElementById('editNama').value,
-        idKaryawan: document.getElementById('editIdKaryawan').value,
-        area: document.getElementById('editArea').value,
-        point: document.getElementById('editPoint').value
-    };
+const btnSimpan = document.getElementById('btnSimpan');
+if(btnSimpan) {
+    btnSimpan.addEventListener('click', async () => {
+        const uid = document.getElementById('editUid').value;
+        const updates = {
+            nama: document.getElementById('editNama').value,
+            idKaryawan: document.getElementById('editIdKaryawan').value,
+            area: document.getElementById('editArea').value,
+            point: document.getElementById('editPoint').value
+        };
 
-    // Validasi Sederhana
-    if(!updates.idKaryawan || !updates.nama) {
-        alert("Nama dan ID Karyawan wajib diisi!");
-        return;
+        // Validasi Sederhana
+        if(!updates.idKaryawan || !updates.nama) {
+            alert("Nama dan ID Karyawan wajib diisi!");
+            return;
+        }
+
+        try {
+            const originalText = btnSimpan.innerText;
+            btnSimpan.innerText = "Menyimpan...";
+            btnSimpan.disabled = true;
+
+            // Update ke Firebase Realtime Database
+            await update(ref(db, 'users/' + uid), updates);
+            
+            alert("Data berhasil diperbarui!");
+            if(editModal) editModal.hide();
+            
+            // Refresh Data
+            if(loadingOverlay) loadingOverlay.classList.remove('d-none');
+            fetchAllUsers();
+
+        } catch (err) {
+            alert("Gagal update: " + err.message);
+        } finally {
+            btnSimpan.innerText = "Simpan Perubahan";
+            btnSimpan.disabled = false;
+        }
+    });
+}
+
+// UPDATE 3: Fungsi Hapus User (Baru)
+window.hapusUser = async function(uid, nama) {
+    // Konfirmasi keamanan agar tidak salah pencet
+    const konfirmasi = confirm(`⚠️ PERINGATAN!\n\nAnda akan menghapus akun: ${nama}\n\nData yang dihapus TIDAK BISA dikembalikan.\nApakah Anda yakin?`);
+    
+    if (konfirmasi) {
+        try {
+            if(loadingOverlay) loadingOverlay.classList.remove('d-none'); // Tampilkan loading
+            
+            // Menghapus data dari path 'users/uid'
+            await remove(ref(db, "users/" + uid));
+            
+            alert("✅ Akun berhasil dihapus.");
+            fetchAllUsers(); // Refresh daftar user otomatis
+
+        } catch (error) {
+            console.error("Error delete:", error);
+            alert("❌ Gagal menghapus: " + error.message + "\n(Pastikan Rules Database sudah diupdate)");
+            if(loadingOverlay) loadingOverlay.classList.add('d-none');
+        }
     }
-
-    try {
-        const btn = document.getElementById('btnSimpan');
-        const originalText = btn.innerText;
-        btn.innerText = "Menyimpan...";
-        btn.disabled = true;
-
-        // Update ke Firebase Realtime Database
-        await update(ref(db, 'users/' + uid), updates);
-        
-        alert("Data berhasil diperbarui!");
-        editModal.hide();
-        
-        // Refresh Data
-        loadingOverlay.classList.remove('d-none');
-        fetchAllUsers();
-
-    } catch (err) {
-        alert("Gagal update: " + err.message);
-    } finally {
-        const btn = document.getElementById('btnSimpan');
-        btn.innerText = "Simpan Perubahan";
-        btn.disabled = false;
-    }
-});
+};
