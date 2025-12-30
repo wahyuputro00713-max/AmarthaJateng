@@ -157,7 +157,7 @@ function getValue(row, keys) {
     return "";
 }
 
-// --- 4. PROCESSING DATA (PERBAIKAN LOGIKA) ---
+// --- 4. PROCESSING DATA (PERBAIKAN LOGIKA STATUS) ---
 function processAndRender(rawData, targetPoint) {
     let stats = { mm_total: 0, mm_bayar: 0, mm_kirim: 0, nc_total: 0, nc_bayar: 0, nc_kirim: 0 };
     let hierarchy = {}; 
@@ -181,6 +181,7 @@ function processAndRender(rawData, targetPoint) {
         const alasan_db = getValue(row, ["keterangan", "alasan"]) || "";
 
         // PERBAIKAN: Gunakan .includes agar "Bayar" atau "Sudah Bayar" tetap dianggap lunas
+        // Logika ini sekarang konsisten dengan tampilan UI
         const bayarLower = st_bayar.toLowerCase();
         const kirimLower = st_kirim.toLowerCase();
 
@@ -313,7 +314,7 @@ function createMitraCard(mitra) {
     const stBayar = (mitra.status_bayar || "").toLowerCase();
     const stKirim = (mitra.status_kirim || "").toLowerCase();
 
-    // PERBAIKAN: Gunakan .includes() untuk style warna juga
+    // PERBAIKAN: Gunakan .includes() untuk style warna juga agar "Bayar" jadi HIJAU
     let styleBayar = "";
     if (stBayar.includes('lunas') || stBayar.includes('bayar') || stBayar.includes('sudah')) {
         // Hijau Transparan
@@ -333,7 +334,7 @@ function createMitraCard(mitra) {
     }
 
     // Logic Alert: Jika Belum Lunas (Merah) TAPI Sudah Terkirim (Hijau) -> Tampilkan Alert
-    // Kita cek lagi manual karena variabel styleBayar hanya string CSS
+    // Kita cek lagi manual agar konsisten
     const isLunas = stBayar.includes('lunas') || stBayar.includes('bayar') || stBayar.includes('sudah');
     const isTerkirim = stKirim.includes('terkirim') || stKirim.includes('sudah') || stKirim.includes('kirim');
 
@@ -413,4 +414,17 @@ document.addEventListener("DOMContentLoaded", () => {
             if(confirm("Validasi semua data yang Lunas & Terkirim?")) {
                 const checkboxes = document.querySelectorAll('.btn-check-modern');
                 let count = 0;
-                checkbox
+                checkboxes.forEach(btn => {
+                    const parent = btn.closest('.mitra-card');
+                    if (!parent.querySelector('.alert-modern')) {
+                        if (!btn.classList.contains('checked')) {
+                            btn.classList.add('checked');
+                            count++;
+                        }
+                    }
+                });
+                alert(`✨ Berhasil memvalidasi otomatis ${count} mitra.`);
+            }
+        });
+    }
+});
