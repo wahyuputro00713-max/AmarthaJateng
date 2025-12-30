@@ -23,6 +23,8 @@ const ADMIN_ID = "17246";
 
 let userProfile = null;
 let currentDayName = ""; 
+// Variabel baru untuk menyimpan data agar bisa di-download
+let globalMitraList = []; 
 
 // --- 1. INJECT STYLE MODERN (CSS) ---
 function injectModernStyles() {
@@ -176,6 +178,9 @@ function processAndRender(rawData, targetPoint) {
     const normalize = (str) => String(str || "").trim().toUpperCase();
     const safeTarget = normalize(targetPoint);
 
+    // Reset Data Global
+    globalMitraList = [];
+
     if (!rawData || rawData.length === 0) {
         document.getElementById('accordionBP').innerHTML = `<div class="text-center py-5">Data Kosong.</div>`;
         return;
@@ -202,7 +207,6 @@ function processAndRender(rawData, targetPoint) {
         if (safeTarget !== "ALL" && p_cabang !== safeTarget) return; 
         if (p_hari.toLowerCase() !== currentDayName.toLowerCase()) return;
 
-        // PERBAIKAN: Hitung semua mitra di hari itu (Current & Non-Current)
         const isCurrent = p_bucket <= 1; 
 
         if (isCurrent) {
@@ -215,11 +219,8 @@ function processAndRender(rawData, targetPoint) {
             if (isTerkirim) stats.nc_kirim++;
         }
 
-        // MASUKKAN SEMUA MITRA KE LIST (Current & Non-Current)
-        if (!hierarchy[p_bp]) hierarchy[p_bp] = {};
-        if (!hierarchy[p_bp][p_majelis]) hierarchy[p_bp][p_majelis] = [];
-        
-        hierarchy[p_bp][p_majelis].push({
+        // Object Mitra
+        const mitraData = {
             id: getValue(row, ["id_mitra", "id", "account_id"]),
             nama: getValue(row, ["nama_mitra", "nama", "client_name"]),
             status_bayar: st_bayar,
@@ -227,8 +228,18 @@ function processAndRender(rawData, targetPoint) {
             jenis_bayar: p_jenis,
             alasan: alasan_db,
             is_lunas: isLunas,
-            is_terkirim: isTerkirim
-        });
+            is_terkirim: isTerkirim,
+            bp: p_bp,
+            majelis: p_majelis
+        };
+
+        // Simpan ke Global List untuk CSV
+        globalMitraList.push(mitraData);
+
+        // Masukkan ke Hierarchy untuk Render
+        if (!hierarchy[p_bp]) hierarchy[p_bp] = {};
+        if (!hierarchy[p_bp][p_majelis]) hierarchy[p_bp][p_majelis] = [];
+        hierarchy[p_bp][p_majelis].push(mitraData);
     });
 
     renderStats(stats);
@@ -372,9 +383,8 @@ function createMitraCard(mitra) {
     }
 
     // --- LOGIKA WAJIB REASON ---
-    // Cek apakah jenis pembayaran Normal atau Bukan
     const jenisNormal = mitra.jenis_bayar.toLowerCase().includes("normal");
-    const isRequired = !jenisNormal; // Jika TIDAK Normal -> Wajib Isi
+    const isRequired = !jenisNormal; 
     const placeholder = isRequired ? "Wajib isi alasan (Jenis: " + mitra.jenis_bayar + ")..." : "Keterangan (Opsional)...";
     const requiredClass = isRequired ? "required" : "";
 
@@ -433,13 +443,13 @@ function updateValidationStatus() {
     if(btnValAll) {
         if (checkedMitra === totalMitra && totalMitra > 0) {
             btnValAll.disabled = false;
-            btnValAll.innerHTML = `<i class="fa-solid fa-calendar-check me-1"></i> Validasi Hari Ini`;
+            btnValAll.innerHTML = `<i class="fa-solid fa-file-csv me-1"></i> Download Laporan CSV`; // Ubah Text
             btnValAll.classList.remove('btn-secondary');
-            btnValAll.classList.add('btn-primary');
+            btnValAll.classList.add('btn-success'); // Ubah Warna ke Hijau
         } else {
             btnValAll.disabled = true;
             btnValAll.innerHTML = `<i class="fa-solid fa-lock me-1"></i> Selesaikan ${totalMitra - checkedMitra} Lagi`;
-            btnValAll.classList.remove('btn-primary');
+            btnValAll.classList.remove('btn-success');
             btnValAll.classList.add('btn-secondary');
         }
     }
@@ -449,7 +459,6 @@ window.toggleValidation = function(element, id) {
     const inputReason = document.getElementById(`validasi-${id}`);
     const isRequired = inputReason.getAttribute('data-required') === "true";
     
-    // Efek Animasi
     element.style.transform = "scale(0.9)";
     setTimeout(() => {
         if (element.classList.contains('checked')) {
@@ -460,18 +469,15 @@ window.toggleValidation = function(element, id) {
     }, 100);
 
     if (!element.classList.contains('checked')) {
-        // PERBAIKAN: Cek Wajib Isi hanya jika required=true
         if (isRequired && inputReason.value.trim() === "") {
             inputReason.style.borderColor = "red";
             inputReason.style.backgroundColor = "#fff0f0";
             inputReason.focus();
             
-            // Kembalikan style normal setelah 2 detik
             setTimeout(() => {
                 inputReason.style.borderColor = "#d1d5db";
-                inputReason.style.backgroundColor = isRequired ? "#fef2f2" : "#fafafa";
+                inputReason.style.backgroundColor = "#fef2f2";
             }, 2000);
-            
             return; 
         }
         element.classList.add('checked');
@@ -482,14 +488,58 @@ window.toggleValidation = function(element, id) {
     updateValidationStatus();
 };
 
+// --- 7. FUNGSI DOWNLOAD CSV ---
+function downloadCSV() {
+    if (globalMitraList.length === 0) {
+        alert("Tidak ada data untuk diunduh.");
+        return;
+    }
+
+    // Header CSV
+    let csvContent = "ID Mitra,Nama Mitra,BP,Majelis,Status Bayar,Status Kirim,Jenis Bayar,Keterangan/Alasan\n";
+
+    // Loop data
+    globalMitraList.forEach(m => {
+        // Ambil nilai terbaru dari input (karena user mungkin mengeditnya)
+        const inputReason = document.getElementById(`validasi-${m.id}`);
+        const userReason = inputReason ? inputReason.value : "";
+        const finalReason = userReason || m.alasan || "-";
+
+        // Susun baris CSV (gunakan kutip untuk menangani koma dalam teks)
+        const row = [
+            `'${m.id}`, // Tambah kutip agar excel baca sebagai teks
+            `"${m.nama}"`,
+            `"${m.bp}"`,
+            `"${m.majelis}"`,
+            m.status_bayar,
+            m.status_kirim,
+            m.jenis_bayar,
+            `"${finalReason}"`
+        ].join(",");
+
+        csvContent += row + "\n";
+    });
+
+    // Buat Blob dan Download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    const dateStr = new Date().toISOString().split('T')[0];
+    link.setAttribute("download", `Laporan_Closing_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     const btnValAll = document.getElementById('btnValidateAll');
     if(btnValAll) {
         btnValAll.disabled = true;
         
         btnValAll.addEventListener('click', () => {
-            if(confirm("Validasi semua data?")) {
-               alert(`✨ Berhasil memvalidasi semua data.`);
+            if(confirm("Apakah Anda yakin ingin mengunduh laporan validasi ini?")) {
+               downloadCSV();
             }
         });
     }
