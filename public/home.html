@@ -144,33 +144,38 @@
         .fab-container.active .fab-item:nth-child(3) { transition-delay: 0.1s; }
         .fab-container.active .fab-item:nth-child(4) { transition-delay: 0.15s; }
 
-        /* --- PERBAIKAN Z-INDEX HEADER & DROPDOWN --- */
+        /* =========================================================
+           FIX Z-INDEX: AGAR HEADER TIDAK MENUTUPI MENU ABSENSI
+           ========================================================= */
         .hero-header {
             position: relative;
-            /* overflow: hidden; HAPUS INI agar dropdown tidak terpotong */
-            z-index: 100; /* Header di atas konten body */
-            /* Pastikan border radius tetap rapi dengan canvas */
+            /* HAPUS z-index: 100 agar tidak mengurung konten di bawahnya */
         }
 
         #fireworksCanvas {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 0; 
+            z-index: 0; /* Background paling bawah */
             pointer-events: none;
-            /* Tambahkan radius di sini agar kembang api tidak 'bocor' kotak */
             border-bottom-left-radius: 25px; 
             border-bottom-right-radius: 25px;
         }
 
-        /* Top Bar harus punya Z-Index tinggi agar Dropdown muncul di atas segalanya */
         .hero-header .top-bar {
             position: relative;
-            z-index: 1000; 
+            z-index: 50; /* Menu & Logo di atas canvas */
         }
         
         .hero-header .user-welcome {
             position: relative;
-            z-index: 10;
+            z-index: 20;
+        }
+
+        /* Container UTAMA (Isi Kartu Absensi dll) */
+        .main-container {
+            position: relative;
+            z-index: 10; /* PASTI DI ATAS BACKGROUND HEADER */
+            /* Ini yang membuat kartu absensi muncul di depan kembang api */
         }
 
         /* --- MENU DROPDOWN HEADER --- */
@@ -188,11 +193,11 @@
             right: 0;
             background: white;
             min-width: 180px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.25); /* Shadow lebih tebal */
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25);
             border-radius: 12px;
             overflow: hidden;
             margin-top: 10px;
-            z-index: 2000; /* Z-Index Sangat Tinggi */
+            z-index: 2000; /* Z-Index SANGAT TINGGI agar menutupi Main Container */
             animation: fadeIn 0.2s ease-in-out;
         }
         .header-dropdown-content.show {
@@ -216,12 +221,6 @@
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Fix Main Container agar tidak menutupi header */
-        .main-container {
-            position: relative;
-            z-index: 1; 
         }
 
     </style>
