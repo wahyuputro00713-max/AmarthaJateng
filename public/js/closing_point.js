@@ -16,11 +16,12 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// URL APPS SCRIPT
+// URL APPS SCRIPT (Pastikan URL ini benar)
 const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; 
 const ADMIN_ID = "17246";
 
 let userProfile = null;
+let currentDayName = ""; // Variabel global untuk menyimpan nama hari ini
 
 onAuthStateChanged(auth, (user) => {
     if (user) {
@@ -40,7 +41,6 @@ function checkUserRole(uid) {
 
             if (allowed.includes(jabatan) || String(data.idKaryawan).trim() === ADMIN_ID) {
                 userProfile = data; 
-                console.log("User Profile Loaded:", userProfile); // Debugging
                 initPage();
             } else {
                 alert("Akses Ditolak: Halaman ini khusus RM, AM, dan BM.");
@@ -55,9 +55,13 @@ function checkUserRole(uid) {
 function initPage() {
     const today = new Date();
     const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+    
+    // 1. Simpan Nama Hari Ini (misal: "Selasa")
+    currentDayName = today.toLocaleDateString('id-ID', { weekday: 'long' });
+    
+    // Tampilkan Tanggal di Header
     document.getElementById('displayDate').textContent = today.toLocaleDateString('id-ID', options);
 
-    // Ambil Point dari berbagai kemungkinan key
     const userArea = userProfile.area || userProfile.Area || "Area -";
     const userPoint = userProfile.cabang || userProfile.Cabang || userProfile.point || userProfile.Point || "Point -";
 
@@ -81,7 +85,6 @@ async function fetchRepaymentData(targetPoint) {
         });
 
         const result = await response.json();
-        console.log("Data Response:", result); // Cek isi data di Console
 
         if (result.result !== "success") {
             alert("Gagal mengambil data: " + result.error);
@@ -101,9 +104,7 @@ async function fetchRepaymentData(targetPoint) {
     }
 }
 
-// --- FUNGSI PENTING: CARI KOLOM (Case Insensitive) ---
 function getValue(row, keys) {
-    // Cari key yang cocok (misal: "cabang", "Cabang", "CABANG")
     const rowKeys = Object.keys(row);
     for (let k of keys) {
         const found = rowKeys.find(rk => rk.toLowerCase() === k.toLowerCase());
@@ -122,43 +123,43 @@ function processAndRender(rawData, targetPoint) {
     const normalize = (str) => String(str || "").trim().toUpperCase();
     const safeTarget = normalize(targetPoint);
 
-    console.log("Target Point (User):", safeTarget);
-
     if (!rawData || rawData.length === 0) {
         document.getElementById('accordionBP').innerHTML = `<div class="text-center py-4">Data Kosong dari Server.</div>`;
         return;
     }
 
-    // Cek Data Pertama untuk Debugging
-    console.log("Contoh Data Row:", rawData[0]);
-
     rawData.forEach(row => {
-        // Ambil data dengan Key yang Fleksibel (Besar/Kecil huruf tidak masalah)
-        const p_cabang  = normalize(getValue(row, ["cabang", "point", "unit", "branch"]));
+        // Ambil Data dari Row
+        const p_cabang  = normalize(getValue(row, ["cabang", "point", "unit"]));
         const p_bp      = getValue(row, ["bp", "petugas", "ao"]) || "Tanpa BP";
         const p_majelis = getValue(row, ["majelis", "group", "kelompok"]) || "Umum";
+        const p_hari    = getValue(row, ["hari", "day"]) || ""; // Ambil Data Hari
         
-        // Ambil Bucket/DPD
+        // Filter Bucket & Status
         let rawBucket = getValue(row, ["bucket", "dpd", "kolek"]);
         const p_bucket  = parseInt(rawBucket || 0);
 
-        // Ambil Status
-        const st_bayar  = getValue(row, ["status_bayar", "bayar", "payment_status"]) || "Belum";
-        const st_kirim  = getValue(row, ["status_kirim", "kirim", "submit_status"]) || "Belum";
-        const alasan_db = getValue(row, ["keterangan", "alasan", "reason"]) || "";
+        const st_bayar  = getValue(row, ["status_bayar", "bayar"]) || "Belum";
+        const st_kirim  = getValue(row, ["status_kirim", "kirim"]) || "Belum";
+        const alasan_db = getValue(row, ["keterangan", "alasan"]) || "";
 
         const isLunas = st_bayar.toLowerCase() === "lunas";
         const isTerkirim = st_kirim.toLowerCase() === "terkirim";
 
-        // --- FILTER POINT ---
-        // Jika point user "ALL", tampilkan semua (untuk admin/test)
+        // --- FILTER 1: POINT ---
         if (safeTarget !== "ALL" && p_cabang !== safeTarget) {
             return; 
         }
 
-        const isCurrent = p_bucket <= 1; // Current = Bucket 0 & 1
+        // --- FILTER 2: HARI (BARU DITAMBAHKAN) ---
+        // Jika hari di data tidak sama dengan hari ini, lewati.
+        if (p_hari.toLowerCase() !== currentDayName.toLowerCase()) {
+            return;
+        }
 
-        // 1. HITUNG STATISTIK
+        const isCurrent = p_bucket <= 1; 
+
+        // HITUNG STATISTIK (Hanya untuk data hari ini)
         if (isCurrent) {
             stats.mm_total++;
             if (isLunas) stats.mm_bayar++;
@@ -169,7 +170,7 @@ function processAndRender(rawData, targetPoint) {
             if (isTerkirim) stats.nc_kirim++;
         }
 
-        // 2. MASUKKAN KE LIST (Hanya yang Current)
+        // MASUKKAN KE LIST (Hanya yang Current & Hari Ini)
         if (isCurrent) {
             if (!hierarchy[p_bp]) hierarchy[p_bp] = {};
             if (!hierarchy[p_bp][p_majelis]) hierarchy[p_bp][p_majelis] = [];
@@ -208,8 +209,7 @@ function renderAccordion(hierarchy) {
         container.innerHTML = `
             <div class="text-center text-muted py-5">
                 <img src="https://cdn-icons-png.flaticon.com/512/7486/7486754.png" width="60" class="mb-3 opacity-50">
-                <p>Data tidak ditemukan untuk Point ini.</p>
-                <small>Pastikan nama Cabang di Profil sama dengan di Spreadsheet.</small>
+                <p>Tidak ada jadwal majelis untuk hari <b>${currentDayName}</b>.</p>
             </div>`;
         return;
     }
@@ -275,7 +275,6 @@ function createMitraRow(mitra) {
     const badgeBayar = stBayar === 'lunas' ? 'status-lunas' : 'status-telat';
     const badgeKirim = stKirim === 'terkirim' ? 'status-kirim' : 'status-belum';
 
-    // Logic Khusus: Telat TAPI Terkirim
     let specialUI = "";
     if (stBayar !== 'lunas' && stKirim === 'terkirim') {
         specialUI = `
@@ -338,7 +337,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 const checkboxes = document.querySelectorAll('.btn-check-custom');
                 let count = 0;
                 checkboxes.forEach(btn => {
-                    // Hanya validasi otomatis jika tidak ada input reason (kasus normal)
                     const parent = btn.closest('.mitra-row');
                     if (!parent.querySelector('.alert-reason')) {
                         btn.classList.add('checked');
