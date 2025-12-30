@@ -2,6 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebas
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
+// --- KONFIGURASI FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyC8wOUkyZTa4W2hHHGZq_YKnGFqYEGOuH8",
     authDomain: "amarthajatengwebapp.firebaseapp.com",
@@ -16,12 +17,14 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
+// --- KONFIGURASI APLIKASI ---
 const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; 
 const ADMIN_ID = "17246";
 
 let userProfile = null;
 let currentDayName = ""; 
 
+// --- 1. INJECT STYLE MODERN (CSS) ---
 function injectModernStyles() {
     const styleId = 'closing-point-modern-style';
     if (!document.getElementById(styleId)) {
@@ -44,6 +47,8 @@ function injectModernStyles() {
             .mitra-name { font-weight: 700; color: #1f2937; font-size: 0.95rem; display: block; margin-bottom: 4px; }
             .mitra-id { font-size: 0.75rem; color: #6b7280; background: #f3f4f6; padding: 2px 8px; border-radius: 6px; }
             .badge-status { font-size: 0.7rem; padding: 4px 10px; border-radius: 20px; font-weight: 600; letter-spacing: 0.3px; text-transform: uppercase; display: inline-block; }
+            
+            /* Custom Check Button */
             .btn-check-modern {
                 width: 42px; height: 42px; border-radius: 50%; background: #f9fafb; border: 2px solid #e5e7eb; color: #d1d5db;
                 display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -51,10 +56,8 @@ function injectModernStyles() {
             .btn-check-modern:hover { background: #f3f4f6; border-color: #d1d5db; }
             .btn-check-modern.checked { background: #22c55e; border-color: #22c55e; color: white; transform: scale(1.1); box-shadow: 0 4px 10px rgba(34, 197, 94, 0.4); }
             
-            /* HILANGKAN PANAH DEFAULT BOOTSTRAP */
-            .accordion-button::after { display: none !important; }
-            
-            /* Indikator Panah Custom */
+            /* Accordion Styling */
+            .accordion-button::after { display: none !important; } /* Hapus panah default */
             .custom-arrow { transition: transform 0.3s ease; }
             .accordion-button:not(.collapsed) .custom-arrow { transform: rotate(180deg); }
             .card-header[aria-expanded="true"] .custom-arrow { transform: rotate(180deg); }
@@ -63,6 +66,7 @@ function injectModernStyles() {
             .accordion-button:not(.collapsed) { background-color: #eef2ff; color: #4f46e5; box-shadow: none; }
             .accordion-item { border: none; margin-bottom: 10px; background: transparent; }
             .accordion-button:focus { box-shadow: none; border-color: rgba(0,0,0,.125); }
+            
             .alert-modern { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; border-radius: 8px; padding: 10px; font-size: 0.8rem; margin-top: 10px; }
             .input-modern { width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px; font-size: 0.85rem; margin-top: 6px; transition: border-color 0.2s; }
             .input-modern:focus { outline: none; border-color: var(--primary-color); }
@@ -71,6 +75,7 @@ function injectModernStyles() {
     }
 }
 
+// --- 2. AUTH & INIT ---
 onAuthStateChanged(auth, (user) => {
     if (user) {
         injectModernStyles(); 
@@ -116,6 +121,7 @@ function initPage() {
     fetchRepaymentData(userPoint);
 }
 
+// --- 3. FETCH DATA ---
 async function fetchRepaymentData(targetPoint) {
     try {
         const response = await fetch(SCRIPT_URL, {
@@ -151,6 +157,7 @@ function getValue(row, keys) {
     return "";
 }
 
+// --- 4. PROCESSING DATA (PERBAIKAN LOGIKA STATUS) ---
 function processAndRender(rawData, targetPoint) {
     let stats = { mm_total: 0, mm_bayar: 0, mm_kirim: 0, nc_total: 0, nc_bayar: 0, nc_kirim: 0 };
     let hierarchy = {}; 
@@ -173,19 +180,26 @@ function processAndRender(rawData, targetPoint) {
         const st_kirim  = getValue(row, ["status_kirim", "kirim"]) || "Belum";
         const alasan_db = getValue(row, ["keterangan", "alasan"]) || "";
 
-        const isLunas = st_bayar.toLowerCase() === "lunas";
-        const isTerkirim = st_kirim.toLowerCase() === "terkirim";
+        // PERBAIKAN LOGIKA: Cek lebih fleksibel (mengandung kata kunci)
+        const bayarLower = st_bayar.toLowerCase().trim();
+        const kirimLower = st_kirim.toLowerCase().trim();
 
+        const isLunas = bayarLower.includes("lunas") || bayarLower.includes("sudah") || bayarLower === "bayar";
+        const isTerkirim = kirimLower.includes("terkirim") || kirimLower.includes("sudah") || kirimLower === "kirim";
+
+        // Filter Point & Hari
         if (safeTarget !== "ALL" && p_cabang !== safeTarget) return; 
         if (p_hari.toLowerCase() !== currentDayName.toLowerCase()) return;
 
         const isCurrent = p_bucket <= 1; 
 
+        // Hitung Statistik
         if (isCurrent) {
             stats.mm_total++;
             if (isLunas) stats.mm_bayar++;
             if (isTerkirim) stats.mm_kirim++;
             
+            // Masukkan data ke Hierarchy hanya jika Current
             if (!hierarchy[p_bp]) hierarchy[p_bp] = {};
             if (!hierarchy[p_bp][p_majelis]) hierarchy[p_bp][p_majelis] = [];
             
@@ -194,7 +208,9 @@ function processAndRender(rawData, targetPoint) {
                 nama: getValue(row, ["nama_mitra", "nama", "client_name"]),
                 status_bayar: st_bayar,
                 status_kirim: st_kirim,
-                alasan: alasan_db
+                alasan: alasan_db,
+                is_lunas: isLunas,      // Simpan status boolean agar konsisten di UI
+                is_terkirim: isTerkirim
             });
         } else {
             stats.nc_total++;
@@ -216,6 +232,7 @@ function renderStats(stats) {
     document.getElementById('ncKirim').textContent = stats.nc_kirim;
 }
 
+// --- 5. RENDER UI MODERN ---
 function renderAccordion(hierarchy) {
     const container = document.getElementById('accordionBP');
     container.innerHTML = ""; 
@@ -269,7 +286,6 @@ function renderAccordion(hierarchy) {
             `;
         });
 
-        // HAPUS class 'show' agar default tertutup
         const bpWrapper = `
             <div class="card border-0 shadow-sm mb-3" style="border-radius: 16px; overflow:hidden;">
                 <div class="card-header bg-white border-0 py-3" id="headingBP-${bpIndex}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseBP-${bpIndex}" aria-expanded="false">
@@ -298,25 +314,27 @@ function renderAccordion(hierarchy) {
 }
 
 function createMitraCard(mitra) {
-    const stBayar = (mitra.status_bayar || "").toLowerCase();
-    const stKirim = (mitra.status_kirim || "").toLowerCase();
+    // Gunakan logika boolean yang sudah dihitung sebelumnya agar konsisten dengan statistik
+    const isLunas = mitra.is_lunas;
+    const isTerkirim = mitra.is_terkirim;
 
     let styleBayar = "";
-    if (stBayar === 'lunas') {
-        styleBayar = "background-color: #d1e7dd; color: #0f5132; border: 1px solid #badbcc;";
+    if (isLunas) {
+        styleBayar = "background-color: #d1e7dd; color: #0f5132; border: 1px solid #badbcc;"; // Hijau Transparan
     } else {
-        styleBayar = "background-color: #f8d7da; color: #842029; border: 1px solid #f5c2c7;";
+        styleBayar = "background-color: #f8d7da; color: #842029; border: 1px solid #f5c2c7;"; // Merah Transparan
     }
 
     let styleKirim = "";
-    if (stKirim === 'terkirim' || stKirim.includes('sudah')) {
-        styleKirim = "background-color: #198754; color: white; box-shadow: 0 2px 4px rgba(25, 135, 84, 0.3);";
+    if (isTerkirim) {
+        styleKirim = "background-color: #198754; color: white; box-shadow: 0 2px 4px rgba(25, 135, 84, 0.3);"; // Hijau Bold
     } else {
-        styleKirim = "background-color: #dc3545; color: white; box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);";
+        styleKirim = "background-color: #dc3545; color: white; box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);"; // Merah Bold
     }
 
     let specialUI = "";
-    if (stBayar !== 'lunas' && stKirim === 'terkirim') {
+    // Logika alert: Jika BELUM Lunas TAPI SUDAH Terkirim -> Janggal
+    if (!isLunas && isTerkirim) {
         specialUI = `
             <div class="alert-modern">
                 <div class="d-flex align-items-start gap-2">
@@ -358,6 +376,7 @@ function createMitraCard(mitra) {
     `;
 }
 
+// --- 6. EXPORTS & EVENTS ---
 window.toggleValidation = function(element, id) {
     const inputReason = document.getElementById(`validasi-${id}`);
     
