@@ -22,6 +22,7 @@ const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev";
 const userNameSpan = document.getElementById('userName') || document.getElementById('welcomeName');
 const logoutBtn = document.getElementById('logoutBtn');
 const btnAdmin = document.getElementById('btnAdmin'); 
+const closingMenuBtn = document.getElementById('closingMenuBtn'); // ID Tombol Closing Baru
 
 // ID ADMIN
 const ADMIN_ID = "17246";
@@ -33,7 +34,6 @@ const IDLE_LIMIT = 5; // 5 Menit
 function timerIncrement() {
     idleTime = idleTime + 1;
     if (idleTime >= IDLE_LIMIT) { 
-        // User idle for 5 minutes
         signOut(auth).then(() => {
             alert("Sesi Anda berakhir karena tidak ada aktivitas selama 5 menit.");
             window.location.replace("index.html");
@@ -41,20 +41,16 @@ function timerIncrement() {
     }
 }
 
-// Reset idle timer on user activity
 function resetTimer() {
     idleTime = 0;
 }
 
-// Events to monitor
 window.onload = function() {
-    // Check idle time every minute
-    setInterval(timerIncrement, 60000); // 1 minute interval
-
+    setInterval(timerIncrement, 60000); 
     window.onmousemove = resetTimer;
-    window.onmousedown = resetTimer; // catches touchscreen presses as well      
-    window.ontouchstart = resetTimer; // catches touchscreen swipes as well 
-    window.onclick = resetTimer;     // catches touchpad clicks as well
+    window.onmousedown = resetTimer;      
+    window.ontouchstart = resetTimer; 
+    window.onclick = resetTimer;     
     window.onkeypress = resetTimer;   
     window.addEventListener('scroll', resetTimer, true); 
 };
@@ -94,13 +90,13 @@ async function checkAbsensiStatus(uid) {
         // KONDISI 1: SUDAH ABSEN
         if (snapshot.exists()) {
             btnAbsen.style.pointerEvents = "none";
-            btnAbsen.style.opacity = "0.5"; // Transparan
-            btnAbsen.style.filter = "grayscale(100%)"; // Hitam Putih
+            btnAbsen.style.opacity = "0.5"; 
+            btnAbsen.style.filter = "grayscale(100%)"; 
             
             if (textEl) {
                 textEl.innerText = "Sudah Absen";
                 textEl.style.fontWeight = "bold";
-                textEl.style.color = "#666"; // Abu-abu netral
+                textEl.style.color = "#666"; 
             }
         } 
         // KONDISI 2: BELUM ABSEN TAPI SUDAH LEWAT JAM 08:15 WIB
@@ -109,15 +105,14 @@ async function checkAbsensiStatus(uid) {
             const BATAS_WAKTU = "08:15";
 
             if (jamSekarang > BATAS_WAKTU) {
-                // Matikan Tombol (Transparan Saja, Jangan Merah)
                 btnAbsen.style.pointerEvents = "none";
-                btnAbsen.style.opacity = "0.5"; // Efek Transparan / Pudar
-                btnAbsen.style.filter = "grayscale(100%)"; // Hitam Putih
+                btnAbsen.style.opacity = "0.5"; 
+                btnAbsen.style.filter = "grayscale(100%)"; 
                 
                 if (textEl) {
                     textEl.innerText = "Absen Tutup";
                     textEl.style.fontWeight = "bold";
-                    textEl.style.color = "#666"; // Abu-abu netral (Bukan Merah)
+                    textEl.style.color = "#666"; 
                 }
             }
         }
@@ -138,9 +133,20 @@ onAuthStateChanged(auth, (user) => {
                 const realName = data.nama || data.idKaryawan || user.email;
                 if (userNameSpan) userNameSpan.textContent = realName;
 
+                // --- CEK ID KARYAWAN UNTUK MENU ADMIN ---
                 if (String(data.idKaryawan).trim() === ADMIN_ID) {
                     if (btnAdmin) btnAdmin.classList.remove('d-none');
                 }
+
+                // --- CEK JABATAN UNTUK MENU CLOSING POINT ---
+                // Hanya untuk RM, AM, BM
+                const userJabatan = data.jabatan || ""; 
+                const allowedRoles = ["RM", "AM", "BM"];
+
+                if (allowedRoles.includes(userJabatan.toUpperCase())) {
+                    if (closingMenuBtn) closingMenuBtn.classList.remove('d-none');
+                }
+
             } else {
                 if (userNameSpan) userNameSpan.textContent = user.email;
             }
