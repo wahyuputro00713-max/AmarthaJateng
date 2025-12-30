@@ -57,7 +57,7 @@ function injectModernStyles() {
             .btn-check-modern.checked { background: #22c55e; border-color: #22c55e; color: white; transform: scale(1.1); box-shadow: 0 4px 10px rgba(34, 197, 94, 0.4); }
             
             /* Accordion Styling */
-            .accordion-button::after { display: none !important; } /* Hapus panah default */
+            .accordion-button::after { display: none !important; }
             .custom-arrow { transition: transform 0.3s ease; }
             .accordion-button:not(.collapsed) .custom-arrow { transform: rotate(180deg); }
             .card-header[aria-expanded="true"] .custom-arrow { transform: rotate(180deg); }
@@ -157,7 +157,7 @@ function getValue(row, keys) {
     return "";
 }
 
-// --- 4. PROCESSING DATA (PERBAIKAN LOGIKA STATUS) ---
+// --- 4. PROCESSING DATA (PERBAIKAN LOGIKA) ---
 function processAndRender(rawData, targetPoint) {
     let stats = { mm_total: 0, mm_bayar: 0, mm_kirim: 0, nc_total: 0, nc_bayar: 0, nc_kirim: 0 };
     let hierarchy = {}; 
@@ -180,12 +180,12 @@ function processAndRender(rawData, targetPoint) {
         const st_kirim  = getValue(row, ["status_kirim", "kirim"]) || "Belum";
         const alasan_db = getValue(row, ["keterangan", "alasan"]) || "";
 
-        // PERBAIKAN LOGIKA: Cek lebih fleksibel (mengandung kata kunci)
-        const bayarLower = st_bayar.toLowerCase().trim();
-        const kirimLower = st_kirim.toLowerCase().trim();
+        // PERBAIKAN: Gunakan .includes agar "Bayar" atau "Sudah Bayar" tetap dianggap lunas
+        const bayarLower = st_bayar.toLowerCase();
+        const kirimLower = st_kirim.toLowerCase();
 
-        const isLunas = bayarLower.includes("lunas") || bayarLower.includes("sudah") || bayarLower === "bayar";
-        const isTerkirim = kirimLower.includes("terkirim") || kirimLower.includes("sudah") || kirimLower === "kirim";
+        const isLunas = bayarLower.includes("lunas") || bayarLower.includes("bayar") || bayarLower.includes("sudah");
+        const isTerkirim = kirimLower.includes("terkirim") || kirimLower.includes("sudah") || kirimLower.includes("kirim");
 
         // Filter Point & Hari
         if (safeTarget !== "ALL" && p_cabang !== safeTarget) return; 
@@ -193,13 +193,11 @@ function processAndRender(rawData, targetPoint) {
 
         const isCurrent = p_bucket <= 1; 
 
-        // Hitung Statistik
         if (isCurrent) {
             stats.mm_total++;
             if (isLunas) stats.mm_bayar++;
             if (isTerkirim) stats.mm_kirim++;
             
-            // Masukkan data ke Hierarchy hanya jika Current
             if (!hierarchy[p_bp]) hierarchy[p_bp] = {};
             if (!hierarchy[p_bp][p_majelis]) hierarchy[p_bp][p_majelis] = [];
             
@@ -208,9 +206,7 @@ function processAndRender(rawData, targetPoint) {
                 nama: getValue(row, ["nama_mitra", "nama", "client_name"]),
                 status_bayar: st_bayar,
                 status_kirim: st_kirim,
-                alasan: alasan_db,
-                is_lunas: isLunas,      // Simpan status boolean agar konsisten di UI
-                is_terkirim: isTerkirim
+                alasan: alasan_db
             });
         } else {
             stats.nc_total++;
@@ -232,7 +228,7 @@ function renderStats(stats) {
     document.getElementById('ncKirim').textContent = stats.nc_kirim;
 }
 
-// --- 5. RENDER UI MODERN ---
+// --- 5. RENDER UI ---
 function renderAccordion(hierarchy) {
     const container = document.getElementById('accordionBP');
     container.innerHTML = ""; 
@@ -314,26 +310,34 @@ function renderAccordion(hierarchy) {
 }
 
 function createMitraCard(mitra) {
-    // Gunakan logika boolean yang sudah dihitung sebelumnya agar konsisten dengan statistik
-    const isLunas = mitra.is_lunas;
-    const isTerkirim = mitra.is_terkirim;
+    const stBayar = (mitra.status_bayar || "").toLowerCase();
+    const stKirim = (mitra.status_kirim || "").toLowerCase();
 
+    // PERBAIKAN: Gunakan .includes() untuk style warna juga
     let styleBayar = "";
-    if (isLunas) {
-        styleBayar = "background-color: #d1e7dd; color: #0f5132; border: 1px solid #badbcc;"; // Hijau Transparan
+    if (stBayar.includes('lunas') || stBayar.includes('bayar') || stBayar.includes('sudah')) {
+        // Hijau Transparan
+        styleBayar = "background-color: #d1e7dd; color: #0f5132; border: 1px solid #badbcc;";
     } else {
-        styleBayar = "background-color: #f8d7da; color: #842029; border: 1px solid #f5c2c7;"; // Merah Transparan
+        // Merah Transparan
+        styleBayar = "background-color: #f8d7da; color: #842029; border: 1px solid #f5c2c7;";
     }
 
     let styleKirim = "";
-    if (isTerkirim) {
-        styleKirim = "background-color: #198754; color: white; box-shadow: 0 2px 4px rgba(25, 135, 84, 0.3);"; // Hijau Bold
+    if (stKirim.includes('terkirim') || stKirim.includes('sudah') || stKirim.includes('kirim')) {
+        // Hijau Solid
+        styleKirim = "background-color: #198754; color: white; box-shadow: 0 2px 4px rgba(25, 135, 84, 0.3);";
     } else {
-        styleKirim = "background-color: #dc3545; color: white; box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);"; // Merah Bold
+        // Merah Solid
+        styleKirim = "background-color: #dc3545; color: white; box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);";
     }
 
+    // Logic Alert: Jika Belum Lunas (Merah) TAPI Sudah Terkirim (Hijau) -> Tampilkan Alert
+    // Kita cek lagi manual karena variabel styleBayar hanya string CSS
+    const isLunas = stBayar.includes('lunas') || stBayar.includes('bayar') || stBayar.includes('sudah');
+    const isTerkirim = stKirim.includes('terkirim') || stKirim.includes('sudah') || stKirim.includes('kirim');
+
     let specialUI = "";
-    // Logika alert: Jika BELUM Lunas TAPI SUDAH Terkirim -> Janggal
     if (!isLunas && isTerkirim) {
         specialUI = `
             <div class="alert-modern">
@@ -409,17 +413,4 @@ document.addEventListener("DOMContentLoaded", () => {
             if(confirm("Validasi semua data yang Lunas & Terkirim?")) {
                 const checkboxes = document.querySelectorAll('.btn-check-modern');
                 let count = 0;
-                checkboxes.forEach(btn => {
-                    const parent = btn.closest('.mitra-card');
-                    if (!parent.querySelector('.alert-modern')) {
-                        if (!btn.classList.contains('checked')) {
-                            btn.classList.add('checked');
-                            count++;
-                        }
-                    }
-                });
-                alert(`✨ Berhasil memvalidasi otomatis ${count} mitra.`);
-            }
-        });
-    }
-});
+                checkbox
