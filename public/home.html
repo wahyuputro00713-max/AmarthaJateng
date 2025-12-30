@@ -113,6 +113,11 @@
         .snowflake { position: fixed; top: -10px; z-index: 99999; color: #dbeeff; text-shadow: 0 0 5px rgba(0,0,0,0.1); user-select: none; pointer-events: none; cursor: default; animation-name: fall; animation-timing-function: linear; animation-iteration-count: infinite; }
         @keyframes fall { to { transform: translateY(105vh); } }
 
+        /* --- CSS KEMBANG API --- */
+        .hero-header { position: relative; overflow: hidden; }
+        #fireworksCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+        .hero-header .top-bar, .hero-header .user-welcome { position: relative; z-index: 10; }
+
         /* --- CSS MENU BULAT BAWAH (FAB) --- */
         .fab-container {
             position: fixed; bottom: 30px; right: 20px; z-index: 9999;
@@ -126,6 +131,7 @@
             transition: transform 0.3s, background 0.3s;
         }
         .fab-container.active .fab-main { transform: rotate(45deg); background: #c0392b; }
+        
         .fab-item {
             width: 50px; height: 50px; background: white; border-radius: 50%;
             display: flex; justify-content: center; align-items: center; color: #8e44ad; text-decoration: none;
@@ -133,11 +139,13 @@
             pointer-events: none; transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55); position: relative;
         }
         .fab-item:hover { background: #f3e5f5; color: #6a1b9a; }
+        
         .fab-label {
             position: absolute; right: 60px; background: rgba(0,0,0,0.8); color: white;
             padding: 4px 10px; border-radius: 5px; font-size: 12px; font-weight: bold; white-space: nowrap;
             opacity: 0; transition: opacity 0.3s; pointer-events: none;
         }
+        
         .fab-container.active .fab-item { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
         .fab-container.active .fab-item:hover .fab-label { opacity: 1; }
         
@@ -391,7 +399,7 @@
             <i class="fa-solid fa-chart-line"></i>
         </a>
 
-        <a href="#" class="fab-item">
+        <a href="link_penting.html" class="fab-item">
             <span class="fab-label">Link Penting</span>
             <i class="fa-solid fa-link"></i>
         </a>
@@ -472,6 +480,7 @@
         const btn = document.getElementById('btnHeaderMenu');
         const menu = document.getElementById('expandedMenu');
         if (btn && menu) {
+            // Cek jika yang diklik bukan tombol dan bukan area menu
             if (!btn.contains(e.target) && !menu.contains(e.target)) {
                 menu.classList.remove('show');
             }
