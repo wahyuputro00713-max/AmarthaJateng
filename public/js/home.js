@@ -16,23 +16,32 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// URL APPS SCRIPT LANGSUNG (Untuk Leaderboard)
+// URL APPS SCRIPT LANGSUNG
 const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev";
 
 const userNameSpan = document.getElementById('userName') || document.getElementById('welcomeName');
 const logoutBtn = document.getElementById('logoutBtn');
 const btnAdmin = document.getElementById('btnAdmin'); 
 
-// ID ADMIN (Yang berhak melihat menu Kelola Akun)
+// ID ADMIN
 const ADMIN_ID = "17246";
 
-// --- FUNGSI HELPER: AMBIL TANGGAL LOKAL (WIB/HP User) ---
+// --- FUNGSI HELPER: TANGGAL & JAM LOKAL (WIB) ---
 function getLocalTodayDate() {
     const d = new Date();
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`; // Format: YYYY-MM-DD
+    return `${year}-${month}-${day}`; 
+}
+
+function getCurrentTimeWIB() {
+    return new Date().toLocaleTimeString('en-GB', {
+        timeZone: 'Asia/Jakarta',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    });
 }
 
 // --- FUNGSI CEK STATUS ABSENSI ---
@@ -42,22 +51,43 @@ async function checkAbsensiStatus(uid) {
 
     try {
         const snapshot = await get(absensiRef);
-        // Cari tombol absen berdasarkan ID yang baru ditambahkan di HTML
         const btnAbsen = document.getElementById('btnAbsen') || document.querySelector('a[href="absensi.html"]');
 
-        if (snapshot.exists() && btnAbsen) {
-            // Matikan Tombol
-            btnAbsen.style.pointerEvents = "none";
-            btnAbsen.style.opacity = "0.7";
-            btnAbsen.style.filter = "grayscale(100%)"; // Bikin jadi abu-abu
+        if (!btnAbsen) return;
 
-            // Ubah Teks "Masuk" jadi "Sudah Absen"
-            const textEl = btnAbsen.querySelector('.menu-text');
+        const textEl = btnAbsen.querySelector('.menu-text');
+
+        // KONDISI 1: SUDAH ABSEN
+        if (snapshot.exists()) {
+            btnAbsen.style.pointerEvents = "none";
+            btnAbsen.style.opacity = "0.5"; // Transparan
+            btnAbsen.style.filter = "grayscale(100%)"; // Hitam Putih
+            
             if (textEl) {
                 textEl.innerText = "Sudah Absen";
                 textEl.style.fontWeight = "bold";
+                textEl.style.color = "#666"; // Abu-abu netral
+            }
+        } 
+        // KONDISI 2: BELUM ABSEN TAPI SUDAH LEWAT JAM 08:15 WIB
+        else {
+            const jamSekarang = getCurrentTimeWIB();
+            const BATAS_WAKTU = "08:15";
+
+            if (jamSekarang > BATAS_WAKTU) {
+                // Matikan Tombol (Transparan Saja, Jangan Merah)
+                btnAbsen.style.pointerEvents = "none";
+                btnAbsen.style.opacity = "0.5"; // Efek Transparan / Pudar
+                btnAbsen.style.filter = "grayscale(100%)"; // Hitam Putih
+                
+                if (textEl) {
+                    textEl.innerText = "Absen Tutup";
+                    textEl.style.fontWeight = "bold";
+                    textEl.style.color = "#666"; // Abu-abu netral (Bukan Merah)
+                }
             }
         }
+
     } catch (error) {
         console.error("Gagal cek absensi:", error);
     }
@@ -65,31 +95,24 @@ async function checkAbsensiStatus(uid) {
 
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        // 1. Cek Status Absen Hari Ini
         checkAbsensiStatus(user.uid);
 
-        // 2. Ambil Profil User
         const userRef = ref(db, 'users/' + user.uid);
         get(userRef).then((snapshot) => {
             if (snapshot.exists()) {
                 const data = snapshot.val();
                 const realName = data.nama || data.idKaryawan || user.email;
-                
                 if (userNameSpan) userNameSpan.textContent = realName;
 
-                // --- LOGIKA TAMPILKAN TOMBOL ADMIN ---
                 if (String(data.idKaryawan).trim() === ADMIN_ID) {
                     if (btnAdmin) btnAdmin.classList.remove('d-none');
                 }
-
             } else {
                 if (userNameSpan) userNameSpan.textContent = user.email;
             }
-        }).catch(err => console.log("Gagal load profil sendiri:", err));
+        }).catch(err => console.log("Gagal load profil:", err));
 
-        // 3. Load Leaderboard
         loadLeaderboard();
-
     } else {
         window.location.replace("index.html");
     }
@@ -117,7 +140,6 @@ async function loadLeaderboard() {
         });
         
         const result = await response.json();
-        console.log("Data Spreadsheet:", result);
 
         if (result.result !== "success" || !result.data || result.data.length === 0) {
             showErrorState("Belum Ada Data");
@@ -125,9 +147,8 @@ async function loadLeaderboard() {
         }
 
         const top3 = result.data;
-
-        // Ambil Data Profil User Lain dari Firebase untuk Nama & Foto
         let usersMap = {};
+        
         try {
             const dbRef = ref(db);
             const snapshot = await get(child(dbRef, `users`));
@@ -144,7 +165,7 @@ async function loadLeaderboard() {
                 });
             }
         } catch (dbError) {
-            console.warn("Gagal ambil detail user, lanjut tampilkan ID saja.");
+            console.warn("Gagal ambil detail user.");
         }
 
         updatePodium(".rank-1", top3[0], usersMap);
@@ -175,8 +196,6 @@ function showErrorState(msg) {
     const card1 = document.querySelector(".rank-1");
     if(card1) {
         card1.querySelector('.bp-name').innerHTML = `<span style="color:red; font-size:10px;">${msg}</span>`;
-        card1.querySelector('.bp-point').textContent = "";
-        card1.querySelector('.bp-amount').textContent = "";
     }
 }
 
@@ -194,7 +213,6 @@ function updatePodium(selectorClass, data, usersMap) {
         const userProfile = usersMap[idCari];
         const displayName = userProfile ? userProfile.nama : `ID: ${data.idKaryawan}`;
         
-        // Foto
         let displayPhoto = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`;
         if (userProfile && userProfile.foto) {
             displayPhoto = userProfile.foto;
