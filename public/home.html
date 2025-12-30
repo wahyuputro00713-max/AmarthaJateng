@@ -145,11 +145,11 @@
         .fab-container.active .fab-item:nth-child(4) { transition-delay: 0.15s; }
 
         /* =========================================================
-           FIX Z-INDEX & POSISI
+           FIX CSS HEADER & MENU EXPAND KEKIRI
            ========================================================= */
         .hero-header {
             position: relative;
-            z-index: 100; /* Header Layer Tertinggi */
+            /* Header normal */
         }
 
         #fireworksCanvas {
@@ -163,72 +163,65 @@
 
         .hero-header .top-bar {
             position: relative;
-            z-index: 1000; /* Menu di atas segalanya */
+            z-index: 50; 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         
         .hero-header .user-welcome {
             position: relative;
-            z-index: 10;
+            z-index: 20;
         }
 
-        /* Container UTAMA */
-        .main-container {
-            position: relative;
-            z-index: 1; /* Di bawah Header */
-            /* Mengurangi overlap default (biasanya -60px di css asli), kita buat lebih kecil */
-            margin-top: -40px !important; 
+        /* Container Menu Kanan */
+        .header-actions {
+            display: flex;
+            align-items: center;
+            position: relative; /* Penting untuk absolute positioning anak-anaknya */
         }
 
-        /* FIX: Menurunkan Kartu Absensi agar tidak menutupi menu */
-        .card-absensi {
-            margin-top: 20px !important; /* Tambahkan jarak ekstra dari atas */
-            position: relative;
-            z-index: 2;
+        /* Menu yang akan muncul/bergeser */
+        .expanded-menu-items {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            position: absolute;
+            right: 50px; /* Posisi di sebelah kiri tombol utama */
+            top: 0;
+            
+            /* Animasi */
+            opacity: 0;
+            transform: translateX(20px) scale(0.8);
+            pointer-events: none;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Efek membal (bouncy) */
         }
 
-        /* --- MENU DROPDOWN HEADER --- */
+        /* State Aktif */
+        .expanded-menu-items.show {
+            opacity: 1;
+            transform: translateX(0) scale(1);
+            pointer-events: auto;
+        }
+
+        /* LOGO */
         .brand-logo {
             height: 35px; width: auto; margin-right: 8px; vertical-align: middle;
             filter: drop-shadow(0 2px 2px rgba(0,0,0,0.1));
         }
-        .header-menu-wrapper {
+
+        /* Container UTAMA (Di bawah header) */
+        .main-container {
             position: relative;
+            z-index: 1; 
+            margin-top: -30px; /* Overlap sedikit agar menyatu */
         }
-        .header-dropdown-content {
-            display: none;
-            position: absolute;
-            top: 100%;
-            right: 0;
-            background: white;
-            min-width: 180px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.25);
-            border-radius: 12px;
-            overflow: hidden;
-            margin-top: 10px;
-            z-index: 9999; /* PASTIKAN INI PALING ATAS */
-            animation: fadeIn 0.2s ease-in-out;
-        }
-        .header-dropdown-content.show {
-            display: block;
-        }
-        .header-dropdown-content a {
-            color: #333;
-            padding: 12px 16px;
-            text-decoration: none;
-            display: block;
-            font-size: 13px;
-            transition: 0.2s;
-            border-bottom: 1px solid #f0f0f0;
-        }
-        .header-dropdown-content a:last-child { border-bottom: none; }
-        .header-dropdown-content a:hover {
-            background-color: #f3e5f5;
-            color: #8e44ad;
-            padding-left: 20px;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
+
+        /* FIX: Kartu Absensi diturunkan */
+        .card-absensi {
+            margin-top: 25px !important; /* Jarak agar tidak nempel header */
+            position: relative;
+            z-index: 2;
         }
 
     </style>
@@ -244,22 +237,22 @@
                 Amartha
             </div>
             
-            <div class="header-menu-wrapper">
-                <button class="btn-icon-glass" onclick="toggleHeaderMenu()" id="btnHeaderMenu">
+            <div class="header-actions">
+                <div id="expandedMenu" class="expanded-menu-items">
+                    <a href="admin_user.html" id="btnAdmin" class="btn-icon-glass d-none" style="background: rgba(255,255,0,0.2); color: #fff176;" title="Admin">
+                        <i class="fa-solid fa-users-gear"></i>
+                    </a>
+                    <a href="profil.html" class="btn-icon-glass" title="Profil">
+                        <i class="fa-regular fa-user"></i>
+                    </a>
+                    <button id="logoutBtn" class="btn-icon-glass bg-danger border-0" title="Keluar">
+                        <i class="fa-solid fa-power-off"></i>
+                    </button>
+                </div>
+
+                <button class="btn-icon-glass" onclick="toggleHeaderMenu()" id="btnHeaderMenu" style="z-index: 100;">
                     <i class="fa-solid fa-layer-group"></i> 
                 </button>
-
-                <div class="header-dropdown-content" id="headerDropdown">
-                    <a href="admin_user.html" id="btnAdmin" class="d-none">
-                        <i class="fa-solid fa-users-gear me-2"></i> Admin Panel
-                    </a>
-                    <a href="profil.html">
-                        <i class="fa-regular fa-user me-2"></i> Profil Saya
-                    </a>
-                    <a href="#" id="logoutBtn" class="text-danger">
-                        <i class="fa-solid fa-power-off me-2"></i> Keluar
-                    </a>
-                </div>
             </div>
         </div>
         <div class="user-welcome"><p>Selamat Bekerja,</p><h2 id="userName">Loading...</h2></div>
@@ -346,120 +339,4 @@
                 <div class="menu-title">Collection<br>Harian</div>
             </a>
             
-            <a href="report_sosialisasi.html" class="menu-card">
-                <div class="menu-icon" style="background: #9b59b6; color: white;">
-                    <i class="fa-solid fa-users-rectangle"></i>
-                </div>
-                <div class="menu-title">Laporan<br>Sosialisasi</div>
-            </a>
-            
-            <a href="report_celengan.html" class="menu-card">
-                <div class="menu-icon" style="background: #9b59b6; color: white;">
-                    <i class="fa-solid fa-piggy-bank"></i>
-                </div>
-                <div class="menu-title">Laporan<br>Celengan</div>
-            </a>
-            
-            <a href="dashboard_modal.html" class="menu-card">
-                <div class="menu-icon" style="background: #9b59b6; color: white;">
-                    <i class="fa-solid fa-chart-line"></i>
-                </div>
-                <div class="menu-title">Dashboard<br>Modal</div>
-            </a>
-
-        </div>
-        <div class="footer-info">&copy; 2025 Amartha Regional Jawa Tengah 1</div>
-    </div>
-
-    <div class="fab-container" id="fabMenu">
-        <button class="fab-main" onclick="toggleFab()">
-            <i class="fa-solid fa-plus"></i>
-        </button>
-        <a href="#" class="fab-item"><span class="fab-label">Quest</span><i class="fa-solid fa-scroll"></i></a>
-        <a href="#" class="fab-item"><span class="fab-label">Perform Point</span><i class="fa-solid fa-map-location-dot"></i></a>
-        <a href="#" class="fab-item"><span class="fab-label">Perform BP</span><i class="fa-solid fa-chart-line"></i></a>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script type="module" src="./js/home.js"></script>
-    
-    <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        
-        // --- EFEK SALJU ---
-        const snowSymbol = '❄'; const spawnRate = 200; 
-        function createSnowflake() {
-            const snowflake = document.createElement('div'); snowflake.classList.add('snowflake'); snowflake.innerHTML = snowSymbol;
-            snowflake.style.left = Math.random() * 100 + 'vw';
-            const size = Math.random() * 15 + 10; snowflake.style.fontSize = size + 'px';
-            const duration = Math.random() * 5 + 3; snowflake.style.animationDuration = duration + 's';
-            snowflake.style.opacity = Math.random() * 0.7 + 0.3;
-            document.body.appendChild(snowflake);
-            setTimeout(() => { snowflake.remove(); }, duration * 1000);
-        }
-        setInterval(createSnowflake, spawnRate);
-
-        // --- EFEK KEMBANG API ---
-        const canvas = document.getElementById('fireworksCanvas');
-        if(canvas) {
-            const ctx = canvas.getContext('2d');
-            let particles = [];
-            function resizeCanvas() { canvas.width = canvas.parentElement.offsetWidth; canvas.height = canvas.parentElement.offsetHeight; }
-            window.addEventListener('resize', resizeCanvas); resizeCanvas();
-            class Particle {
-                constructor(x, y, color) {
-                    this.x = x; this.y = y; this.color = color;
-                    const angle = Math.random() * Math.PI * 2; const velocity = Math.random() * 3 + 1;
-                    this.vx = Math.cos(angle) * velocity; this.vy = Math.sin(angle) * velocity;
-                    this.alpha = 1; this.gravity = 0.04; this.friction = 0.96;
-                }
-                update() { this.vx *= this.friction; this.vy *= this.friction; this.vy += this.gravity; this.x += this.vx; this.y += this.vy; this.alpha -= 0.02; }
-                draw(ctx) { ctx.save(); ctx.globalAlpha = this.alpha; ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.x, this.y, 2, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
-            }
-            function createExplosion() {
-                const x = Math.random() * canvas.width; const y = Math.random() * (canvas.height * 0.7);
-                const colors = ['#FFD700', '#FF4500', '#00BFFF', '#7CFC00', '#FF69B4', '#FFFFFF'];
-                const color = colors[Math.floor(Math.random() * colors.length)];
-                for (let i = 0; i < 30; i++) particles.push(new Particle(x, y, color));
-            }
-            function animate() {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                if (Math.random() < 0.03) createExplosion();
-                particles.forEach((p, index) => { p.update(); p.draw(ctx); if (p.alpha <= 0) particles.splice(index, 1); });
-                requestAnimationFrame(animate);
-            }
-            animate();
-        }
-    });
-
-    // --- LOGIKA MENU BULAT BAWAH (FAB) ---
-    function toggleFab() {
-        const fabMenu = document.getElementById('fabMenu');
-        fabMenu.classList.toggle('active');
-        const icon = fabMenu.querySelector('.fab-main i');
-        if (fabMenu.classList.contains('active')) {
-            icon.classList.remove('fa-plus'); icon.classList.add('fa-times');
-        } else {
-            icon.classList.remove('fa-times'); icon.classList.add('fa-plus');
-        }
-    }
-
-    // --- LOGIKA MENU HEADER (Tumpukan Buku) ---
-    function toggleHeaderMenu() {
-        const menu = document.getElementById('headerDropdown');
-        menu.classList.toggle('show');
-    }
-
-    // Tutup menu header jika klik di luar
-    window.addEventListener('click', function(e) {
-        const btn = document.getElementById('btnHeaderMenu');
-        const menu = document.getElementById('headerDropdown');
-        if (btn && menu) {
-            if (!btn.contains(e.target) && !menu.contains(e.target)) {
-                menu.classList.remove('show');
-            }
-        }
-    });
-    </script>
-</body>
-</html>
+            <a href="report_sosialisasi.html
