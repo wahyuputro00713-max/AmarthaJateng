@@ -5,7 +5,6 @@ import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.7.1
 const firebaseConfig = {
     apiKey: "AIzaSyC8wOUkyZTa4W2hHHGZq_YKnGFqYEGOuH8",
     authDomain: "amarthajatengwebapp.firebaseapp.com",
-    databaseURL: "https://amarthajatengwebapp-default-rtdb.firebaseio.com",
     projectId: "amarthajatengwebapp",
     storageBucket: "amarthajatengwebapp.firebasestorage.app",
     messagingSenderId: "22431520744",
@@ -16,335 +15,397 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// URL APPS SCRIPT (Pastikan URL ini benar)
-const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; 
-const ADMIN_ID = "17246";
+// URL APPS SCRIPT LANGSUNG
+const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev";
 
-let userProfile = null;
-let currentDayName = ""; // Variabel global untuk menyimpan nama hari ini
+let globalData = [];
+let userProfile = { idKaryawan: "", area: "", point: "" };
 
+const filterArea = document.getElementById('filterArea');
+const filterPoint = document.getElementById('filterPoint');
+const filterBP = document.getElementById('filterBP');
+const filterHari = document.getElementById('filterHari');
+const btnTampilkan = document.getElementById('btnTampilkan');
+const majelisContainer = document.getElementById('majelisContainer');
+const loadingOverlay = document.getElementById('loadingOverlay');
+const emptyState = document.getElementById('emptyState');
+
+// 1. Cek Login
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        checkUserRole(user.uid);
+        getUserProfile(user.uid).then(() => {
+            fetchData();
+        });
     } else {
         window.location.replace("index.html");
     }
 });
 
-function checkUserRole(uid) {
-    const userRef = ref(db, 'users/' + uid);
-    get(userRef).then((snapshot) => {
-        if (snapshot.exists()) {
-            const data = snapshot.val();
-            const jabatan = (data.jabatan || "").toUpperCase();
-            const allowed = ["RM", "AM", "BM", "ADMIN"]; 
-
-            if (allowed.includes(jabatan) || String(data.idKaryawan).trim() === ADMIN_ID) {
-                userProfile = data; 
-                initPage();
-            } else {
-                alert("Akses Ditolak: Halaman ini khusus RM, AM, dan BM.");
-                window.location.replace("home.html");
-            }
-        } else {
-            window.location.replace("home.html");
-        }
-    });
-}
-
-function initPage() {
-    const today = new Date();
-    const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
-    
-    // 1. Simpan Nama Hari Ini (misal: "Selasa")
-    currentDayName = today.toLocaleDateString('id-ID', { weekday: 'long' });
-    
-    // Tampilkan Tanggal di Header
-    document.getElementById('displayDate').textContent = today.toLocaleDateString('id-ID', options);
-
-    const userArea = userProfile.area || userProfile.Area || "Area -";
-    const userPoint = userProfile.cabang || userProfile.Cabang || userProfile.point || userProfile.Point || "Point -";
-
-    document.getElementById('areaName').textContent = userArea;
-    document.getElementById('pointName').textContent = userPoint;
-
-    fetchRepaymentData(userPoint);
-}
-
-// --- DATA FETCHING ---
-
-async function fetchRepaymentData(targetPoint) {
+// 2. Load Profil
+async function getUserProfile(uid) {
     try {
-        console.log("Fetching data for point:", targetPoint);
+        const snapshot = await get(ref(db, 'users/' + uid));
+        if (snapshot.exists()) {
+            const val = snapshot.val();
+            userProfile.idKaryawan = val.idKaryawan || "Unknown";
+            userProfile.area = val.area || "";
+            userProfile.point = val.point || "";
+        }
+    } catch (err) {
+        console.error("Gagal load profil:", err);
+    }
+}
+
+// 3. Fetch Data (Hanya ambil data & isi filter, JANGAN render list)
+async function fetchData() {
+    try {
+        if(loadingOverlay) loadingOverlay.classList.remove('d-none');
         
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
-            body: JSON.stringify({ action: "get_majelis" }), 
+            body: JSON.stringify({ action: "get_data_modal" }),
             redirect: "follow",
             headers: { "Content-Type": "text/plain;charset=utf-8" }
         });
 
         const result = await response.json();
-
-        if (result.result !== "success") {
-            alert("Gagal mengambil data: " + result.error);
-            return;
-        }
-
-        processAndRender(result.data, targetPoint);
-
-    } catch (error) {
-        console.error("Error fetching data:", error);
-        document.getElementById('accordionBP').innerHTML = `
-            <div class="text-center text-danger py-4">
-                <i class="fa-solid fa-wifi mb-2"></i><br>
-                Gagal koneksi. Coba refresh halaman.
-            </div>
-        `;
-    }
-}
-
-function getValue(row, keys) {
-    const rowKeys = Object.keys(row);
-    for (let k of keys) {
-        const found = rowKeys.find(rk => rk.toLowerCase() === k.toLowerCase());
-        if (found) return row[found];
-    }
-    return "";
-}
-
-function processAndRender(rawData, targetPoint) {
-    let stats = {
-        mm_total: 0, mm_bayar: 0, mm_kirim: 0, 
-        nc_total: 0, nc_bayar: 0, nc_kirim: 0  
-    };
-
-    let hierarchy = {}; 
-    const normalize = (str) => String(str || "").trim().toUpperCase();
-    const safeTarget = normalize(targetPoint);
-
-    if (!rawData || rawData.length === 0) {
-        document.getElementById('accordionBP').innerHTML = `<div class="text-center py-4">Data Kosong dari Server.</div>`;
-        return;
-    }
-
-    rawData.forEach(row => {
-        // Ambil Data dari Row
-        const p_cabang  = normalize(getValue(row, ["cabang", "point", "unit"]));
-        const p_bp      = getValue(row, ["bp", "petugas", "ao"]) || "Tanpa BP";
-        const p_majelis = getValue(row, ["majelis", "group", "kelompok"]) || "Umum";
-        const p_hari    = getValue(row, ["hari", "day"]) || ""; // Ambil Data Hari
         
-        // Filter Bucket & Status
-        let rawBucket = getValue(row, ["bucket", "dpd", "kolek"]);
-        const p_bucket  = parseInt(rawBucket || 0);
-
-        const st_bayar  = getValue(row, ["status_bayar", "bayar"]) || "Belum";
-        const st_kirim  = getValue(row, ["status_kirim", "kirim"]) || "Belum";
-        const alasan_db = getValue(row, ["keterangan", "alasan"]) || "";
-
-        const isLunas = st_bayar.toLowerCase() === "lunas";
-        const isTerkirim = st_kirim.toLowerCase() === "terkirim";
-
-        // --- FILTER 1: POINT ---
-        if (safeTarget !== "ALL" && p_cabang !== safeTarget) {
-            return; 
-        }
-
-        // --- FILTER 2: HARI (BARU DITAMBAHKAN) ---
-        // Jika hari di data tidak sama dengan hari ini, lewati.
-        if (p_hari.toLowerCase() !== currentDayName.toLowerCase()) {
-            return;
-        }
-
-        const isCurrent = p_bucket <= 1; 
-
-        // HITUNG STATISTIK (Hanya untuk data hari ini)
-        if (isCurrent) {
-            stats.mm_total++;
-            if (isLunas) stats.mm_bayar++;
-            if (isTerkirim) stats.mm_kirim++;
+        if (result.result === "success" && Array.isArray(result.data)) {
+            globalData = result.data;
+            
+            // Populasi Filter saja
+            populateFilters(globalData);
+            
+            // Set Default Filter dari Profil User
+            if(userProfile.area) {
+                filterArea.value = userProfile.area;
+                updatePointDropdown(userProfile.area);
+                updateBPDropdown(); 
+            }
+            
+            if(userProfile.point && filterPoint) {
+                const options = Array.from(filterPoint.options).map(o => o.value);
+                if(options.includes(userProfile.point)) {
+                    filterPoint.value = userProfile.point;
+                    updateBPDropdown(); 
+                }
+            }
+            
         } else {
-            stats.nc_total++;
-            if (isLunas) stats.nc_bayar++;
-            if (isTerkirim) stats.nc_kirim++;
+            console.error("Gagal data:", result);
+            alert("Gagal mengambil data dari server.");
         }
+    } catch (error) {
+        console.error(error);
+        alert("Terjadi kesalahan koneksi.");
+    } finally {
+        if(loadingOverlay) loadingOverlay.classList.add('d-none');
+    }
+}
 
-        // MASUKKAN KE LIST (Hanya yang Current & Hari Ini)
-        if (isCurrent) {
-            if (!hierarchy[p_bp]) hierarchy[p_bp] = {};
-            if (!hierarchy[p_bp][p_majelis]) hierarchy[p_bp][p_majelis] = [];
+// 4. Logika Cascading Dropdown
+function populateFilters(data) {
+    const areas = [...new Set(data.map(i => i.area).filter(i => i && i !== "-"))].sort();
+    fillSelect(filterArea, areas);
+}
 
-            hierarchy[p_bp][p_majelis].push({
-                id: getValue(row, ["id_mitra", "id", "account_id"]),
-                nama: getValue(row, ["nama_mitra", "nama", "client_name"]),
-                status_bayar: st_bayar,
-                status_kirim: st_kirim,
-                alasan: alasan_db
-            });
-        }
+function updatePointDropdown(selectedArea) {
+    const relevant = selectedArea ? globalData.filter(i => i.area === selectedArea) : globalData;
+    const points = [...new Set(relevant.map(i => i.point).filter(i => i && i !== "-"))].sort();
+    fillSelect(filterPoint, points);
+}
+
+function updateBPDropdown() {
+    const selectedArea = filterArea.value;
+    const selectedPoint = filterPoint.value;
+    
+    let relevant = globalData;
+    if (selectedArea) {
+        relevant = relevant.filter(i => i.area === selectedArea);
+    }
+    if (selectedPoint) {
+        relevant = relevant.filter(i => i.point === selectedPoint);
+    }
+
+    const bps = [...new Set(relevant.map(i => i.nama_bp).filter(i => i && i !== "-"))].sort();
+    fillSelect(filterBP, bps);
+}
+
+if(filterArea) {
+    filterArea.addEventListener('change', () => {
+        filterPoint.value = ""; 
+        filterBP.value = "";    
+        updatePointDropdown(filterArea.value);
+        updateBPDropdown();
+    });
+}
+
+if(filterPoint) {
+    filterPoint.addEventListener('change', () => {
+        filterBP.value = "";    
+        updateBPDropdown();
+    });
+}
+
+function fillSelect(el, items) {
+    const current = el.value;
+    let html = el.options[0].outerHTML; 
+    html += items.map(i => `<option value="${i}">${i}</option>`).join('');
+    el.innerHTML = html;
+    if(items.includes(current)) el.value = current;
+    else el.value = "";
+}
+
+// 5. RENDER DATA (STRUKTUR BARU: BP -> MAJELIS -> MITRA)
+function renderGroupedData(data) {
+    majelisContainer.innerHTML = "";
+    
+    const fArea = filterArea.value.toLowerCase();
+    const fPoint = filterPoint.value.toLowerCase();
+    const fBP = filterBP.value; 
+    const fHari = filterHari.value.toLowerCase();
+
+    // Filter Data
+    const filtered = data.filter(item => {
+        const matchArea = fArea === "" || String(item.area).toLowerCase() === fArea;
+        const matchPoint = fPoint === "" || String(item.point).toLowerCase() === fPoint;
+        const matchHari = fHari === "" || String(item.hari).toLowerCase() === fHari;
+        const matchBP = fBP === "" || item.nama_bp === fBP;
+        return matchArea && matchPoint && matchHari && matchBP;
     });
 
-    renderStats(stats);
-    renderAccordion(hierarchy);
-}
-
-function renderStats(stats) {
-    document.getElementById('mmTotal').textContent = stats.mm_total;
-    document.getElementById('mmBayar').textContent = stats.mm_bayar;
-    document.getElementById('mmKirim').textContent = stats.mm_kirim;
-
-    document.getElementById('ncTotal').textContent = stats.nc_total;
-    document.getElementById('ncBayar').textContent = stats.nc_bayar;
-    document.getElementById('ncKirim').textContent = stats.nc_kirim;
-}
-
-function renderAccordion(hierarchy) {
-    const container = document.getElementById('accordionBP');
-    container.innerHTML = ""; 
-
-    const bpKeys = Object.keys(hierarchy).sort(); 
-
-    if (bpKeys.length === 0) {
-        container.innerHTML = `
-            <div class="text-center text-muted py-5">
-                <img src="https://cdn-icons-png.flaticon.com/512/7486/7486754.png" width="60" class="mb-3 opacity-50">
-                <p>Tidak ada jadwal majelis untuk hari <b>${currentDayName}</b>.</p>
-            </div>`;
+    // Handle Empty State
+    if (filtered.length === 0) {
+        emptyState.classList.remove('d-none');
+        if (fArea === "" && fPoint === "" && fBP === "" && fHari === "") {
+             emptyState.querySelector('p').innerHTML = "Silakan pilih filter dan klik <b>Tampilkan Data</b>";
+        } else {
+             emptyState.querySelector('p').textContent = "Data tidak ditemukan sesuai filter.";
+        }
+        
+        document.getElementById('totalMajelis').innerText = "Total: 0";
+        document.getElementById('totalMitra').innerText = "0 Mitra";
         return;
     }
+    emptyState.classList.add('d-none');
 
-    bpKeys.forEach((bpName, index) => {
+    // --- GROUPING LOGIC (HIERARKI 3 LEVEL) ---
+    // Struktur: { "Nama BP": { "Nama Majelis": [Array Mitra] } }
+    const hierarchy = {};
+
+    filtered.forEach(item => {
+        const bpName = item.nama_bp || "Tanpa BP";
+        const majelisName = item.majelis || "Tanpa Majelis";
+
+        if (!hierarchy[bpName]) hierarchy[bpName] = {};
+        if (!hierarchy[bpName][majelisName]) hierarchy[bpName][majelisName] = [];
+        
+        hierarchy[bpName][majelisName].push(item);
+    });
+
+    // Hitung Total Statistik
+    const totalBP = Object.keys(hierarchy).length;
+    let totalMajelis = 0;
+    Object.values(hierarchy).forEach(majObj => totalMajelis += Object.keys(majObj).length);
+
+    document.getElementById('totalMajelis').innerText = `Total: ${totalBP} BP / ${totalMajelis} Majelis`;
+    document.getElementById('totalMitra').innerText = `${filtered.length} Mitra`;
+
+    // --- RENDER HTML ---
+    let htmlContent = "";
+    const bpKeys = Object.keys(hierarchy).sort();
+
+    bpKeys.forEach((bpName, bpIndex) => {
         const majelisObj = hierarchy[bpName];
         const majelisKeys = Object.keys(majelisObj).sort();
         
-        let majelisHtml = "";
+        // --- LEVEL 2: DAFTAR MAJELIS (ACCORDION DALAM) ---
+        let majelisHtml = `<div class="accordion" id="accordionMajelis-${bpIndex}">`;
         
-        majelisKeys.forEach(majName => {
-            const mitraList = majelisObj[majName];
-            let mitraHtml = "";
+        majelisKeys.forEach((majName, majIndex) => {
+            const mitras = majelisObj[majName];
+            
+            // Generate Table Rows untuk Mitra
+            const rows = mitras.map(m => {
+                const statusBayar = String(m.status).toLowerCase();
+                const statusKirim = String(m.status_kirim || "").toLowerCase();
+                const isSent = statusKirim.includes("sudah");
+                
+                let badgeClass = "text-success"; 
+                if (statusBayar === "telat") badgeClass = "text-danger";
+                
+                const formatRupiah = (val) => {
+                    if(!val || val === "0" || val === "-") return "-";
+                    const cleanVal = String(val).replace(/[^0-9]/g, '');
+                    if(!cleanVal) return "-";
+                    return "Rp " + parseInt(cleanVal).toLocaleString('id-ID');
+                };
 
-            mitraList.forEach(m => {
-                mitraHtml += createMitraRow(m);
-            });
+                const valAngsuran = formatRupiah(m.angsuran);
+                const valPartial = formatRupiah(m.partial);
 
+                const selectId = `payment-${m.cust_no}`;
+                let actionHtml = "";
+                
+                if(isSent) {
+                    actionHtml = `<button class="btn btn-secondary btn-kirim" disabled><i class="fa-solid fa-check"></i> Terkirim</button>`;
+                } else {
+                    const safeName = m.nama_bp.replace(/'/g, "");
+                    const safeMitra = m.mitra.replace(/'/g, "");
+
+                    actionHtml = `
+                        <div class="d-flex justify-content-end align-items-center gap-1">
+                            <select id="${selectId}" class="form-select form-select-sm p-0 px-1" style="width: auto; height: 26px; font-size: 10px; border-radius: 6px;">
+                                <option value="Normal">Normal</option>
+                                <option value="PAR">PAR</option>
+                                <option value="Partial">Partial</option>
+                                <option value="Par Payment">Par Payment</option>
+                            </select>
+                            <button class="btn btn-primary btn-kirim" 
+                                onclick="window.kirimData(this, '${safeName}', '${m.cust_no}', '${safeMitra}', '${selectId}')"
+                                style="background-color: #9b59b6; border:none; height: 26px; display: flex; align-items: center;">
+                                <i class="fa-solid fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    `;
+                }
+
+                return `
+                    <tr>
+                        <td>
+                            <span class="mitra-name">${m.mitra}</span>
+                            <span class="mitra-id"><i class="fa-regular fa-id-card me-1"></i>${m.cust_no}</span>
+                        </td>
+                        <td>
+                            <div class="nominal-text">${valAngsuran}</div>
+                            <span class="nominal-label">Angsuran</span>
+                            <div class="nominal-text mt-1 text-danger">${valPartial}</div>
+                            <span class="nominal-label">Partial</span>
+                        </td>
+                        <td class="text-center">
+                            <span class="${badgeClass} fw-bold" style="font-size: 12px;">${m.status}</span>
+                        </td>
+                        <td class="text-end">
+                            ${actionHtml}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            // Item Accordion Majelis
             majelisHtml += `
-                <div class="majelis-container">
-                    <div class="majelis-header text-secondary">
-                        <i class="fa-solid fa-users-rectangle me-2"></i> ${majName}
-                        <span class="badge bg-light text-dark ms-2 border">${mitraList.length}</span>
+                <div class="accordion-item border-start border-4 border-info mb-2" style="border-radius: 8px !important;">
+                    <h2 class="accordion-header" id="headingMaj-${bpIndex}-${majIndex}">
+                        <button class="accordion-button collapsed py-2" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMaj-${bpIndex}-${majIndex}">
+                            <div class="d-flex justify-content-between align-items-center w-100 pe-2">
+                                <span style="font-size: 12px; font-weight:600;"><i class="fa-solid fa-users-rectangle me-2"></i>${majName}</span>
+                                <span class="badge bg-info text-dark rounded-pill" style="font-size: 10px;">${mitras.length}</span>
+                            </div>
+                        </button>
+                    </h2>
+                    <div id="collapseMaj-${bpIndex}-${majIndex}" class="accordion-collapse collapse" data-bs-parent="#accordionMajelis-${bpIndex}">
+                        <div class="accordion-body p-0">
+                            <table class="table table-striped table-mitra mb-0 w-100">
+                                <thead class="bg-light">
+                                    <tr>
+                                        <th class="ps-3">Mitra</th>
+                                        <th>Tagihan</th>
+                                        <th class="text-center">Status</th>
+                                        <th class="text-end pe-3">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${rows}</tbody>
+                            </table>
+                        </div>
                     </div>
-                    <div>${mitraHtml}</div>
                 </div>
             `;
         });
+        majelisHtml += `</div>`; // Tutup div accordion majelis
 
-        const accordionItem = `
-            <div class="accordion-item border shadow-sm mb-2" style="border-radius: 8px; overflow:hidden;">
-                <h2 class="accordion-header" id="heading${index}">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse${index}">
-                        <div class="d-flex align-items-center w-100 justify-content-between pe-3">
-                            <div class="d-flex align-items-center">
-                                <div class="bg-primary text-white rounded-circle d-flex justify-content-center align-items-center me-3" style="width:35px; height:35px;">
-                                    <i class="fa-solid fa-user-tie"></i>
-                                </div>
-                                <div>
-                                    <div class="fw-bold text-dark">${bpName}</div>
-                                    <div class="small text-muted" style="font-size:11px;">Total Majelis: ${majelisKeys.length}</div>
-                                </div>
+        // --- LEVEL 1: ITEM BP (ACCORDION LUAR) ---
+        htmlContent += `
+            <div class="accordion-item mb-3 shadow-sm border-0 overflow-hidden" style="border-radius: 12px !important;">
+                <h2 class="accordion-header" id="headingBP-${bpIndex}">
+                    <button class="accordion-button collapsed bg-white text-dark shadow-none py-3" type="button" data-bs-toggle="collapse" data-bs-target="#collapseBP-${bpIndex}">
+                        <div class="d-flex align-items-center w-100">
+                            <div class="bg-primary text-white rounded-circle d-flex justify-content-center align-items-center me-3" style="width: 40px; height: 40px; min-width: 40px;">
+                                <i class="fa-solid fa-user-tie"></i>
+                            </div>
+                            <div class="d-flex flex-column">
+                                <span class="fw-bold" style="font-size: 14px;">${bpName}</span>
+                                <span class="text-muted" style="font-size: 11px;">Membawahi ${majelisKeys.length} Majelis</span>
                             </div>
                         </div>
                     </button>
                 </h2>
-                <div id="collapse${index}" class="accordion-collapse collapse" data-bs-parent="#accordionBP">
+                <div id="collapseBP-${bpIndex}" class="accordion-collapse collapse" data-bs-parent="#majelisContainer">
                     <div class="accordion-body bg-light p-2">
                         ${majelisHtml}
                     </div>
                 </div>
             </div>
         `;
-        
-        container.insertAdjacentHTML('beforeend', accordionItem);
     });
+
+    majelisContainer.innerHTML = htmlContent;
 }
 
-function createMitraRow(mitra) {
-    const stBayar = (mitra.status_bayar || "").toLowerCase();
-    const stKirim = (mitra.status_kirim || "").toLowerCase();
-
-    const badgeBayar = stBayar === 'lunas' ? 'status-lunas' : 'status-telat';
-    const badgeKirim = stKirim === 'terkirim' ? 'status-kirim' : 'status-belum';
-
-    let specialUI = "";
-    if (stBayar !== 'lunas' && stKirim === 'terkirim') {
-        specialUI = `
-            <div class="alert-reason">
-                <div class="d-flex align-items-start text-danger mb-1" style="font-size:11px;">
-                    <i class="fa-solid fa-circle-exclamation mt-1 me-2"></i>
-                    <div>
-                        <strong>Status Janggal:</strong> Telat tapi sudah dikirim.<br>
-                        <em>Alasan Lapangan: "${mitra.alasan || '-'}"</em>
-                    </div>
-                </div>
-                <input type="text" class="reason-input" placeholder="Wajib isi alasan validasi..." id="validasi-${mitra.id}">
-            </div>
-        `;
-    }
-
-    return `
-        <div class="mitra-row">
-            <div class="mitra-info">
-                <div class="d-flex justify-content-between align-items-center">
-                    <span class="mitra-name">${mitra.nama}</span>
-                    <span class="mitra-id badge bg-light text-secondary border">${mitra.id}</span>
-                </div>
-                <div class="mt-2 d-flex gap-2">
-                    <span class="status-badge ${badgeBayar}">${mitra.status_bayar}</span>
-                    <span class="status-badge ${badgeKirim}">${mitra.status_kirim}</span>
-                </div>
-                ${specialUI}
-            </div>
-            <div class="action-area ps-3 border-start">
-                <div class="btn-check-custom" onclick="toggleValidation(this, '${mitra.id}')" title="Klik untuk Validasi">
-                    <i class="fa-solid fa-check"></i>
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-// --- GLOBAL EXPORTS ---
-window.toggleValidation = function(element, id) {
-    const inputReason = document.getElementById(`validasi-${id}`);
-    
-    if (!element.classList.contains('checked')) {
-        if (inputReason && inputReason.value.trim() === "") {
-            alert("Mohon isi alasan validasi terlebih dahulu.");
-            inputReason.focus();
-            return; 
-        }
-        element.classList.add('checked');
+// 6. Tombol Tampilkan -> Baru Render Data
+btnTampilkan.addEventListener('click', () => {
+    if(loadingOverlay) {
+        loadingOverlay.querySelector('p').textContent = "Menampilkan data...";
+        loadingOverlay.classList.remove('d-none');
+        setTimeout(() => {
+            renderGroupedData(globalData);
+            loadingOverlay.classList.add('d-none');
+        }, 100);
     } else {
-        element.classList.remove('checked');
-    }
-};
-
-document.addEventListener("DOMContentLoaded", () => {
-    const btnValAll = document.getElementById('btnValidateAll');
-    if(btnValAll) {
-        btnValAll.addEventListener('click', () => {
-            if(confirm("Validasi semua data Lunas & Terkirim?")) {
-                const checkboxes = document.querySelectorAll('.btn-check-custom');
-                let count = 0;
-                checkboxes.forEach(btn => {
-                    const parent = btn.closest('.mitra-row');
-                    if (!parent.querySelector('.alert-reason')) {
-                        btn.classList.add('checked');
-                        count++;
-                    }
-                });
-                alert(`Berhasil memvalidasi otomatis ${count} data.`);
-            }
-        });
+        renderGroupedData(globalData);
     }
 });
+
+// 7. FUNGSI KIRIM DATA
+window.kirimData = async function(btn, namaBP, custNo, namaMitra, selectId) {
+    const selectEl = document.getElementById(selectId);
+    const jenisBayar = selectEl ? selectEl.value : "Normal";
+
+    if(!confirm(`Kirim laporan closing untuk mitra: ${namaMitra}\nJenis Pembayaran: ${jenisBayar}?`)) return;
+
+    const originalContent = btn.innerHTML;
+    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
+    btn.disabled = true;
+    if(selectEl) selectEl.disabled = true;
+
+    try {
+        const payload = {
+            jenisLaporan: "ClosingModal",
+            idKaryawan: userProfile.idKaryawan || "Unknown",
+            namaBP: namaBP,
+            customerNumber: custNo,
+            jenisPembayaran: jenisBayar
+        };
+
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+            redirect: "follow",
+            headers: { "Content-Type": "text/plain;charset=utf-8" }
+        });
+
+        const result = await response.json();
+
+        if (result.result === 'success') {
+            const parentDiv = btn.parentElement;
+            parentDiv.innerHTML = `<button class="btn btn-secondary btn-kirim" disabled><i class="fa-solid fa-check"></i> Terkirim</button>`;
+        } else {
+            throw new Error(result.error || "Gagal menyimpan data.");
+        }
+
+    } catch (error) {
+        alert("Gagal Kirim: " + error.message);
+        btn.innerHTML = originalContent;
+        btn.disabled = false;
+        if(selectEl) selectEl.disabled = false;
+    }
+};
