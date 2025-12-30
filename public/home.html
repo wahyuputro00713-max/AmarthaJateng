@@ -149,7 +149,7 @@
            ========================================================= */
         .hero-header {
             position: relative;
-            /* Header normal */
+            padding-bottom: 70px; /* Tambah ruang di bawah untuk overlap */
         }
 
         #fireworksCanvas {
@@ -210,18 +210,21 @@
             filter: drop-shadow(0 2px 2px rgba(0,0,0,0.1));
         }
 
-        /* Container UTAMA (Di bawah header) */
+        /* Container UTAMA (Overlap ke atas) */
         .main-container {
             position: relative;
-            z-index: 1; 
-            margin-top: -30px; /* Overlap sedikit agar menyatu */
+            z-index: 10; /* Di atas background header */
+            margin-top: -60px; /* MENARIK KARTU KE ATAS (Overlap) */
+            padding-top: 0;
         }
 
-        /* FIX: Kartu Absensi diturunkan */
+        /* FIX: Kartu Absensi */
         .card-absensi {
-            margin-top: 25px !important; /* Jarak agar tidak nempel header */
+            margin-top: 0; /* Tidak perlu margin lagi karena container sudah ditarik */
+            margin-bottom: 20px;
             position: relative;
-            z-index: 2;
+            z-index: 15; /* Di atas container */
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1); /* Shadow biar makin 'pop up' */
         }
 
     </style>
