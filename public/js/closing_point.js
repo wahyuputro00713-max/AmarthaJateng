@@ -282,8 +282,29 @@ function createMitraRow(mitra) {
     const stBayar = (mitra.status_bayar || "").toLowerCase();
     const stKirim = (mitra.status_kirim || "").toLowerCase();
 
-    const badgeBayar = stBayar === 'lunas' ? 'status-lunas' : 'status-telat';
-    const badgeKirim = stKirim === 'terkirim' ? 'status-kirim' : 'status-belum';
+    // UPDATE LOGIKA WARNA (STYLE)
+    // 1. Bayar/Lunas -> Hijau Transparan
+    // 2. Telat -> Merah Transparan
+    // 3. Sudah/Terkirim -> Hijau Bold
+    // 4. Belum/Belum Kirim -> Merah Bold
+
+    let styleBayar = "";
+    if (stBayar === 'lunas') {
+        // Hijau Transparan
+        styleBayar = "background-color: rgba(25, 135, 84, 0.2); color: #155724; border: 1px solid #badbcc;";
+    } else {
+        // Merah Transparan (Telat)
+        styleBayar = "background-color: rgba(220, 53, 69, 0.2); color: #721c24; border: 1px solid #f5c2c7;";
+    }
+
+    let styleKirim = "";
+    if (stKirim === 'terkirim' || stKirim.includes('sudah')) {
+        // Hijau Bold (Sudah/Terkirim)
+        styleKirim = "background-color: #198754; color: white;";
+    } else {
+        // Merah Bold (Belum)
+        styleKirim = "background-color: #dc3545; color: white;";
+    }
 
     let specialUI = "";
     if (stBayar !== 'lunas' && stKirim === 'terkirim') {
@@ -309,8 +330,8 @@ function createMitraRow(mitra) {
                     <span class="mitra-id badge bg-light text-secondary border">${mitra.id}</span>
                 </div>
                 <div class="mt-2 d-flex gap-2">
-                    <span class="status-badge ${badgeBayar}">${mitra.status_bayar}</span>
-                    <span class="status-badge ${badgeKirim}">${mitra.status_kirim}</span>
+                    <span class="status-badge" style="${styleBayar}">${mitra.status_bayar}</span>
+                    <span class="status-badge" style="${styleKirim}">${mitra.status_kirim}</span>
                 </div>
                 ${specialUI}
             </div>
