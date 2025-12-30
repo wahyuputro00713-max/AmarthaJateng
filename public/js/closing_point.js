@@ -72,6 +72,8 @@ function injectModernStyles() {
             .alert-modern { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; border-radius: 8px; padding: 8px 10px; font-size: 0.8rem; margin-top: 8px; }
             .input-modern { width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px; font-size: 0.85rem; margin-top: 8px; transition: border-color 0.2s; background: #fafafa; }
             .input-modern:focus { outline: none; border-color: var(--primary-color); background: #fff; }
+            .input-modern.required { border-color: #f87171; background-color: #fef2f2; }
+            .input-modern.required:focus { border-color: #ef4444; }
 
             /* Counter & Status Bar */
             .validation-status-bar {
@@ -200,37 +202,37 @@ function processAndRender(rawData, targetPoint) {
         if (safeTarget !== "ALL" && p_cabang !== safeTarget) return; 
         if (p_hari.toLowerCase() !== currentDayName.toLowerCase()) return;
 
+        // PERBAIKAN: Hitung semua mitra di hari itu (Current & Non-Current)
         const isCurrent = p_bucket <= 1; 
 
         if (isCurrent) {
             stats.mm_total++;
             if (isLunas) stats.mm_bayar++;
             if (isTerkirim) stats.mm_kirim++;
-            
-            if (!hierarchy[p_bp]) hierarchy[p_bp] = {};
-            if (!hierarchy[p_bp][p_majelis]) hierarchy[p_bp][p_majelis] = [];
-            
-            hierarchy[p_bp][p_majelis].push({
-                id: getValue(row, ["id_mitra", "id", "account_id"]),
-                nama: getValue(row, ["nama_mitra", "nama", "client_name"]),
-                status_bayar: st_bayar,
-                status_kirim: st_kirim,
-                jenis_bayar: p_jenis,
-                alasan: alasan_db,
-                is_lunas: isLunas,
-                is_terkirim: isTerkirim
-            });
         } else {
             stats.nc_total++;
             if (isLunas) stats.nc_bayar++;
             if (isTerkirim) stats.nc_kirim++;
         }
+
+        // MASUKKAN SEMUA MITRA KE LIST (Current & Non-Current)
+        if (!hierarchy[p_bp]) hierarchy[p_bp] = {};
+        if (!hierarchy[p_bp][p_majelis]) hierarchy[p_bp][p_majelis] = [];
+        
+        hierarchy[p_bp][p_majelis].push({
+            id: getValue(row, ["id_mitra", "id", "account_id"]),
+            nama: getValue(row, ["nama_mitra", "nama", "client_name"]),
+            status_bayar: st_bayar,
+            status_kirim: st_kirim,
+            jenis_bayar: p_jenis,
+            alasan: alasan_db,
+            is_lunas: isLunas,
+            is_terkirim: isTerkirim
+        });
     });
 
     renderStats(stats);
     renderAccordion(hierarchy);
-    
-    // Inisialisasi status counter setelah render
     updateValidationStatus();
 }
 
@@ -248,7 +250,6 @@ function renderAccordion(hierarchy) {
     const container = document.getElementById('accordionBP');
     container.innerHTML = ""; 
 
-    // Tambahkan Counter Bar di atas Accordion
     const counterHtml = `
         <div class="validation-status-bar">
             <span><i class="fa-solid fa-list-check me-2"></i>Status Validasi</span>
@@ -370,6 +371,13 @@ function createMitraCard(mitra) {
         `;
     }
 
+    // --- LOGIKA WAJIB REASON ---
+    // Cek apakah jenis pembayaran Normal atau Bukan
+    const jenisNormal = mitra.jenis_bayar.toLowerCase().includes("normal");
+    const isRequired = !jenisNormal; // Jika TIDAK Normal -> Wajib Isi
+    const placeholder = isRequired ? "Wajib isi alasan (Jenis: " + mitra.jenis_bayar + ")..." : "Keterangan (Opsional)...";
+    const requiredClass = isRequired ? "required" : "";
+
     return `
         <div class="mitra-card">
             <div style="flex: 1;">
@@ -393,7 +401,10 @@ function createMitraCard(mitra) {
                 ${specialUI}
 
                 <div>
-                    <input type="text" class="input-modern" placeholder="Keterangan / Alasan..." id="validasi-${mitra.id}">
+                    <input type="text" class="input-modern ${requiredClass}" 
+                           placeholder="${placeholder}" 
+                           id="validasi-${mitra.id}" 
+                           data-required="${isRequired}">
                 </div>
             </div>
             
@@ -408,19 +419,16 @@ function createMitraCard(mitra) {
 
 // --- 6. EXPORTS & EVENTS ---
 
-// Fungsi Helper untuk Update Status Bar & Tombol Validasi
 function updateValidationStatus() {
     const totalMitra = document.querySelectorAll('.btn-check-modern').length;
     const checkedMitra = document.querySelectorAll('.btn-check-modern.checked').length;
     
-    // Update Counter Text
     const counterEl = document.getElementById('statusCounter');
     if(counterEl) {
         counterEl.textContent = `${checkedMitra} / ${totalMitra} Mitra`;
         counterEl.style.color = (checkedMitra === totalMitra && totalMitra > 0) ? '#166534' : '#4f46e5';
     }
 
-    // Update Tombol Validasi
     const btnValAll = document.getElementById('btnValidateAll');
     if(btnValAll) {
         if (checkedMitra === totalMitra && totalMitra > 0) {
@@ -439,6 +447,7 @@ function updateValidationStatus() {
 
 window.toggleValidation = function(element, id) {
     const inputReason = document.getElementById(`validasi-${id}`);
+    const isRequired = inputReason.getAttribute('data-required') === "true";
     
     // Efek Animasi
     element.style.transform = "scale(0.9)";
@@ -451,11 +460,18 @@ window.toggleValidation = function(element, id) {
     }, 100);
 
     if (!element.classList.contains('checked')) {
-        // Cek Input Reason
-        if (inputReason && inputReason.value.trim() === "") {
+        // PERBAIKAN: Cek Wajib Isi hanya jika required=true
+        if (isRequired && inputReason.value.trim() === "") {
             inputReason.style.borderColor = "red";
+            inputReason.style.backgroundColor = "#fff0f0";
             inputReason.focus();
-            setTimeout(() => inputReason.style.borderColor = "#d1d5db", 2000);
+            
+            // Kembalikan style normal setelah 2 detik
+            setTimeout(() => {
+                inputReason.style.borderColor = "#d1d5db";
+                inputReason.style.backgroundColor = isRequired ? "#fef2f2" : "#fafafa";
+            }, 2000);
+            
             return; 
         }
         element.classList.add('checked');
@@ -463,19 +479,16 @@ window.toggleValidation = function(element, id) {
         element.classList.remove('checked');
     }
 
-    // Panggil fungsi update status setiap kali tombol diklik
     updateValidationStatus();
 };
 
 document.addEventListener("DOMContentLoaded", () => {
     const btnValAll = document.getElementById('btnValidateAll');
     if(btnValAll) {
-        // Set awal tombol disabled
         btnValAll.disabled = true;
         
         btnValAll.addEventListener('click', () => {
             if(confirm("Validasi semua data?")) {
-               // Logika kirim ke server (jika diperlukan) atau hanya alert sukses
                alert(`✨ Berhasil memvalidasi semua data.`);
             }
         });
