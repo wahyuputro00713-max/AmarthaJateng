@@ -113,6 +113,11 @@
         .snowflake { position: fixed; top: -10px; z-index: 99999; color: #dbeeff; text-shadow: 0 0 5px rgba(0,0,0,0.1); user-select: none; pointer-events: none; cursor: default; animation-name: fall; animation-timing-function: linear; animation-iteration-count: infinite; }
         @keyframes fall { to { transform: translateY(105vh); } }
 
+        /* --- CSS KEMBANG API --- */
+        .hero-header { position: relative; overflow: hidden; }
+        #fireworksCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+        .hero-header .top-bar, .hero-header .user-welcome { position: relative; z-index: 10; }
+
         /* --- CSS MENU BULAT BAWAH (FAB) --- */
         .fab-container {
             position: fixed; bottom: 30px; right: 20px; z-index: 9999;
@@ -144,12 +149,9 @@
         .fab-container.active .fab-item:nth-child(3) { transition-delay: 0.1s; }
         .fab-container.active .fab-item:nth-child(4) { transition-delay: 0.15s; }
 
-        /* =========================================================
-           FIX CSS HEADER & MENU EXPAND KEKIRI
-           ========================================================= */
+        /* --- PERBAIKAN Z-INDEX & POSISI --- */
         .hero-header {
-            position: relative;
-            /* Header normal */
+            position: relative; /* Header normal */
         }
 
         #fireworksCanvas {
@@ -163,45 +165,12 @@
 
         .hero-header .top-bar {
             position: relative;
-            z-index: 50; 
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            z-index: 10; 
         }
         
         .hero-header .user-welcome {
             position: relative;
-            z-index: 20;
-        }
-
-        /* Container Menu Kanan */
-        .header-actions {
-            display: flex;
-            align-items: center;
-            position: relative; /* Penting untuk absolute positioning anak-anaknya */
-        }
-
-        /* Menu yang akan muncul/bergeser */
-        .expanded-menu-items {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            position: absolute;
-            right: 50px; /* Posisi di sebelah kiri tombol utama */
-            top: 0;
-            
-            /* Animasi */
-            opacity: 0;
-            transform: translateX(20px) scale(0.8);
-            pointer-events: none;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Efek membal (bouncy) */
-        }
-
-        /* State Aktif */
-        .expanded-menu-items.show {
-            opacity: 1;
-            transform: translateX(0) scale(1);
-            pointer-events: auto;
+            z-index: 5;
         }
 
         /* LOGO */
@@ -210,18 +179,16 @@
             filter: drop-shadow(0 2px 2px rgba(0,0,0,0.1));
         }
 
-        /* Container UTAMA (Di bawah header) */
+        /* --- PERBAIKAN: CONTAINER TIDAK OVERLAP LAGI --- */
         .main-container {
             position: relative;
             z-index: 1; 
-            margin-top: -30px; /* Overlap sedikit agar menyatu */
+            margin-top: 20px; /* Jarak aman dari header, tidak tumpang tindih */
         }
 
-        /* FIX: Kartu Absensi diturunkan */
         .card-absensi {
-            margin-top: 25px !important; /* Jarak agar tidak nempel header */
-            position: relative;
-            z-index: 2;
+            /* Pastikan tidak ada negatif margin */
+            margin-top: 0 !important; 
         }
 
     </style>
@@ -237,21 +204,17 @@
                 Amartha
             </div>
             
-            <div class="header-actions">
-                <div id="expandedMenu" class="expanded-menu-items">
-                    <a href="admin_user.html" id="btnAdmin" class="btn-icon-glass d-none" style="background: rgba(255,255,0,0.2); color: #fff176;" title="Admin">
-                        <i class="fa-solid fa-users-gear"></i>
-                    </a>
-                    <a href="profil.html" class="btn-icon-glass" title="Profil">
-                        <i class="fa-regular fa-user"></i>
-                    </a>
-                    <button id="logoutBtn" class="btn-icon-glass bg-danger border-0" title="Keluar">
-                        <i class="fa-solid fa-power-off"></i>
-                    </button>
-                </div>
-
-                <button class="btn-icon-glass" onclick="toggleHeaderMenu()" id="btnHeaderMenu" style="z-index: 100;">
-                    <i class="fa-solid fa-layer-group"></i> 
+            <div class="d-flex gap-2">
+                <a href="admin_user.html" id="btnAdmin" class="btn-icon-glass d-none" style="background: rgba(255,255,0,0.2); color: #fff176;" title="Admin">
+                    <i class="fa-solid fa-users-gear"></i>
+                </a>
+                
+                <a href="profil.html" class="btn-icon-glass" title="Profil">
+                    <i class="fa-regular fa-user"></i>
+                </a>
+                
+                <button id="logoutBtn" class="btn-icon-glass bg-danger border-0" title="Keluar">
+                    <i class="fa-solid fa-power-off"></i>
                 </button>
             </div>
         </div>
@@ -339,4 +302,103 @@
                 <div class="menu-title">Collection<br>Harian</div>
             </a>
             
-            <a href="report_sosialisasi.html
+            <a href="report_sosialisasi.html" class="menu-card">
+                <div class="menu-icon" style="background: #9b59b6; color: white;">
+                    <i class="fa-solid fa-users-rectangle"></i>
+                </div>
+                <div class="menu-title">Laporan<br>Sosialisasi</div>
+            </a>
+            
+            <a href="report_celengan.html" class="menu-card">
+                <div class="menu-icon" style="background: #9b59b6; color: white;">
+                    <i class="fa-solid fa-piggy-bank"></i>
+                </div>
+                <div class="menu-title">Laporan<br>Celengan</div>
+            </a>
+            
+            <a href="dashboard_modal.html" class="menu-card">
+                <div class="menu-icon" style="background: #9b59b6; color: white;">
+                    <i class="fa-solid fa-chart-line"></i>
+                </div>
+                <div class="menu-title">Dashboard<br>Modal</div>
+            </a>
+
+        </div>
+        <div class="footer-info">&copy; 2025 Amartha Regional Jawa Tengah 1</div>
+    </div>
+
+    <div class="fab-container" id="fabMenu">
+        <button class="fab-main" onclick="toggleFab()">
+            <i class="fa-solid fa-plus"></i>
+        </button>
+        <a href="#" class="fab-item"><span class="fab-label">Quest</span><i class="fa-solid fa-scroll"></i></a>
+        <a href="#" class="fab-item"><span class="fab-label">Perform Point</span><i class="fa-solid fa-map-location-dot"></i></a>
+        <a href="#" class="fab-item"><span class="fab-label">Perform BP</span><i class="fa-solid fa-chart-line"></i></a>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="./js/home.js"></script>
+    
+    <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        
+        // --- EFEK SALJU ---
+        const snowSymbol = '❄'; const spawnRate = 200; 
+        function createSnowflake() {
+            const snowflake = document.createElement('div'); snowflake.classList.add('snowflake'); snowflake.innerHTML = snowSymbol;
+            snowflake.style.left = Math.random() * 100 + 'vw';
+            const size = Math.random() * 15 + 10; snowflake.style.fontSize = size + 'px';
+            const duration = Math.random() * 5 + 3; snowflake.style.animationDuration = duration + 's';
+            snowflake.style.opacity = Math.random() * 0.7 + 0.3;
+            document.body.appendChild(snowflake);
+            setTimeout(() => { snowflake.remove(); }, duration * 1000);
+        }
+        setInterval(createSnowflake, spawnRate);
+
+        // --- EFEK KEMBANG API ---
+        const canvas = document.getElementById('fireworksCanvas');
+        if(canvas) {
+            const ctx = canvas.getContext('2d');
+            let particles = [];
+            function resizeCanvas() { canvas.width = canvas.parentElement.offsetWidth; canvas.height = canvas.parentElement.offsetHeight; }
+            window.addEventListener('resize', resizeCanvas); resizeCanvas();
+            class Particle {
+                constructor(x, y, color) {
+                    this.x = x; this.y = y; this.color = color;
+                    const angle = Math.random() * Math.PI * 2; const velocity = Math.random() * 3 + 1;
+                    this.vx = Math.cos(angle) * velocity; this.vy = Math.sin(angle) * velocity;
+                    this.alpha = 1; this.gravity = 0.04; this.friction = 0.96;
+                }
+                update() { this.vx *= this.friction; this.vy *= this.friction; this.vy += this.gravity; this.x += this.vx; this.y += this.vy; this.alpha -= 0.02; }
+                draw(ctx) { ctx.save(); ctx.globalAlpha = this.alpha; ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.x, this.y, 2, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+            }
+            function createExplosion() {
+                const x = Math.random() * canvas.width; const y = Math.random() * (canvas.height * 0.7);
+                const colors = ['#FFD700', '#FF4500', '#00BFFF', '#7CFC00', '#FF69B4', '#FFFFFF'];
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                for (let i = 0; i < 30; i++) particles.push(new Particle(x, y, color));
+            }
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                if (Math.random() < 0.03) createExplosion();
+                particles.forEach((p, index) => { p.update(); p.draw(ctx); if (p.alpha <= 0) particles.splice(index, 1); });
+                requestAnimationFrame(animate);
+            }
+            animate();
+        }
+    });
+
+    // --- LOGIKA MENU BULAT BAWAH (FAB) ---
+    function toggleFab() {
+        const fabMenu = document.getElementById('fabMenu');
+        fabMenu.classList.toggle('active');
+        const icon = fabMenu.querySelector('.fab-main i');
+        if (fabMenu.classList.contains('active')) {
+            icon.classList.remove('fa-plus'); icon.classList.add('fa-times');
+        } else {
+            icon.classList.remove('fa-times'); icon.classList.add('fa-plus');
+        }
+    }
+    </script>
+</body>
+</html>
