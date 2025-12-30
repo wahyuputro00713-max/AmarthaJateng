@@ -2,7 +2,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebas
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// --- KONFIGURASI FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyC8wOUkyZTa4W2hHHGZq_YKnGFqYEGOuH8",
     authDomain: "amarthajatengwebapp.firebaseapp.com",
@@ -17,15 +16,12 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// --- KONFIGURASI APLIKASI ---
 const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; 
 const ADMIN_ID = "17246";
 
 let userProfile = null;
 let currentDayName = ""; 
 
-// --- 1. INJECT STYLE MODERN (CSS) ---
-// Fungsi ini otomatis menambahkan CSS modern ke halaman
 function injectModernStyles() {
     const styleId = 'closing-point-modern-style';
     if (!document.getElementById(styleId)) {
@@ -39,87 +35,45 @@ function injectModernStyles() {
                 --bg-card: #ffffff;
                 --bg-body: #f3f4f6;
             }
-            /* Card Styling */
             .mitra-card {
-                background: var(--bg-card);
-                border-radius: 12px;
-                padding: 16px;
-                margin-bottom: 12px;
-                border: 1px solid #f0f0f0;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-                transition: all 0.2s ease;
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
+                background: var(--bg-card); border-radius: 12px; padding: 16px; margin-bottom: 12px;
+                border: 1px solid #f0f0f0; box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+                transition: all 0.2s ease; display: flex; align-items: center; justify-content: space-between;
             }
-            .mitra-card:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 8px 16px rgba(0,0,0,0.06);
-                border-color: var(--primary-color);
-            }
-            /* Typography */
+            .mitra-card:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(0,0,0,0.06); border-color: var(--primary-color); }
             .mitra-name { font-weight: 700; color: #1f2937; font-size: 0.95rem; display: block; margin-bottom: 4px; }
             .mitra-id { font-size: 0.75rem; color: #6b7280; background: #f3f4f6; padding: 2px 8px; border-radius: 6px; }
-            
-            /* Badges */
-            .badge-status {
-                font-size: 0.7rem;
-                padding: 4px 10px;
-                border-radius: 20px;
-                font-weight: 600;
-                letter-spacing: 0.3px;
-                text-transform: uppercase;
-                display: inline-block;
-            }
-            
-            /* Check Button */
+            .badge-status { font-size: 0.7rem; padding: 4px 10px; border-radius: 20px; font-weight: 600; letter-spacing: 0.3px; text-transform: uppercase; display: inline-block; }
             .btn-check-modern {
-                width: 42px; height: 42px;
-                border-radius: 50%;
-                background: #f9fafb;
-                border: 2px solid #e5e7eb;
-                color: #d1d5db;
-                display: flex; align-items: center; justify-content: center;
-                font-size: 1.2rem;
-                cursor: pointer;
-                transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                width: 42px; height: 42px; border-radius: 50%; background: #f9fafb; border: 2px solid #e5e7eb; color: #d1d5db;
+                display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             }
             .btn-check-modern:hover { background: #f3f4f6; border-color: #d1d5db; }
-            .btn-check-modern.checked {
-                background: #22c55e;
-                border-color: #22c55e;
-                color: white;
-                transform: scale(1.1);
-                box-shadow: 0 4px 10px rgba(34, 197, 94, 0.4);
-            }
+            .btn-check-modern.checked { background: #22c55e; border-color: #22c55e; color: white; transform: scale(1.1); box-shadow: 0 4px 10px rgba(34, 197, 94, 0.4); }
             
-            /* Accordion Styling */
+            /* HILANGKAN PANAH DEFAULT BOOTSTRAP */
+            .accordion-button::after { display: none !important; }
+            
+            /* Indikator Panah Custom */
+            .custom-arrow { transition: transform 0.3s ease; }
+            .accordion-button:not(.collapsed) .custom-arrow { transform: rotate(180deg); }
+            .card-header[aria-expanded="true"] .custom-arrow { transform: rotate(180deg); }
+
             .accordion-button { font-weight: 600; border-radius: 12px !important; }
             .accordion-button:not(.collapsed) { background-color: #eef2ff; color: #4f46e5; box-shadow: none; }
             .accordion-item { border: none; margin-bottom: 10px; background: transparent; }
             .accordion-button:focus { box-shadow: none; border-color: rgba(0,0,0,.125); }
-            
-            /* Alert Reason */
-            .alert-modern {
-                background: #fffbeb; border: 1px solid #fcd34d; 
-                color: #92400e; border-radius: 8px; padding: 10px;
-                font-size: 0.8rem; margin-top: 10px;
-            }
-            .input-modern {
-                width: 100%; border: 1px solid #d1d5db; border-radius: 6px;
-                padding: 8px; font-size: 0.85rem; margin-top: 6px;
-                transition: border-color 0.2s;
-            }
+            .alert-modern { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; border-radius: 8px; padding: 10px; font-size: 0.8rem; margin-top: 10px; }
+            .input-modern { width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px; font-size: 0.85rem; margin-top: 6px; transition: border-color 0.2s; }
             .input-modern:focus { outline: none; border-color: var(--primary-color); }
         `;
         document.head.appendChild(style);
     }
 }
 
-// --- 2. AUTH & INIT ---
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        injectModernStyles(); // Load CSS
+        injectModernStyles(); 
         checkUserRole(user.uid);
     } else {
         window.location.replace("index.html");
@@ -162,7 +116,6 @@ function initPage() {
     fetchRepaymentData(userPoint);
 }
 
-// --- 3. FETCH DATA ---
 async function fetchRepaymentData(targetPoint) {
     try {
         const response = await fetch(SCRIPT_URL, {
@@ -198,7 +151,6 @@ function getValue(row, keys) {
     return "";
 }
 
-// --- 4. PROCESSING DATA ---
 function processAndRender(rawData, targetPoint) {
     let stats = { mm_total: 0, mm_bayar: 0, mm_kirim: 0, nc_total: 0, nc_bayar: 0, nc_kirim: 0 };
     let hierarchy = {}; 
@@ -224,7 +176,6 @@ function processAndRender(rawData, targetPoint) {
         const isLunas = st_bayar.toLowerCase() === "lunas";
         const isTerkirim = st_kirim.toLowerCase() === "terkirim";
 
-        // Filter Point & Hari
         if (safeTarget !== "ALL" && p_cabang !== safeTarget) return; 
         if (p_hari.toLowerCase() !== currentDayName.toLowerCase()) return;
 
@@ -235,7 +186,6 @@ function processAndRender(rawData, targetPoint) {
             if (isLunas) stats.mm_bayar++;
             if (isTerkirim) stats.mm_kirim++;
             
-            // Build Hierarchy
             if (!hierarchy[p_bp]) hierarchy[p_bp] = {};
             if (!hierarchy[p_bp][p_majelis]) hierarchy[p_bp][p_majelis] = [];
             
@@ -266,7 +216,6 @@ function renderStats(stats) {
     document.getElementById('ncKirim').textContent = stats.nc_kirim;
 }
 
-// --- 5. RENDER UI MODERN (NESTED) ---
 function renderAccordion(hierarchy) {
     const container = document.getElementById('accordionBP');
     container.innerHTML = ""; 
@@ -307,7 +256,7 @@ function renderAccordion(hierarchy) {
                                     <div class="fw-bold text-dark" style="font-size:0.9rem;">${majName}</div>
                                     <div class="small text-muted">${mitraList.length} Mitra</div>
                                 </div>
-                                <i class="fa-solid fa-chevron-down text-muted small"></i>
+                                <i class="fa-solid fa-chevron-down text-muted small custom-arrow"></i>
                             </div>
                         </button>
                     </h2>
@@ -320,11 +269,11 @@ function renderAccordion(hierarchy) {
             `;
         });
 
-        // WRAPPER BP
+        // HAPUS class 'show' agar default tertutup
         const bpWrapper = `
             <div class="card border-0 shadow-sm mb-3" style="border-radius: 16px; overflow:hidden;">
-                <div class="card-header bg-white border-0 py-3" id="headingBP-${bpIndex}">
-                    <div class="d-flex align-items-center justify-content-between" type="button" data-bs-toggle="collapse" data-bs-target="#collapseBP-${bpIndex}" aria-expanded="true">
+                <div class="card-header bg-white border-0 py-3" id="headingBP-${bpIndex}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseBP-${bpIndex}" aria-expanded="false">
+                    <div class="d-flex align-items-center justify-content-between">
                         <div class="d-flex align-items-center gap-3">
                             <div class="bg-primary text-white rounded-circle d-flex justify-content-center align-items-center shadow-sm" style="width: 48px; height: 48px;">
                                 <i class="fa-solid fa-user-tie fa-lg"></i>
@@ -334,10 +283,10 @@ function renderAccordion(hierarchy) {
                                 <small class="text-muted"><i class="fa-solid fa-layer-group me-1"></i>${majelisKeys.length} Majelis Hari Ini</small>
                             </div>
                         </div>
-                        <button class="btn btn-sm btn-light rounded-circle"><i class="fa-solid fa-chevron-down"></i></button>
+                        <button class="btn btn-sm btn-light rounded-circle"><i class="fa-solid fa-chevron-down custom-arrow"></i></button>
                     </div>
                 </div>
-                <div id="collapseBP-${bpIndex}" class="accordion-collapse collapse show" data-bs-parent="#accordionBP">
+                <div id="collapseBP-${bpIndex}" class="accordion-collapse collapse" data-bs-parent="#accordionBP">
                     <div class="card-body bg-light pt-0 pb-3 px-3" id="accordionMajelis-${bpIndex}">
                         ${majelisHtml}
                     </div>
@@ -352,22 +301,17 @@ function createMitraCard(mitra) {
     const stBayar = (mitra.status_bayar || "").toLowerCase();
     const stKirim = (mitra.status_kirim || "").toLowerCase();
 
-    // --- LOGIKA WARNA MODERN ---
     let styleBayar = "";
     if (stBayar === 'lunas') {
-        // Hijau Transparan (Soft)
         styleBayar = "background-color: #d1e7dd; color: #0f5132; border: 1px solid #badbcc;";
     } else {
-        // Merah Transparan (Soft)
         styleBayar = "background-color: #f8d7da; color: #842029; border: 1px solid #f5c2c7;";
     }
 
     let styleKirim = "";
     if (stKirim === 'terkirim' || stKirim.includes('sudah')) {
-        // Hijau Solid (Bold)
         styleKirim = "background-color: #198754; color: white; box-shadow: 0 2px 4px rgba(25, 135, 84, 0.3);";
     } else {
-        // Merah Solid (Bold)
         styleKirim = "background-color: #dc3545; color: white; box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);";
     }
 
@@ -414,11 +358,9 @@ function createMitraCard(mitra) {
     `;
 }
 
-// --- 6. EXPORTS & EVENTS ---
 window.toggleValidation = function(element, id) {
     const inputReason = document.getElementById(`validasi-${id}`);
     
-    // Animasi Klik
     element.style.transform = "scale(0.9)";
     setTimeout(() => {
         if (element.classList.contains('checked')) {
@@ -430,7 +372,6 @@ window.toggleValidation = function(element, id) {
 
     if (!element.classList.contains('checked')) {
         if (inputReason && inputReason.value.trim() === "") {
-            // Shake Effect jika kosong
             inputReason.style.borderColor = "red";
             inputReason.focus();
             setTimeout(() => inputReason.style.borderColor = "#d1d5db", 2000);
