@@ -35,13 +35,14 @@ function injectModernStyles() {
                 --primary-color: #6366f1;
                 --success-bg: #dcfce7; --success-text: #166534;
                 --danger-bg: #fee2e2; --danger-text: #991b1b;
+                --info-bg: #e0f2fe; --info-text: #0369a1;
                 --bg-card: #ffffff;
                 --bg-body: #f3f4f6;
             }
             .mitra-card {
                 background: var(--bg-card); border-radius: 12px; padding: 16px; margin-bottom: 12px;
                 border: 1px solid #f0f0f0; box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-                transition: all 0.2s ease; display: flex; align-items: center; justify-content: space-between;
+                transition: all 0.2s ease; display: flex; align-items: flex-start; justify-content: space-between;
             }
             .mitra-card:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(0,0,0,0.06); border-color: var(--primary-color); }
             .mitra-name { font-weight: 700; color: #1f2937; font-size: 0.95rem; display: block; margin-bottom: 4px; }
@@ -52,6 +53,7 @@ function injectModernStyles() {
             .btn-check-modern {
                 width: 42px; height: 42px; border-radius: 50%; background: #f9fafb; border: 2px solid #e5e7eb; color: #d1d5db;
                 display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                margin-top: 10px; /* Align with content */
             }
             .btn-check-modern:hover { background: #f3f4f6; border-color: #d1d5db; }
             .btn-check-modern.checked { background: #22c55e; border-color: #22c55e; color: white; transform: scale(1.1); box-shadow: 0 4px 10px rgba(34, 197, 94, 0.4); }
@@ -67,9 +69,9 @@ function injectModernStyles() {
             .accordion-item { border: none; margin-bottom: 10px; background: transparent; }
             .accordion-button:focus { box-shadow: none; border-color: rgba(0,0,0,.125); }
             
-            .alert-modern { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; border-radius: 8px; padding: 10px; font-size: 0.8rem; margin-top: 10px; }
-            .input-modern { width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px; font-size: 0.85rem; margin-top: 6px; transition: border-color 0.2s; }
-            .input-modern:focus { outline: none; border-color: var(--primary-color); }
+            .alert-modern { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; border-radius: 8px; padding: 8px 10px; font-size: 0.8rem; margin-top: 8px; }
+            .input-modern { width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px; font-size: 0.85rem; margin-top: 8px; transition: border-color 0.2s; background: #fafafa; }
+            .input-modern:focus { outline: none; border-color: var(--primary-color); background: #fff; }
         `;
         document.head.appendChild(style);
     }
@@ -157,7 +159,7 @@ function getValue(row, keys) {
     return "";
 }
 
-// --- 4. PROCESSING DATA (PERBAIKAN LOGIKA STATUS) ---
+// --- 4. PROCESSING DATA ---
 function processAndRender(rawData, targetPoint) {
     let stats = { mm_total: 0, mm_bayar: 0, mm_kirim: 0, nc_total: 0, nc_bayar: 0, nc_kirim: 0 };
     let hierarchy = {}; 
@@ -179,9 +181,10 @@ function processAndRender(rawData, targetPoint) {
         const st_bayar  = getValue(row, ["status_bayar", "bayar"]) || "Belum";
         const st_kirim  = getValue(row, ["status_kirim", "kirim"]) || "Belum";
         const alasan_db = getValue(row, ["keterangan", "alasan"]) || "";
+        
+        // UPDATE: Ambil Data Jenis Pembayaran
+        const p_jenis   = getValue(row, ["jenis_pembayaran", "jenis", "type"]) || "-";
 
-        // PERBAIKAN: Gunakan .includes agar "Bayar" atau "Sudah Bayar" tetap dianggap lunas
-        // Logika ini sekarang konsisten dengan tampilan UI
         const bayarLower = st_bayar.toLowerCase();
         const kirimLower = st_kirim.toLowerCase();
 
@@ -207,7 +210,10 @@ function processAndRender(rawData, targetPoint) {
                 nama: getValue(row, ["nama_mitra", "nama", "client_name"]),
                 status_bayar: st_bayar,
                 status_kirim: st_kirim,
-                alasan: alasan_db
+                jenis_bayar: p_jenis, // Simpan Jenis Pembayaran
+                alasan: alasan_db,
+                is_lunas: isLunas,
+                is_terkirim: isTerkirim
             });
         } else {
             stats.nc_total++;
@@ -314,27 +320,26 @@ function createMitraCard(mitra) {
     const stBayar = (mitra.status_bayar || "").toLowerCase();
     const stKirim = (mitra.status_kirim || "").toLowerCase();
 
-    // PERBAIKAN: Gunakan .includes() untuk style warna juga agar "Bayar" jadi HIJAU
+    // Style Status Pembayaran
     let styleBayar = "";
     if (stBayar.includes('lunas') || stBayar.includes('bayar') || stBayar.includes('sudah')) {
-        // Hijau Transparan
-        styleBayar = "background-color: #d1e7dd; color: #0f5132; border: 1px solid #badbcc;";
+        styleBayar = "background-color: #d1e7dd; color: #0f5132; border: 1px solid #badbcc;"; // Hijau
     } else {
-        // Merah Transparan
-        styleBayar = "background-color: #f8d7da; color: #842029; border: 1px solid #f5c2c7;";
+        styleBayar = "background-color: #f8d7da; color: #842029; border: 1px solid #f5c2c7;"; // Merah
     }
 
+    // Style Status Pengiriman
     let styleKirim = "";
     if (stKirim.includes('terkirim') || stKirim.includes('sudah') || stKirim.includes('kirim')) {
-        // Hijau Solid
-        styleKirim = "background-color: #198754; color: white; box-shadow: 0 2px 4px rgba(25, 135, 84, 0.3);";
+        styleKirim = "background-color: #198754; color: white; box-shadow: 0 2px 4px rgba(25, 135, 84, 0.3);"; // Hijau Bold
     } else {
-        // Merah Solid
-        styleKirim = "background-color: #dc3545; color: white; box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);";
+        styleKirim = "background-color: #dc3545; color: white; box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);"; // Merah Bold
     }
 
-    // Logic Alert: Jika Belum Lunas (Merah) TAPI Sudah Terkirim (Hijau) -> Tampilkan Alert
-    // Kita cek lagi manual agar konsisten
+    // Style Jenis Pembayaran
+    const styleJenis = "background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;";
+
+    // Logic Alert
     const isLunas = stBayar.includes('lunas') || stBayar.includes('bayar') || stBayar.includes('sudah');
     const isTerkirim = stKirim.includes('terkirim') || stKirim.includes('sudah') || stKirim.includes('kirim');
 
@@ -349,7 +354,6 @@ function createMitraCard(mitra) {
                         <div class="small mt-1 fst-italic text-muted">"${mitra.alasan || '-'}"</div>
                     </div>
                 </div>
-                <input type="text" class="input-modern" placeholder="Tulis alasan validasi..." id="validasi-${mitra.id}">
             </div>
         `;
     }
@@ -361,15 +365,24 @@ function createMitraCard(mitra) {
                     <span class="mitra-name mb-0">${mitra.nama}</span>
                     <span class="mitra-id">${mitra.id}</span>
                 </div>
-                <div class="d-flex flex-wrap gap-2">
+                
+                <div class="d-flex flex-wrap gap-2 mb-2">
                     <span class="badge-status" style="${styleBayar}">
                         <i class="fa-solid fa-money-bill-wave me-1"></i>${mitra.status_bayar}
                     </span>
                     <span class="badge-status" style="${styleKirim}">
                         <i class="fa-solid fa-paper-plane me-1"></i>${mitra.status_kirim}
                     </span>
+                    <span class="badge-status" style="${styleJenis}">
+                        <i class="fa-solid fa-receipt me-1"></i>${mitra.jenis_bayar}
+                    </span>
                 </div>
+
                 ${specialUI}
+
+                <div>
+                    <input type="text" class="input-modern" placeholder="Keterangan / Alasan..." id="validasi-${mitra.id}">
+                </div>
             </div>
             
             <div class="ms-3 border-start ps-3">
@@ -395,6 +408,7 @@ window.toggleValidation = function(element, id) {
     }, 100);
 
     if (!element.classList.contains('checked')) {
+        // Jika input masih kosong, beri efek merah
         if (inputReason && inputReason.value.trim() === "") {
             inputReason.style.borderColor = "red";
             inputReason.focus();
