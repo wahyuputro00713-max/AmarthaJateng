@@ -53,7 +53,7 @@ function injectModernStyles() {
             .btn-check-modern {
                 width: 42px; height: 42px; border-radius: 50%; background: #f9fafb; border: 2px solid #e5e7eb; color: #d1d5db;
                 display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-                margin-top: 10px; /* Align with content */
+                margin-top: 10px; 
             }
             .btn-check-modern:hover { background: #f3f4f6; border-color: #d1d5db; }
             .btn-check-modern.checked { background: #22c55e; border-color: #22c55e; color: white; transform: scale(1.1); box-shadow: 0 4px 10px rgba(34, 197, 94, 0.4); }
@@ -72,6 +72,14 @@ function injectModernStyles() {
             .alert-modern { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; border-radius: 8px; padding: 8px 10px; font-size: 0.8rem; margin-top: 8px; }
             .input-modern { width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px; font-size: 0.85rem; margin-top: 8px; transition: border-color 0.2s; background: #fafafa; }
             .input-modern:focus { outline: none; border-color: var(--primary-color); background: #fff; }
+
+            /* Counter & Status Bar */
+            .validation-status-bar {
+                background: white; border-radius: 8px; padding: 10px 15px; margin-bottom: 10px;
+                display: flex; justify-content: space-between; align-items: center;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.05); font-size: 0.9rem; font-weight: 600; color: #374151;
+            }
+            .status-counter { color: #4f46e5; font-weight: bold; }
         `;
         document.head.appendChild(style);
     }
@@ -181,8 +189,6 @@ function processAndRender(rawData, targetPoint) {
         const st_bayar  = getValue(row, ["status_bayar", "bayar"]) || "Belum";
         const st_kirim  = getValue(row, ["status_kirim", "kirim"]) || "Belum";
         const alasan_db = getValue(row, ["keterangan", "alasan"]) || "";
-        
-        // UPDATE: Ambil Data Jenis Pembayaran
         const p_jenis   = getValue(row, ["jenis_pembayaran", "jenis", "type"]) || "-";
 
         const bayarLower = st_bayar.toLowerCase();
@@ -191,7 +197,6 @@ function processAndRender(rawData, targetPoint) {
         const isLunas = bayarLower.includes("lunas") || bayarLower.includes("bayar") || bayarLower.includes("sudah");
         const isTerkirim = kirimLower.includes("terkirim") || kirimLower.includes("sudah") || kirimLower.includes("kirim");
 
-        // Filter Point & Hari
         if (safeTarget !== "ALL" && p_cabang !== safeTarget) return; 
         if (p_hari.toLowerCase() !== currentDayName.toLowerCase()) return;
 
@@ -210,7 +215,7 @@ function processAndRender(rawData, targetPoint) {
                 nama: getValue(row, ["nama_mitra", "nama", "client_name"]),
                 status_bayar: st_bayar,
                 status_kirim: st_kirim,
-                jenis_bayar: p_jenis, // Simpan Jenis Pembayaran
+                jenis_bayar: p_jenis,
                 alasan: alasan_db,
                 is_lunas: isLunas,
                 is_terkirim: isTerkirim
@@ -224,6 +229,9 @@ function processAndRender(rawData, targetPoint) {
 
     renderStats(stats);
     renderAccordion(hierarchy);
+    
+    // Inisialisasi status counter setelah render
+    updateValidationStatus();
 }
 
 function renderStats(stats) {
@@ -240,10 +248,19 @@ function renderAccordion(hierarchy) {
     const container = document.getElementById('accordionBP');
     container.innerHTML = ""; 
 
+    // Tambahkan Counter Bar di atas Accordion
+    const counterHtml = `
+        <div class="validation-status-bar">
+            <span><i class="fa-solid fa-list-check me-2"></i>Status Validasi</span>
+            <span class="status-counter" id="statusCounter">0 / 0 Mitra</span>
+        </div>
+    `;
+    container.insertAdjacentHTML('beforeend', counterHtml);
+
     const bpKeys = Object.keys(hierarchy).sort(); 
 
     if (bpKeys.length === 0) {
-        container.innerHTML = `
+        container.innerHTML += `
             <div class="text-center text-muted py-5">
                 <div class="mb-3 p-3 bg-light rounded-circle d-inline-block">
                     <i class="fa-solid fa-calendar-xmark fa-2x"></i>
@@ -257,7 +274,6 @@ function renderAccordion(hierarchy) {
     bpKeys.forEach((bpName, bpIndex) => {
         const majelisObj = hierarchy[bpName];
         const majelisKeys = Object.keys(majelisObj).sort();
-        
         let majelisHtml = "";
         
         majelisKeys.forEach((majName, majIndex) => {
@@ -320,26 +336,22 @@ function createMitraCard(mitra) {
     const stBayar = (mitra.status_bayar || "").toLowerCase();
     const stKirim = (mitra.status_kirim || "").toLowerCase();
 
-    // Style Status Pembayaran
     let styleBayar = "";
     if (stBayar.includes('lunas') || stBayar.includes('bayar') || stBayar.includes('sudah')) {
-        styleBayar = "background-color: #d1e7dd; color: #0f5132; border: 1px solid #badbcc;"; // Hijau
+        styleBayar = "background-color: #d1e7dd; color: #0f5132; border: 1px solid #badbcc;"; 
     } else {
-        styleBayar = "background-color: #f8d7da; color: #842029; border: 1px solid #f5c2c7;"; // Merah
+        styleBayar = "background-color: #f8d7da; color: #842029; border: 1px solid #f5c2c7;"; 
     }
 
-    // Style Status Pengiriman
     let styleKirim = "";
     if (stKirim.includes('terkirim') || stKirim.includes('sudah') || stKirim.includes('kirim')) {
-        styleKirim = "background-color: #198754; color: white; box-shadow: 0 2px 4px rgba(25, 135, 84, 0.3);"; // Hijau Bold
+        styleKirim = "background-color: #198754; color: white; box-shadow: 0 2px 4px rgba(25, 135, 84, 0.3);"; 
     } else {
-        styleKirim = "background-color: #dc3545; color: white; box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);"; // Merah Bold
+        styleKirim = "background-color: #dc3545; color: white; box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);"; 
     }
 
-    // Style Jenis Pembayaran
     const styleJenis = "background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;";
 
-    // Logic Alert
     const isLunas = stBayar.includes('lunas') || stBayar.includes('bayar') || stBayar.includes('sudah');
     const isTerkirim = stKirim.includes('terkirim') || stKirim.includes('sudah') || stKirim.includes('kirim');
 
@@ -395,9 +407,40 @@ function createMitraCard(mitra) {
 }
 
 // --- 6. EXPORTS & EVENTS ---
+
+// Fungsi Helper untuk Update Status Bar & Tombol Validasi
+function updateValidationStatus() {
+    const totalMitra = document.querySelectorAll('.btn-check-modern').length;
+    const checkedMitra = document.querySelectorAll('.btn-check-modern.checked').length;
+    
+    // Update Counter Text
+    const counterEl = document.getElementById('statusCounter');
+    if(counterEl) {
+        counterEl.textContent = `${checkedMitra} / ${totalMitra} Mitra`;
+        counterEl.style.color = (checkedMitra === totalMitra && totalMitra > 0) ? '#166534' : '#4f46e5';
+    }
+
+    // Update Tombol Validasi
+    const btnValAll = document.getElementById('btnValidateAll');
+    if(btnValAll) {
+        if (checkedMitra === totalMitra && totalMitra > 0) {
+            btnValAll.disabled = false;
+            btnValAll.innerHTML = `<i class="fa-solid fa-calendar-check me-1"></i> Validasi Hari Ini`;
+            btnValAll.classList.remove('btn-secondary');
+            btnValAll.classList.add('btn-primary');
+        } else {
+            btnValAll.disabled = true;
+            btnValAll.innerHTML = `<i class="fa-solid fa-lock me-1"></i> Selesaikan ${totalMitra - checkedMitra} Lagi`;
+            btnValAll.classList.remove('btn-primary');
+            btnValAll.classList.add('btn-secondary');
+        }
+    }
+}
+
 window.toggleValidation = function(element, id) {
     const inputReason = document.getElementById(`validasi-${id}`);
     
+    // Efek Animasi
     element.style.transform = "scale(0.9)";
     setTimeout(() => {
         if (element.classList.contains('checked')) {
@@ -408,7 +451,7 @@ window.toggleValidation = function(element, id) {
     }, 100);
 
     if (!element.classList.contains('checked')) {
-        // Jika input masih kosong, beri efek merah
+        // Cek Input Reason
         if (inputReason && inputReason.value.trim() === "") {
             inputReason.style.borderColor = "red";
             inputReason.focus();
@@ -419,25 +462,21 @@ window.toggleValidation = function(element, id) {
     } else {
         element.classList.remove('checked');
     }
+
+    // Panggil fungsi update status setiap kali tombol diklik
+    updateValidationStatus();
 };
 
 document.addEventListener("DOMContentLoaded", () => {
     const btnValAll = document.getElementById('btnValidateAll');
     if(btnValAll) {
+        // Set awal tombol disabled
+        btnValAll.disabled = true;
+        
         btnValAll.addEventListener('click', () => {
-            if(confirm("Validasi semua data yang Lunas & Terkirim?")) {
-                const checkboxes = document.querySelectorAll('.btn-check-modern');
-                let count = 0;
-                checkboxes.forEach(btn => {
-                    const parent = btn.closest('.mitra-card');
-                    if (!parent.querySelector('.alert-modern')) {
-                        if (!btn.classList.contains('checked')) {
-                            btn.classList.add('checked');
-                            count++;
-                        }
-                    }
-                });
-                alert(`✨ Berhasil memvalidasi otomatis ${count} mitra.`);
+            if(confirm("Validasi semua data?")) {
+               // Logika kirim ke server (jika diperlukan) atau hanya alert sukses
+               alert(`✨ Berhasil memvalidasi semua data.`);
             }
         });
     }
