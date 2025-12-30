@@ -113,11 +113,6 @@
         .snowflake { position: fixed; top: -10px; z-index: 99999; color: #dbeeff; text-shadow: 0 0 5px rgba(0,0,0,0.1); user-select: none; pointer-events: none; cursor: default; animation-name: fall; animation-timing-function: linear; animation-iteration-count: infinite; }
         @keyframes fall { to { transform: translateY(105vh); } }
 
-        /* --- CSS KEMBANG API --- */
-        .hero-header { position: relative; overflow: hidden; }
-        #fireworksCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
-        .hero-header .top-bar, .hero-header .user-welcome { position: relative; z-index: 10; }
-
         /* --- CSS MENU BULAT BAWAH (FAB) --- */
         .fab-container {
             position: fixed; bottom: 30px; right: 20px; z-index: 9999;
@@ -149,9 +144,12 @@
         .fab-container.active .fab-item:nth-child(3) { transition-delay: 0.1s; }
         .fab-container.active .fab-item:nth-child(4) { transition-delay: 0.15s; }
 
-        /* --- PERBAIKAN Z-INDEX & POSISI --- */
+        /* =========================================================
+           FIX CSS HEADER & MENU EXPAND KEKIRI
+           ========================================================= */
         .hero-header {
-            position: relative; /* Header normal */
+            position: relative;
+            /* Header normal */
         }
 
         #fireworksCanvas {
@@ -165,12 +163,45 @@
 
         .hero-header .top-bar {
             position: relative;
-            z-index: 10; 
+            z-index: 50; 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         
         .hero-header .user-welcome {
             position: relative;
-            z-index: 5;
+            z-index: 20;
+        }
+
+        /* Container Menu Kanan */
+        .header-actions {
+            display: flex;
+            align-items: center;
+            position: relative; /* Penting untuk absolute positioning anak-anaknya */
+        }
+
+        /* Menu yang akan muncul/bergeser */
+        .expanded-menu-items {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            position: absolute;
+            right: 50px; /* Posisi di sebelah kiri tombol utama */
+            top: 0;
+            
+            /* Animasi */
+            opacity: 0;
+            transform: translateX(20px) scale(0.8);
+            pointer-events: none;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Efek membal (bouncy) */
+        }
+
+        /* State Aktif */
+        .expanded-menu-items.show {
+            opacity: 1;
+            transform: translateX(0) scale(1);
+            pointer-events: auto;
         }
 
         /* LOGO */
@@ -179,16 +210,18 @@
             filter: drop-shadow(0 2px 2px rgba(0,0,0,0.1));
         }
 
-        /* --- PERBAIKAN: CONTAINER TIDAK OVERLAP LAGI --- */
+        /* Container UTAMA (Di bawah header) */
         .main-container {
             position: relative;
             z-index: 1; 
-            margin-top: 20px; /* Jarak aman dari header, tidak tumpang tindih */
+            margin-top: -30px; /* Overlap sedikit agar menyatu */
         }
 
+        /* FIX: Kartu Absensi diturunkan */
         .card-absensi {
-            /* Pastikan tidak ada negatif margin */
-            margin-top: 0 !important; 
+            margin-top: 25px !important; /* Jarak agar tidak nempel header */
+            position: relative;
+            z-index: 2;
         }
 
     </style>
@@ -204,17 +237,21 @@
                 Amartha
             </div>
             
-            <div class="d-flex gap-2">
-                <a href="admin_user.html" id="btnAdmin" class="btn-icon-glass d-none" style="background: rgba(255,255,0,0.2); color: #fff176;" title="Admin">
-                    <i class="fa-solid fa-users-gear"></i>
-                </a>
-                
-                <a href="profil.html" class="btn-icon-glass" title="Profil">
-                    <i class="fa-regular fa-user"></i>
-                </a>
-                
-                <button id="logoutBtn" class="btn-icon-glass bg-danger border-0" title="Keluar">
-                    <i class="fa-solid fa-power-off"></i>
+            <div class="header-actions">
+                <div id="expandedMenu" class="expanded-menu-items">
+                    <a href="admin_user.html" id="btnAdmin" class="btn-icon-glass d-none" style="background: rgba(255,255,0,0.2); color: #fff176;" title="Admin">
+                        <i class="fa-solid fa-users-gear"></i>
+                    </a>
+                    <a href="profil.html" class="btn-icon-glass" title="Profil">
+                        <i class="fa-regular fa-user"></i>
+                    </a>
+                    <button id="logoutBtn" class="btn-icon-glass bg-danger border-0" title="Keluar">
+                        <i class="fa-solid fa-power-off"></i>
+                    </button>
+                </div>
+
+                <button class="btn-icon-glass" onclick="toggleHeaderMenu()" id="btnHeaderMenu" style="z-index: 100;">
+                    <i class="fa-solid fa-layer-group"></i> 
                 </button>
             </div>
         </div>
@@ -399,6 +436,24 @@
             icon.classList.remove('fa-times'); icon.classList.add('fa-plus');
         }
     }
+
+    // --- LOGIKA MENU HEADER (Tumpukan Buku -> Expand ke Kiri) ---
+    function toggleHeaderMenu() {
+        const menu = document.getElementById('expandedMenu');
+        menu.classList.toggle('show');
+    }
+
+    // Tutup menu header jika klik di luar
+    window.addEventListener('click', function(e) {
+        const btn = document.getElementById('btnHeaderMenu');
+        const menu = document.getElementById('expandedMenu');
+        if (btn && menu) {
+            // Cek jika yang diklik bukan tombol dan bukan area menu
+            if (!btn.contains(e.target) && !menu.contains(e.target)) {
+                menu.classList.remove('show');
+            }
+        }
+    });
     </script>
 </body>
 </html>
