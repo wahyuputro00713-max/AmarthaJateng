@@ -113,11 +113,6 @@
         .snowflake { position: fixed; top: -10px; z-index: 99999; color: #dbeeff; text-shadow: 0 0 5px rgba(0,0,0,0.1); user-select: none; pointer-events: none; cursor: default; animation-name: fall; animation-timing-function: linear; animation-iteration-count: infinite; }
         @keyframes fall { to { transform: translateY(105vh); } }
 
-        /* --- CSS KEMBANG API --- */
-        .hero-header { position: relative; overflow: hidden; }
-        #fireworksCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
-        .hero-header .top-bar, .hero-header .user-welcome { position: relative; z-index: 10; }
-
         /* --- CSS MENU BULAT BAWAH (FAB) --- */
         .fab-container {
             position: fixed; bottom: 30px; right: 20px; z-index: 9999;
@@ -131,7 +126,6 @@
             transition: transform 0.3s, background 0.3s;
         }
         .fab-container.active .fab-main { transform: rotate(45deg); background: #c0392b; }
-        
         .fab-item {
             width: 50px; height: 50px; background: white; border-radius: 50%;
             display: flex; justify-content: center; align-items: center; color: #8e44ad; text-decoration: none;
@@ -139,28 +133,27 @@
             pointer-events: none; transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55); position: relative;
         }
         .fab-item:hover { background: #f3e5f5; color: #6a1b9a; }
-        
         .fab-label {
             position: absolute; right: 60px; background: rgba(0,0,0,0.8); color: white;
             padding: 4px 10px; border-radius: 5px; font-size: 12px; font-weight: bold; white-space: nowrap;
             opacity: 0; transition: opacity 0.3s; pointer-events: none;
         }
-        
         .fab-container.active .fab-item { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
         .fab-container.active .fab-item:hover .fab-label { opacity: 1; }
         
-        /* Animasi berurutan */
+        /* Animasi Berurutan */
         .fab-container.active .fab-item:nth-child(2) { transition-delay: 0.05s; }
         .fab-container.active .fab-item:nth-child(3) { transition-delay: 0.1s; }
         .fab-container.active .fab-item:nth-child(4) { transition-delay: 0.15s; }
-        .fab-container.active .fab-item:nth-child(5) { transition-delay: 0.2s; } /* Delay untuk menu baru */
+        /* Transisi untuk menu ke-5 (Link Penting) */
+        .fab-container.active .fab-item:nth-child(5) { transition-delay: 0.2s; } 
 
         /* =========================================================
-           SETTING LAYOUT HEADER & KARTU (Penting!)
+           FIX CSS HEADER & MENU EXPAND KEKIRI
            ========================================================= */
         .hero-header {
             position: relative;
-            padding-bottom: 60px; 
+            padding-bottom: 70px; /* Tambah ruang di bawah untuk overlap */
         }
 
         #fireworksCanvas {
@@ -175,6 +168,9 @@
         .hero-header .top-bar {
             position: relative;
             z-index: 50; 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         
         .hero-header .user-welcome {
@@ -182,27 +178,57 @@
             z-index: 20;
         }
 
-        /* Container Utama */
+        /* Container Menu Kanan */
+        .header-actions {
+            display: flex;
+            align-items: center;
+            position: relative; /* Penting untuk absolute positioning anak-anaknya */
+        }
+
+        /* Menu yang akan muncul/bergeser */
+        .expanded-menu-items {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            position: absolute;
+            right: 50px; /* Posisi di sebelah kiri tombol utama */
+            top: 0;
+            
+            /* Animasi */
+            opacity: 0;
+            transform: translateX(20px) scale(0.8);
+            pointer-events: none;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Efek membal (bouncy) */
+        }
+
+        /* State Aktif */
+        .expanded-menu-items.show {
+            opacity: 1;
+            transform: translateX(0) scale(1);
+            pointer-events: auto;
+        }
+
+        /* LOGO */
+        .brand-logo {
+            height: 35px; width: auto; margin-right: 8px; vertical-align: middle;
+            filter: drop-shadow(0 2px 2px rgba(0,0,0,0.1));
+        }
+
+        /* Container UTAMA (Di bawah header) */
         .main-container {
             position: relative;
-            z-index: 10; 
-            margin-top: -50px; 
+            z-index: 10; /* Konten di atas background header */
+            margin-top: -60px; /* MENARIK KARTU KE ATAS (Overlap) */
             padding-top: 0;
         }
 
-        /* Kartu Absensi */
+        /* FIX: Kartu Absensi */
         .card-absensi {
             margin-top: 0; 
             margin-bottom: 20px;
             position: relative;
             z-index: 15; 
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1); 
-        }
-
-        /* Logo */
-        .brand-logo {
-            height: 35px; width: auto; margin-right: 8px; vertical-align: middle;
-            filter: drop-shadow(0 2px 2px rgba(0,0,0,0.1));
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
         }
 
     </style>
@@ -218,17 +244,21 @@
                 Amartha
             </div>
             
-            <div class="d-flex gap-2">
-                <a href="admin_user.html" id="btnAdmin" class="btn-icon-glass d-none" style="background: rgba(255,255,0,0.2); color: #fff176;" title="Admin">
-                    <i class="fa-solid fa-users-gear"></i>
-                </a>
-                
-                <a href="profil.html" class="btn-icon-glass" title="Profil">
-                    <i class="fa-regular fa-user"></i>
-                </a>
-                
-                <button id="logoutBtn" class="btn-icon-glass bg-danger border-0" title="Keluar">
-                    <i class="fa-solid fa-power-off"></i>
+            <div class="header-actions">
+                <div id="expandedMenu" class="expanded-menu-items">
+                    <a href="admin_user.html" id="btnAdmin" class="btn-icon-glass d-none" style="background: rgba(255,255,0,0.2); color: #fff176;" title="Admin">
+                        <i class="fa-solid fa-users-gear"></i>
+                    </a>
+                    <a href="profil.html" class="btn-icon-glass" title="Profil">
+                        <i class="fa-regular fa-user"></i>
+                    </a>
+                    <button id="logoutBtn" class="btn-icon-glass bg-danger border-0" title="Keluar">
+                        <i class="fa-solid fa-power-off"></i>
+                    </button>
+                </div>
+
+                <button class="btn-icon-glass" onclick="toggleHeaderMenu()" id="btnHeaderMenu" style="z-index: 100;">
+                    <i class="fa-solid fa-layer-group"></i> 
                 </button>
             </div>
         </div>
@@ -345,10 +375,26 @@
         <button class="fab-main" onclick="toggleFab()">
             <i class="fa-solid fa-plus"></i>
         </button>
-        <a href="#" class="fab-item"><span class="fab-label">Quest</span><i class="fa-solid fa-scroll"></i></a>
-        <a href="#" class="fab-item"><span class="fab-label">Perform Point</span><i class="fa-solid fa-map-location-dot"></i></a>
-        <a href="#" class="fab-item"><span class="fab-label">Perform BP</span><i class="fa-solid fa-chart-line"></i></a>
-        <a href="#" class="fab-item"><span class="fab-label">Link Penting</span><i class="fa-solid fa-link"></i></a>
+        
+        <a href="#" class="fab-item">
+            <span class="fab-label">Quest</span>
+            <i class="fa-solid fa-scroll"></i>
+        </a>
+        
+        <a href="#" class="fab-item">
+            <span class="fab-label">Perform Point</span>
+            <i class="fa-solid fa-map-location-dot"></i>
+        </a>
+        
+        <a href="#" class="fab-item">
+            <span class="fab-label">Perform BP</span>
+            <i class="fa-solid fa-chart-line"></i>
+        </a>
+
+        <a href="#" class="fab-item">
+            <span class="fab-label">Link Penting</span>
+            <i class="fa-solid fa-link"></i>
+        </a>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -414,6 +460,23 @@
             icon.classList.remove('fa-times'); icon.classList.add('fa-plus');
         }
     }
+
+    // --- LOGIKA MENU HEADER (Tumpukan Buku -> Expand ke Kiri) ---
+    function toggleHeaderMenu() {
+        const menu = document.getElementById('expandedMenu');
+        menu.classList.toggle('show');
+    }
+
+    // Tutup menu header jika klik di luar
+    window.addEventListener('click', function(e) {
+        const btn = document.getElementById('btnHeaderMenu');
+        const menu = document.getElementById('expandedMenu');
+        if (btn && menu) {
+            if (!btn.contains(e.target) && !menu.contains(e.target)) {
+                menu.classList.remove('show');
+            }
+        }
+    });
     </script>
 </body>
 </html>
