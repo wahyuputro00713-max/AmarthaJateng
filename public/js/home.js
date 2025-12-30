@@ -26,6 +26,40 @@ const btnAdmin = document.getElementById('btnAdmin');
 // ID ADMIN
 const ADMIN_ID = "17246";
 
+// --- FITUR AUTO LOGOUT (5 MENIT IDLE) ---
+let idleTime = 0;
+const IDLE_LIMIT = 5; // 5 Menit
+
+function timerIncrement() {
+    idleTime = idleTime + 1;
+    if (idleTime >= IDLE_LIMIT) { 
+        // User idle for 5 minutes
+        signOut(auth).then(() => {
+            alert("Sesi Anda berakhir karena tidak ada aktivitas selama 5 menit.");
+            window.location.replace("index.html");
+        });
+    }
+}
+
+// Reset idle timer on user activity
+function resetTimer() {
+    idleTime = 0;
+}
+
+// Events to monitor
+window.onload = function() {
+    // Check idle time every minute
+    setInterval(timerIncrement, 60000); // 1 minute interval
+
+    window.onmousemove = resetTimer;
+    window.onmousedown = resetTimer; // catches touchscreen presses as well      
+    window.ontouchstart = resetTimer; // catches touchscreen swipes as well 
+    window.onclick = resetTimer;     // catches touchpad clicks as well
+    window.onkeypress = resetTimer;   
+    window.addEventListener('scroll', resetTimer, true); 
+};
+// ----------------------------------------
+
 // --- FUNGSI HELPER: TANGGAL & JAM LOKAL (WIB) ---
 function getLocalTodayDate() {
     const d = new Date();
