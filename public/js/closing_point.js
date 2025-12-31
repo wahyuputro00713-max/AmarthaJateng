@@ -84,6 +84,7 @@ function injectModernStyles() {
                 --success-bg: #dcfce7; --success-text: #166534;
                 --danger-bg: #fee2e2; --danger-text: #991b1b;
                 --info-bg: #e0f2fe; --info-text: #0369a1;
+                --gray-bg: #f3f4f6; --gray-text: #374151;
                 --bg-card: #ffffff;
                 --bg-body: #f3f4f6;
             }
@@ -233,6 +234,7 @@ function processAndRender(rawData, targetPoint) {
     const normalize = (str) => String(str || "").trim().toUpperCase();
     const safeTarget = normalize(targetPoint);
 
+    // Reset Data Global
     globalMitraList = [];
 
     if (!rawData || rawData.length === 0) {
@@ -246,7 +248,9 @@ function processAndRender(rawData, targetPoint) {
         const p_majelis = getValue(row, ["majelis", "group", "kelompok"]) || "Umum";
         const p_hari    = getValue(row, ["hari", "day"]) || "";
         
-        const p_bucket  = parseInt(getValue(row, ["bucket", "dpd", "kolek"]) || 0); 
+        // Ambil data Bucket sebagai String agar teks '01. Current' terbaca
+        const rawBucket = String(getValue(row, ["bucket", "dpd", "kolek"]) || "0").trim();
+        
         const st_bayar  = getValue(row, ["status_bayar", "bayar"]) || "Belum";
         const st_kirim  = getValue(row, ["status_kirim", "kirim"]) || "Belum";
         const alasan_db = getValue(row, ["keterangan", "alasan"]) || "";
@@ -261,7 +265,9 @@ function processAndRender(rawData, targetPoint) {
         if (safeTarget !== "ALL" && p_cabang !== safeTarget) return; 
         if (p_hari.toLowerCase() !== currentDayName.toLowerCase()) return;
 
-        const isCurrent = p_bucket <= 1; 
+        // Logic cek Current: Jika mengandung "Current", "Lancar", atau angka <= 1
+        const bucketNum = parseInt(rawBucket);
+        const isCurrent = rawBucket.toLowerCase().includes("current") || rawBucket.toLowerCase().includes("lancar") || (!isNaN(bucketNum) && bucketNum <= 1);
 
         if (isCurrent) {
             stats.mm_total++;
@@ -279,7 +285,7 @@ function processAndRender(rawData, targetPoint) {
             status_bayar: st_bayar,
             status_kirim: st_kirim,
             jenis_bayar: p_jenis,
-            bucket: p_bucket,
+            bucket: rawBucket, // Simpan Raw Data Bucket
             alasan: alasan_db,
             is_lunas: isLunas,
             is_terkirim: isTerkirim,
@@ -444,20 +450,38 @@ function createMitraCard(mitra) {
 
     const styleJenis = "background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;";
 
-    // --- LOGIKA TAMPILAN BUCKET / DPD ---
-    // Jika 0 (Current) -> "Lancar", selain itu -> "DPD: X"
+    // --- LOGIKA TAMPILAN BUCKET / DPD (FIXED) ---
+    // Jika ada kata 'Current', 'Lancar', atau angka <= 1 -> "Lancar"
+    // Selain itu tampilkan teks aslinya (misal "02. DPD 1-7")
+    
     let bucketText = "";
     let styleBucket = "";
+    const bucketRaw = String(mitra.bucket);
+    const bucketLower = bucketRaw.toLowerCase();
+    const bucketNum = parseInt(bucketRaw);
 
-    if (mitra.bucket == 0) {
+    // Cek apakah Current / Lancar
+    if (bucketLower.includes("current") || bucketLower.includes("lancar") || (!isNaN(bucketNum) && bucketNum <= 1)) {
         bucketText = "Lancar";
         styleBucket = "background-color: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe;"; // Indigo soft
     } else {
-        bucketText = `DPD: ${mitra.bucket}`;
-        if (mitra.bucket > 7) {
-             styleBucket = "background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5;"; // Red
+        // Tampilkan teks bucket apa adanya jika tidak current
+        // Bisa dibersihkan sedikit jika perlu, misal menghapus '02. '
+        bucketText = bucketRaw; 
+        
+        // Warna warning (Kuning) atau danger (Merah)
+        // Asumsi: jika mengandung 'DPD', beri warna kuning/merah
+        if (bucketRaw.includes("DPD")) {
+             styleBucket = "background-color: #fef3c7; color: #92400e; border: 1px solid #fcd34d;"; // Kuning default
+             
+             // Cek jika macet parah (misal bucket > 2 atau ada kata 'macet')
+             // Sesuaikan logika ini jika ada aturan khusus dari spreadsheet
+             if (bucketRaw.includes(">") || bucketNum > 7) {
+                 styleBucket = "background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5;"; // Red
+             }
         } else {
-             styleBucket = "background-color: #fef3c7; color: #92400e; border: 1px solid #fcd34d;"; // Yellow
+             // Default Abu-abu jika format tidak dikenali
+             styleBucket = "background-color: #f3f4f6; color: #374151; border: 1px solid #d1d5db;";
         }
     }
 
