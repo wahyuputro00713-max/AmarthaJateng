@@ -26,8 +26,10 @@ let currentDayName = "";
 let globalMitraList = []; 
 let draftData = {}; 
 let readStatusData = {}; 
+let isPageLocked = false; // Status Penguncian Halaman
 
-// --- 1. MANAGEMEN PENYIMPANAN LOKAL (AUTO-SAVE & NOTIFIKASI) ---
+// --- 1. MANAGEMEN PENYIMPANAN LOKAL (AUTO-SAVE, NOTIFIKASI & LOCK) ---
+// Key menggunakan Tanggal Lengkap (YYYY-MM-DD) agar reset otomatis saat ganti tanggal
 function getStorageKey() {
     const dateStr = new Date().toISOString().split('T')[0];
     return `closing_draft_${dateStr}`; 
@@ -38,6 +40,11 @@ function getReadStatusKey() {
     return `closing_read_${dateStr}`; 
 }
 
+function getLockStatusKey() {
+    const dateStr = new Date().toISOString().split('T')[0];
+    return `closing_lock_${dateStr}`; 
+}
+
 function loadFromStorage() {
     try {
         const rawDraft = localStorage.getItem(getStorageKey());
@@ -45,21 +52,34 @@ function loadFromStorage() {
 
         const rawRead = localStorage.getItem(getReadStatusKey());
         readStatusData = rawRead ? JSON.parse(rawRead) : {};
+
+        // Cek status Lock hari ini
+        const rawLock = localStorage.getItem(getLockStatusKey());
+        isPageLocked = rawLock === "true"; 
     } catch (e) {
         draftData = {};
         readStatusData = {};
+        isPageLocked = false;
     }
 }
 
 function saveToStorage(id, isChecked, reason) {
+    if (isPageLocked) return; // Jangan simpan jika terkunci
+
     if (!draftData) draftData = {};
-    
     if (!draftData[id]) draftData[id] = {};
     draftData[id].checked = isChecked;
     draftData[id].reason = reason;
 
     localStorage.setItem(getStorageKey(), JSON.stringify(draftData));
     updateGlobalValidationStatus();
+}
+
+// Fungsi Mengunci Halaman (Dipanggil setelah download CSV)
+function setPageLocked() {
+    isPageLocked = true;
+    localStorage.setItem(getLockStatusKey(), "true");
+    applyLockMode();
 }
 
 window.markMajelisAsRead = function(uniqueKey, elementId) {
@@ -94,6 +114,10 @@ function injectModernStyles() {
                 transition: all 0.2s ease; display: flex; align-items: flex-start; justify-content: space-between;
             }
             .mitra-card:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(0,0,0,0.06); border-color: var(--primary-color); }
+            
+            /* LOCKED STATE CARD */
+            .mitra-card.locked-card { opacity: 0.8; background-color: #fafafa; border-color: #e5e7eb; pointer-events: none; }
+
             .mitra-name { font-weight: 700; color: #1f2937; font-size: 0.95rem; display: block; margin-bottom: 4px; }
             .mitra-id { font-size: 0.75rem; color: #6b7280; background: #f3f4f6; padding: 2px 8px; border-radius: 6px; }
             .badge-status { font-size: 0.7rem; padding: 4px 10px; border-radius: 20px; font-weight: 600; letter-spacing: 0.3px; text-transform: uppercase; display: inline-block; }
@@ -106,13 +130,12 @@ function injectModernStyles() {
             .btn-check-modern:hover { background: #f3f4f6; border-color: #d1d5db; }
             .btn-check-modern.checked { background: #22c55e; border-color: #22c55e; color: white; transform: scale(1.1); box-shadow: 0 4px 10px rgba(34, 197, 94, 0.4); }
             
-            /* DISABLED STATE UNTUK TOMBOL VALIDASI MITRA */
+            /* DISABLED STATE UNTUK TOMBOL VALIDASI */
             .btn-check-modern.disabled {
                 background: #e5e7eb !important; border-color: #d1d5db !important; color: #9ca3af !important;
                 cursor: not-allowed !important; pointer-events: none; opacity: 0.7;
             }
 
-            /* Accordion Styling */
             .accordion-button::after { display: none !important; }
             .custom-arrow { transition: transform 0.3s ease; }
             .accordion-button:not(.collapsed) .custom-arrow { transform: rotate(180deg); }
@@ -127,6 +150,9 @@ function injectModernStyles() {
             .input-modern:focus { outline: none; border-color: var(--primary-color); background: #fff; }
             .input-modern.required { border-color: #f87171; background-color: #fef2f2; }
             .input-modern.required:focus { border-color: #ef4444; }
+            
+            /* INPUT READONLY STATE */
+            .input-modern:disabled { background: #e9ecef; color: #6c757d; border-color: #ced4da; }
 
             .notif-dot {
                 width: 10px; height: 10px; background-color: #ef4444;
@@ -253,7 +279,7 @@ function processAndRender(rawData, targetPoint) {
         const p_majelis = getValue(row, ["majelis", "group", "kelompok"]) || "Umum";
         const p_hari    = getValue(row, ["hari", "day"]) || "";
         
-        // Ambil data Bucket
+        // Ambil Raw Bucket dari Kolom H
         const rawBucket = String(getValue(row, ["bucket", "dpd", "kolek"]) || "0").trim();
         
         const st_bayar  = getValue(row, ["status_bayar", "bayar"]) || "Belum";
@@ -290,7 +316,7 @@ function processAndRender(rawData, targetPoint) {
             status_bayar: st_bayar,
             status_kirim: st_kirim,
             jenis_bayar: p_jenis,
-            bucket: rawBucket, 
+            bucket: rawBucket,
             alasan: alasan_db,
             is_lunas: isLunas,
             is_terkirim: isTerkirim,
@@ -308,6 +334,11 @@ function processAndRender(rawData, targetPoint) {
     renderStats(stats);
     renderAccordion(hierarchy);
     updateGlobalValidationStatus();
+    
+    // --- CEK APAKAH HALAMAN TERKUNCI ---
+    if (isPageLocked) {
+        applyLockMode();
+    }
 }
 
 function renderStats(stats) {
@@ -478,7 +509,6 @@ function createMitraCard(mitra) {
     const isTerkirim = stKirim.includes('terkirim') || stKirim.includes('sudah') || stKirim.includes('kirim');
 
     // --- LOGIKA DISABLE TOMBOL VALIDASI ---
-    // Jika belum terkirim -> DISABLE
     const isValidationLocked = !isTerkirim;
     const lockedClass = isValidationLocked ? "disabled" : "";
     const lockedAttr = isValidationLocked ? "" : `onclick="toggleValidation(this, '${mitra.id}')"`;
@@ -555,8 +585,9 @@ function createMitraCard(mitra) {
 // --- 7. EXPORTS & EVENTS ---
 
 window.saveReasonInput = function(id, value) {
+    if (isPageLocked) return;
+
     const btn = document.querySelector(`.btn-check-modern[onclick*="'${id}'"]`);
-    // Jika tombol disabled, jangan simpan state checked-nya (tapi input tetap bisa disave jika perlu)
     if (!btn || btn.classList.contains('disabled')) {
         saveToStorage(id, false, value); 
         return;
@@ -565,7 +596,36 @@ window.saveReasonInput = function(id, value) {
     saveToStorage(id, isChecked, value);
 };
 
+// Fungsi baru untuk menerapkan Mode Terkunci
+function applyLockMode() {
+    const allInputs = document.querySelectorAll('.input-modern');
+    allInputs.forEach(input => {
+        input.disabled = true;
+        input.style.backgroundColor = "#e9ecef";
+        input.style.color = "#6c757d";
+    });
+
+    const allChecks = document.querySelectorAll('.btn-check-modern');
+    allChecks.forEach(btn => {
+        btn.classList.add('disabled');
+        btn.removeAttribute('onclick');
+        btn.style.opacity = "0.6";
+        btn.style.cursor = "not-allowed";
+    });
+
+    const btnValAll = document.getElementById('btnValidateAll');
+    if(btnValAll) {
+        btnValAll.disabled = true;
+        btnValAll.innerHTML = `<i class="fa-solid fa-lock me-1"></i> Laporan Terkirim & Terkunci`;
+        btnValAll.classList.remove('btn-success', 'btn-primary');
+        btnValAll.classList.add('btn-secondary');
+        btnValAll.style.cursor = "not-allowed";
+    }
+}
+
 function updateGlobalValidationStatus() {
+    if (isPageLocked) return;
+
     const totalMitra = document.querySelectorAll('.btn-check-modern').length;
     const checkedMitra = document.querySelectorAll('.btn-check-modern.checked').length;
     
@@ -606,8 +666,7 @@ function updateMajelisStats(btnElement) {
 }
 
 window.toggleValidation = function(element, id) {
-    // Double check agar tidak bisa diklik jika disabled
-    if (element.classList.contains('disabled')) return;
+    if (isPageLocked || element.classList.contains('disabled')) return;
 
     const inputReason = document.getElementById(`validasi-${id}`);
     const isRequired = inputReason.getAttribute('data-required') === "true";
@@ -690,8 +749,9 @@ document.addEventListener("DOMContentLoaded", () => {
         btnValAll.disabled = true;
         
         btnValAll.addEventListener('click', () => {
-            if(confirm("Apakah Anda yakin ingin mengunduh laporan validasi ini?")) {
+            if(confirm("Apakah Anda yakin ingin mengunduh laporan validasi ini?\n\nPERINGATAN: Setelah diunduh, data akan TERKUNCI dan tidak bisa diedit lagi hari ini.")) {
                downloadCSV();
+               setPageLocked(); // Kunci halaman setelah download
             }
         });
     }
