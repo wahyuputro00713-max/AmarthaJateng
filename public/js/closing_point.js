@@ -254,6 +254,9 @@ function initPage() {
 // --- 4. FETCH DATA ---
 async function fetchRepaymentData(targetPoint) {
     try {
+        const container = document.getElementById('accordionBP');
+        if(container) container.innerHTML = `<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div><p>Mengambil Data...</p></div>`;
+
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify({ action: "get_majelis" }), 
@@ -269,12 +272,17 @@ async function fetchRepaymentData(targetPoint) {
         
         allRawData = result.data || [];
         
-        // Panggil setup header SETELAH data diterima
+        // Setup Header Dropdown
         setupHeaderFilters();
         
-        // Render data pertama kali (Tampilkan Semua atau Kosong tergantung preferensi)
-        // Di sini kita render data default (Semua/Sesuai Profil)
-        filterAndRenderData();
+        // Render Awal:
+        // BM -> Langsung render
+        // RM/AM -> Tunggu klik tombol (Tampilkan pesan suruh pilih)
+        if (currentRole === "BM") {
+            filterAndRenderData();
+        } else {
+            if(container) container.innerHTML = `<div class="text-center py-5 text-muted"><i class="fa-solid fa-filter fa-2x mb-3"></i><p>Silakan pilih Area/Point dan klik <b>Tampilkan Data</b></p></div>`;
+        }
 
     } catch (error) {
         console.error(error);
@@ -298,20 +306,19 @@ function getValue(row, keys) {
     return "";
 }
 
-// --- FUNGSI SETUP HEADER DROPDOWNS (DENGAN TOMBOL TAMPILKAN) ---
+// --- FUNGSI SETUP HEADER DROPDOWNS ---
 function setupHeaderFilters() {
     const areaEl = document.getElementById('areaName');
     const pointEl = document.getElementById('pointName');
     
     if (!areaEl || !pointEl) return;
 
-    // Jika sudah select, skip setup ulang
     if (areaEl.tagName === 'SELECT' && pointEl.tagName === 'SELECT' && currentRole === 'RM') {
         return; 
     }
 
     // Helper: Buat Tombol Tampilkan Data
-    const createButton = (targetParent) => {
+    const createButton = () => {
         if(document.getElementById('btnShowData')) return; 
 
         const btn = document.createElement('button');
@@ -319,19 +326,23 @@ function setupHeaderFilters() {
         btn.className = 'btn btn-sm btn-primary mt-1 mb-1 shadow-sm d-block';
         btn.innerHTML = '<i class="fa-solid fa-magnifying-glass me-1"></i> Tampilkan Data';
         btn.style.fontSize = "0.8rem";
-        btn.addEventListener('click', () => {
-             filterAndRenderData();
+        
+        btn.addEventListener('click', function() {
+             const originalText = this.innerHTML;
+             this.disabled = true;
+             this.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin me-1"></i> Memuat...';
+             
+             setTimeout(() => {
+                filterAndRenderData();
+                this.disabled = false;
+                this.innerHTML = originalText;
+             }, 300);
         });
         
-        // Masukkan tombol di bawah Point (di dalam div parent)
-        // Point adalah elemen pertama (h4), Area adalah elemen kedua (p) di HTML.
-        // Kita append ke parent agar muncul di urutan paling bawah atau disisipkan.
-        // Sesuai request "dibawah tulisan Point", kita sisipkan setelah Point Select.
         const pointSelect = document.getElementById('selectPoint');
         if(pointSelect && pointSelect.parentNode) {
             pointSelect.parentNode.insertBefore(btn, pointSelect.nextSibling);
         } else {
-             // Fallback append ke parent
              pointEl.parentNode.appendChild(btn);
         }
     };
@@ -339,7 +350,6 @@ function setupHeaderFilters() {
     // 1. JIKA ROLE RM / ADMIN
     if (currentRole === "RM" || currentRole === "ADMIN") {
         
-        // --- Buat Dropdown Area ---
         if (areaEl.tagName !== 'SELECT') {
             const selArea = document.createElement('select');
             selArea.id = 'selectArea';
@@ -351,56 +361,35 @@ function setupHeaderFilters() {
                 areaOpts += `<option value="${area}" ${selected}>${area}</option>`;
             });
             selArea.innerHTML = areaOpts;
-            
             areaEl.replaceWith(selArea);
             
-            // Listener Area: HANYA Update Dropdown Point, JANGAN Render Data Otomatis
             selArea.addEventListener('change', () => {
                 updatePointDropdownOptions();
             });
         }
 
-        // --- Buat Dropdown Point ---
         if (pointEl.tagName !== 'SELECT') {
             const selPoint = document.createElement('select');
             selPoint.id = 'selectPoint';
             selPoint.className = 'header-select mb-1';
-            
             pointEl.replaceWith(selPoint);
-            
-            // Listener Point: TIDAK ADA (Tunggu tombol diklik)
         }
 
-        // Init Options
         updatePointDropdownOptions();
-        
-        // TAMBAHKAN TOMBOL
         createButton();
     }
     
     // 2. JIKA ROLE AM
     else if (currentRole === "AM") {
-        // Area tetap teks
-        
-        // Ganti Point dengan Dropdown
         if (pointEl.tagName !== 'SELECT') {
             const selPoint = document.createElement('select');
             selPoint.id = 'selectPoint';
             selPoint.className = 'header-select mb-1';
-            
             pointEl.replaceWith(selPoint);
-            
-            // Listener Point: TIDAK ADA (Tunggu tombol diklik)
-            
-            // Init Options
             updatePointDropdownOptions(userProfile.area);
         }
-
-        // TAMBAHKAN TOMBOL
         createButton();
     }
-
-    // 3. JIKA ROLE BM (Tidak ada perubahan, tetap otomatis)
 }
 
 function updatePointDropdownOptions(fixedArea = null) {
@@ -442,97 +431,133 @@ function updatePointDropdownOptions(fixedArea = null) {
 
 // --- 5. PROCESSING DATA (FILTERING) ---
 function filterAndRenderData() {
-    // Tampilkan Loading indikator di accordion jika perlu (Opsional)
-    // const container = document.getElementById('accordionBP');
-    // container.innerHTML = `<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></div>`;
+    let stats = { mm_total: 0, mm_bayar: 0, mm_kirim: 0, nc_total: 0, nc_bayar: 0, nc_kirim: 0 };
+    let hierarchy = {}; 
+    const normalize = (str) => String(str || "").trim().toLowerCase();
 
-    setTimeout(() => { // Kasih delay dikit biar kerasa loading (opsional)
-        let stats = { mm_total: 0, mm_bayar: 0, mm_kirim: 0, nc_total: 0, nc_bayar: 0, nc_kirim: 0 };
-        let hierarchy = {}; 
-        const normalize = (str) => String(str || "").trim();
+    // --- AMBIL NILAI FILTER ---
+    const elArea = document.getElementById('selectArea');
+    const elPoint = document.getElementById('selectPoint');
+    
+    let filterArea = "ALL";
+    let filterPoint = "ALL";
 
-        const elArea = document.getElementById('selectArea');
-        const elPoint = document.getElementById('selectPoint');
+    // Logic: Ambil nilai dari dropdown jika ada, jika tidak ada (BM) ambil dari profil
+    if (elArea) {
+        filterArea = elArea.value; // RM/Admin
+    } else if (currentRole === 'AM') {
+        filterArea = userProfile.area; // AM (hidden area)
+    }
+
+    if (elPoint) {
+        filterPoint = elPoint.value; // RM/AM/Admin
+    } else if (currentRole === 'BM') {
+        filterPoint = userProfile.point; // BM locked
+    }
+
+    globalMitraList = [];
+    const container = document.getElementById('accordionBP');
+    if(!container) return;
+
+    if (!allRawData || allRawData.length === 0) {
+        container.innerHTML = `<div class="text-center py-5">Data Kosong (Belum ada data ditarik).</div>`;
+        return;
+    }
+
+    let matchCount = 0;
+
+    allRawData.forEach(row => {
+        // Ambil Data Row
+        const p_area_raw    = getValue(row, ["area", "region"]);
+        const p_cabang_raw  = getValue(row, ["cabang", "point", "unit"]);
+        const p_hari_raw    = getValue(row, ["hari", "day"]) || "";
+
+        // Normalize
+        const p_area    = normalize(p_area_raw);
+        const p_cabang  = normalize(p_cabang_raw);
+        const p_hari    = normalize(p_hari_raw);
+        const todayNorm = normalize(currentDayName);
         
-        const filterArea = elArea ? elArea.value : (currentRole === 'AM' ? userProfile.area : "ALL");
-        const defaultPointFilter = (["RM","AM","ADMIN"].includes(currentRole)) ? "ALL" : userProfile.point;
-        const filterPoint = elPoint ? elPoint.value : defaultPointFilter;
+        // --- FILTERING LOGIC ---
 
-        globalMitraList = [];
-        const container = document.getElementById('accordionBP');
-        if(!container) return;
+        // 1. FILTER HARI (WAJIB SESUAI HARI INI - REVERTED)
+        if (p_hari !== todayNorm) return;
+        
+        // 2. FILTER AREA (Jika dipilih, dan bukan ALL)
+        if (filterArea !== "ALL" && p_area !== normalize(filterArea)) return;
+        
+        // 3. FILTER POINT (Jika dipilih, dan bukan ALL)
+        if (filterPoint !== "ALL" && p_cabang !== normalize(filterPoint)) return;
 
-        if (!allRawData || allRawData.length === 0) {
-            container.innerHTML = `<div class="text-center py-5">Data Kosong.</div>`;
-            return;
+        matchCount++;
+
+        // --- DATA MATCH, LANJUT PROSES ---
+        const p_bp      = getValue(row, ["bp", "petugas", "ao"]) || "Tanpa BP";
+        const p_majelis = getValue(row, ["majelis", "group", "kelompok"]) || "Umum";
+        
+        const rawBucket = String(getValue(row, ["bucket", "dpd", "kolek"]) || "0").trim();
+        const st_bayar  = getValue(row, ["status_bayar", "bayar"]) || "Belum";
+        const st_kirim  = getValue(row, ["status_kirim", "kirim"]) || "Belum";
+        const alasan_db = getValue(row, ["keterangan", "alasan"]) || "";
+        const p_jenis   = getValue(row, ["jenis_pembayaran", "jenis", "type"]) || "-";
+
+        const bayarLower = st_bayar.toLowerCase();
+        const kirimLower = st_kirim.toLowerCase();
+
+        const isLunas = bayarLower.includes("lunas") || bayarLower.includes("bayar") || bayarLower.includes("sudah");
+        const isTerkirim = kirimLower.includes("terkirim") || kirimLower.includes("sudah") || kirimLower.includes("kirim");
+
+        const bucketNum = parseInt(rawBucket);
+        const isCurrent = rawBucket.toLowerCase().includes("current") || rawBucket.toLowerCase().includes("lancar") || (!isNaN(bucketNum) && bucketNum <= 1);
+
+        if (isCurrent) {
+            stats.mm_total++;
+            if (isLunas) stats.mm_bayar++;
+            if (isTerkirim) stats.mm_kirim++;
+        } else {
+            stats.nc_total++;
+            if (isLunas) stats.nc_bayar++;
+            if (isTerkirim) stats.nc_kirim++;
         }
 
-        allRawData.forEach(row => {
-            const p_area    = normalize(getValue(row, ["area", "region"]));
-            const p_cabang  = normalize(getValue(row, ["cabang", "point", "unit"]));
-            const p_bp      = getValue(row, ["bp", "petugas", "ao"]) || "Tanpa BP";
-            const p_majelis = getValue(row, ["majelis", "group", "kelompok"]) || "Umum";
-            const p_hari    = getValue(row, ["hari", "day"]) || "";
-            
-            // --- FILTERING ---
-            if (p_hari.toLowerCase() !== currentDayName.toLowerCase()) return;
-            if (filterArea !== "ALL" && p_area !== filterArea) return;
-            if (filterPoint !== "ALL" && p_cabang !== filterPoint) return;
+        const mitraData = {
+            id: getValue(row, ["id_mitra", "id", "account_id"]),
+            nama: getValue(row, ["nama_mitra", "nama", "client_name"]),
+            status_bayar: st_bayar,
+            status_kirim: st_kirim,
+            jenis_bayar: p_jenis,
+            bucket: rawBucket, 
+            alasan: alasan_db,
+            is_lunas: isLunas,
+            is_terkirim: isTerkirim,
+            bp: p_bp,
+            majelis: p_majelis
+        };
 
-            const rawBucket = String(getValue(row, ["bucket", "dpd", "kolek"]) || "0").trim();
-            const st_bayar  = getValue(row, ["status_bayar", "bayar"]) || "Belum";
-            const st_kirim  = getValue(row, ["status_kirim", "kirim"]) || "Belum";
-            const alasan_db = getValue(row, ["keterangan", "alasan"]) || "";
-            const p_jenis   = getValue(row, ["jenis_pembayaran", "jenis", "type"]) || "-";
+        globalMitraList.push(mitraData);
 
-            const bayarLower = st_bayar.toLowerCase();
-            const kirimLower = st_kirim.toLowerCase();
+        if (!hierarchy[p_bp]) hierarchy[p_bp] = {};
+        if (!hierarchy[p_bp][p_majelis]) hierarchy[p_bp][p_majelis] = [];
+        hierarchy[p_bp][p_majelis].push(mitraData);
+    });
 
-            const isLunas = bayarLower.includes("lunas") || bayarLower.includes("bayar") || bayarLower.includes("sudah");
-            const isTerkirim = kirimLower.includes("terkirim") || kirimLower.includes("sudah") || kirimLower.includes("kirim");
-
-            const bucketNum = parseInt(rawBucket);
-            const isCurrent = rawBucket.toLowerCase().includes("current") || rawBucket.toLowerCase().includes("lancar") || (!isNaN(bucketNum) && bucketNum <= 1);
-
-            if (isCurrent) {
-                stats.mm_total++;
-                if (isLunas) stats.mm_bayar++;
-                if (isTerkirim) stats.mm_kirim++;
-            } else {
-                stats.nc_total++;
-                if (isLunas) stats.nc_bayar++;
-                if (isTerkirim) stats.nc_kirim++;
-            }
-
-            const mitraData = {
-                id: getValue(row, ["id_mitra", "id", "account_id"]),
-                nama: getValue(row, ["nama_mitra", "nama", "client_name"]),
-                status_bayar: st_bayar,
-                status_kirim: st_kirim,
-                jenis_bayar: p_jenis,
-                bucket: rawBucket, 
-                alasan: alasan_db,
-                is_lunas: isLunas,
-                is_terkirim: isTerkirim,
-                bp: p_bp,
-                majelis: p_majelis
-            };
-
-            globalMitraList.push(mitraData);
-
-            if (!hierarchy[p_bp]) hierarchy[p_bp] = {};
-            if (!hierarchy[p_bp][p_majelis]) hierarchy[p_bp][p_majelis] = [];
-            hierarchy[p_bp][p_majelis].push(mitraData);
-        });
-
-        renderStats(stats);
+    renderStats(stats);
+    
+    if (matchCount === 0) {
+        container.innerHTML = `
+            <div class="text-center text-muted py-5">
+                <i class="fa-solid fa-filter-circle-xmark fa-2x mb-3"></i>
+                <h6>Data Tidak Ditemukan</h6>
+                <p>Tidak ada jadwal majelis hari <b>${currentDayName}</b> untuk Area/Point yang dipilih.</p>
+            </div>`;
+    } else {
         renderAccordion(hierarchy);
         updateGlobalValidationStatus();
         
         if (isPageLocked) {
             applyLockMode();
         }
-    }, 50); // Delay kecil
+    }
 }
 
 function renderStats(stats) {
@@ -560,18 +585,6 @@ function renderAccordion(hierarchy) {
     container.insertAdjacentHTML('beforeend', counterHtml);
 
     const bpKeys = Object.keys(hierarchy).sort(); 
-
-    if (bpKeys.length === 0) {
-        container.innerHTML += `
-            <div class="text-center text-muted py-5">
-                <div class="mb-3 p-3 bg-light rounded-circle d-inline-block">
-                    <i class="fa-solid fa-calendar-xmark fa-2x"></i>
-                </div>
-                <h6 class="fw-bold text-dark">Tidak Ada Jadwal</h6>
-                <p class="small">Tidak ada data majelis untuk hari <b>${currentDayName}</b> sesuai filter.</p>
-            </div>`;
-        return;
-    }
 
     bpKeys.forEach((bpName, bpIndex) => {
         const majelisObj = hierarchy[bpName];
