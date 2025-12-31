@@ -22,7 +22,6 @@ const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev";
 const ADMIN_ID = "17246";
 
 // --- DATA POINT (OPSI DROPDOWN) ---
-// Pastikan nama ini sesuai dengan yang ada di Data Excel/Database (Case insensitive)
 const dataPoints = {
     "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucuk"],
     "Magelang": ["Grabag", "Mungkid", "Pakis", "Salam"],
@@ -185,6 +184,11 @@ function injectModernStyles() {
                 margin-bottom: 5px; display: block;
             }
             .header-select:focus { outline: none; border-color: var(--primary-color); }
+            
+            /* DEBUG TABLE */
+            .debug-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; margin-top: 10px; }
+            .debug-table th, .debug-table td { border: 1px solid #ddd; padding: 4px; text-align: left; }
+            .debug-table th { background-color: #f2f2f2; }
         `;
         document.head.appendChild(style);
     }
@@ -226,10 +230,11 @@ function checkUserRole(uid) {
 }
 
 function initPage() {
+    // --- MANUAL DAY MAPPER (Supaya tidak error locale) ---
+    const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
     const today = new Date();
-    // FORCE INDONESIAN LOCALE untuk Hari
-    currentDayName = today.toLocaleDateString('id-ID', { weekday: 'long' });
-    
+    currentDayName = days[today.getDay()]; // Hari ini (Senin, Selasa, dll)
+
     const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
     document.getElementById('displayDate').textContent = today.toLocaleDateString('id-ID', options);
     
@@ -278,7 +283,6 @@ async function fetchRepaymentData(targetPoint) {
         
         // --- LOGIKA RENDER AWAL ---
         if (currentRole === "BM") {
-            // BM: Langsung tampilkan data sesuai profil
             filterAndRenderData();
         } else {
             // RM/AM: Kosongkan area tampilan, tunggu user klik tombol
@@ -287,8 +291,7 @@ async function fetchRepaymentData(targetPoint) {
                     <div class="text-center py-5 text-muted">
                         <i class="fa-solid fa-filter fa-2x mb-3 text-info"></i>
                         <h6 class="text-dark fw-bold">Siap Menampilkan Data</h6>
-                        <p>Silakan pilih <b>Area & Point</b>, lalu klik tombol <br> <span class="badge bg-primary">Tampilkan Data</span>.</p>
-                        <small class="text-muted">Total Data Masuk: ${allRawData.length} baris</small>
+                        <p>Total Data Masuk: <b>${allRawData.length} Baris</b>.<br>Silakan pilih Area & Point, lalu klik tombol <span class="badge bg-primary">Tampilkan Data</span>.</p>
                     </div>`;
             }
         }
@@ -322,7 +325,6 @@ function setupHeaderFilters() {
     
     if (!areaEl || !pointEl) return;
 
-    // Cek apakah sudah berupa SELECT, jika ya, jangan buat ulang
     if (areaEl.tagName === 'SELECT' && pointEl.tagName === 'SELECT') {
         return; 
     }
@@ -342,12 +344,11 @@ function setupHeaderFilters() {
              this.disabled = true;
              this.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin me-1"></i> Memuat...';
              
-             // Jalankan filter dengan sedikit delay agar UI loading terlihat
              setTimeout(() => {
                 filterAndRenderData();
                 this.disabled = false;
                 this.innerHTML = originalText;
-             }, 200);
+             }, 300);
         });
         
         const pointSelect = document.getElementById('selectPoint');
@@ -358,7 +359,7 @@ function setupHeaderFilters() {
         }
     };
 
-    // 1. JIKA ROLE RM / ADMIN -> Buat Dropdown Area & Point
+    // 1. JIKA ROLE RM / ADMIN
     if (currentRole === "RM" || currentRole === "ADMIN") {
         
         if (areaEl.tagName !== 'SELECT') {
@@ -374,7 +375,6 @@ function setupHeaderFilters() {
             selArea.innerHTML = areaOpts;
             areaEl.replaceWith(selArea);
             
-            // Saat Area berubah, update opsi Point
             selArea.addEventListener('change', () => {
                 updatePointDropdownOptions();
             });
@@ -391,7 +391,7 @@ function setupHeaderFilters() {
         createButton();
     }
     
-    // 2. JIKA ROLE AM -> Buat Dropdown Point Saja
+    // 2. JIKA ROLE AM
     else if (currentRole === "AM") {
         if (pointEl.tagName !== 'SELECT') {
             const selPoint = document.createElement('select');
@@ -409,7 +409,6 @@ function updatePointDropdownOptions(fixedArea = null) {
     if (!selectPoint) return;
 
     const selectArea = document.getElementById('selectArea');
-    // Jika fixedArea ada (AM), pakai itu. Jika tidak, ambil dari dropdown Area (RM).
     const selectedArea = fixedArea || (selectArea ? selectArea.value : "ALL");
     
     let availablePoints = [];
@@ -419,7 +418,6 @@ function updatePointDropdownOptions(fixedArea = null) {
             availablePoints = dataPoints[selectedArea];
         }
     } else {
-        // Jika ALL, gabungkan semua point
         Object.values(dataPoints).forEach(pts => {
             availablePoints = availablePoints.concat(pts);
         });
@@ -431,7 +429,6 @@ function updatePointDropdownOptions(fixedArea = null) {
         pointOpts += `<option value="${p}">${p}</option>`;
     });
     
-    // Pertahankan seleksi sebelumnya jika valid
     const oldValue = selectPoint.value;
     selectPoint.innerHTML = pointOpts;
     
@@ -449,27 +446,26 @@ function filterAndRenderData() {
     let stats = { mm_total: 0, mm_bayar: 0, mm_kirim: 0, nc_total: 0, nc_bayar: 0, nc_kirim: 0 };
     let hierarchy = {}; 
     
-    const normalize = (str) => String(str || "").trim().toLowerCase();
+    // NORMALIZE HELPER: Hapus spasi dan simbol, jadikan lowercase
+    // Contoh: "01-Wedi" -> "01wedi"
+    const clean = (str) => String(str || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
-    // --- AMBIL NILAI FILTER DARI ELEMENT / PROFIL ---
     const elArea = document.getElementById('selectArea');
     const elPoint = document.getElementById('selectPoint');
     
     let filterArea = "ALL";
     let filterPoint = "ALL";
 
-    // Logic Area
     if (elArea) {
-        filterArea = elArea.value; // RM/Admin dari Dropdown
+        filterArea = elArea.value; 
     } else if (currentRole === 'AM') {
-        filterArea = userProfile.area; // AM dari Profil
+        filterArea = userProfile.area; 
     } 
 
-    // Logic Point
     if (elPoint) {
-        filterPoint = elPoint.value; // RM/AM/Admin dari Dropdown
+        filterPoint = elPoint.value; 
     } else if (currentRole === 'BM') {
-        filterPoint = userProfile.point; // BM locked
+        filterPoint = userProfile.point; 
     }
 
     globalMitraList = [];
@@ -482,49 +478,39 @@ function filterAndRenderData() {
     }
 
     let matchCount = 0;
-    const todayNorm = normalize(currentDayName);
+    const todayClean = clean(currentDayName);
 
     allRawData.forEach(row => {
-        // Ambil Data Row
         const p_area_raw    = getValue(row, ["area", "region"]);
         const p_cabang_raw  = getValue(row, ["cabang", "point", "unit"]);
         const p_hari_raw    = getValue(row, ["hari", "day"]) || "";
 
-        // Normalize Data
-        const p_area    = normalize(p_area_raw);
-        const p_cabang  = normalize(p_cabang_raw);
-        const p_hari    = normalize(p_hari_raw);
+        const p_area_clean   = clean(p_area_raw);
+        const p_cabang_clean = clean(p_cabang_raw);
+        const p_hari_clean   = clean(p_hari_raw);
         
-        // --- FILTERING LOGIC (STRICT) ---
-
-        // 1. FILTER HARI (Wajib Sama)
-        if (p_hari !== todayNorm) return;
+        // --- FILTERING ---
+        // 1. FILTER HARI
+        if (p_hari_clean !== todayClean) return;
         
         // 2. FILTER AREA
-        // Gunakan includes untuk fleksibilitas (Misal: "Solo" matches "Solo Area")
-        // Tapi pastikan filterArea bukan "ALL"
         if (filterArea !== "ALL") {
-            const fArea = normalize(filterArea);
-            if (!p_area.includes(fArea)) return;
+            const fArea = clean(filterArea);
+            if (!p_area_clean.includes(fArea)) return;
         }
         
         // 3. FILTER POINT
-        // Gunakan includes agar "01 Wedi" bisa match dengan "Wedi" atau "01 Wedi"
         if (filterPoint !== "ALL") {
-            const fPoint = normalize(filterPoint);
-            // Cek dua arah: data includes filter ATAU filter includes data
-            // Ini menangani kasus Dropdown="01 Wedi", Data="Wedi" (Mungkin tidak match)
-            // Atau Dropdown="Wedi", Data="01 Wedi" (Match)
-            // Kita pakai strict includes: Data harus mengandung kata kunci Filter
-            if (!p_cabang.includes(fPoint) && !fPoint.includes(p_cabang)) return;
+            const fPoint = clean(filterPoint);
+            // Flexible Match: "01wedi" matches "wedi" OR "wedi" matches "01wedi"
+            if (!p_cabang_clean.includes(fPoint) && !fPoint.includes(p_cabang_clean)) return;
         }
 
         matchCount++;
 
-        // --- DATA MATCH, LANJUT PROSES ---
+        // Data Lain
         const p_bp      = getValue(row, ["bp", "petugas", "ao"]) || "Tanpa BP";
         const p_majelis = getValue(row, ["majelis", "group", "kelompok"]) || "Umum";
-        
         const rawBucket = String(getValue(row, ["bucket", "dpd", "kolek"]) || "0").trim();
         const st_bayar  = getValue(row, ["status_bayar", "bayar"]) || "Belum";
         const st_kirim  = getValue(row, ["status_kirim", "kirim"]) || "Belum";
@@ -533,7 +519,6 @@ function filterAndRenderData() {
 
         const bayarLower = st_bayar.toLowerCase();
         const kirimLower = st_kirim.toLowerCase();
-
         const isLunas = bayarLower.includes("lunas") || bayarLower.includes("bayar") || bayarLower.includes("sudah");
         const isTerkirim = kirimLower.includes("terkirim") || kirimLower.includes("sudah") || kirimLower.includes("kirim");
 
@@ -574,23 +559,40 @@ function filterAndRenderData() {
     renderStats(stats);
     
     if (matchCount === 0) {
-        // Tampilkan Pesan Debug yang Informatif
-        const debugInfo = `
-            <ul class="text-start d-inline-block text-muted small mt-2">
-                <li>Hari Database Wajib: <b>${todayNorm}</b></li>
-                <li>Filter Area: <b>${filterArea}</b></li>
-                <li>Filter Point: <b>${filterPoint}</b></li>
-            </ul>
+        // --- DEBUG DATA (TAMPILKAN DATA ASLI JIKA HASIL 0) ---
+        // Ambil 5 data pertama untuk ditampilkan agar user tahu isinya apa
+        let debugRows = "";
+        allRawData.slice(0, 5).forEach(r => {
+            const h = getValue(r, ["hari", "day"]);
+            const a = getValue(r, ["area", "region"]);
+            const c = getValue(r, ["cabang", "point", "unit"]);
+            debugRows += `<tr><td>${h}</td><td>${a}</td><td>${c}</td></tr>`;
+        });
+
+        const debugTable = `
+            <div class="mt-3 p-2 bg-white border rounded text-start">
+                <strong>Sample Data Asli dari Database (5 Baris):</strong>
+                <table class="debug-table">
+                    <tr><th>Hari</th><th>Area</th><th>Point/Cabang</th></tr>
+                    ${debugRows}
+                </table>
+            </div>
         `;
-        
+
         container.innerHTML = `
             <div class="text-center text-muted py-5">
                 <i class="fa-solid fa-filter-circle-xmark fa-2x mb-3 text-warning"></i>
                 <h6 class="text-dark">Data Tidak Ditemukan</h6>
-                <p class="mb-0">Tidak ada jadwal majelis yang cocok dengan filter di atas.</p>
-                ${debugInfo}
-                <div class="alert alert-light mt-3 small">
-                    <i class="fa-solid fa-circle-info me-1"></i> Pastikan Hari di Database sesuai dengan Hari Ini (${currentDayName}).
+                <p class="mb-0">Tidak ada data yang cocok dengan Filter.</p>
+                <div class="small mt-2">
+                    Filter Hari Ini: <b>${currentDayName}</b><br>
+                    Filter Area: <b>${filterArea}</b><br>
+                    Filter Point: <b>${filterPoint}</b>
+                </div>
+                ${debugTable}
+                <div class="alert alert-warning mt-3 small">
+                    <i class="fa-solid fa-circle-info me-1"></i> 
+                    Silakan cek tabel Sample Data di atas. Pastikan <b>Hari</b>, <b>Area</b>, dan <b>Point</b> tertulis sama persis di Database Anda.
                 </div>
             </div>`;
     } else {
