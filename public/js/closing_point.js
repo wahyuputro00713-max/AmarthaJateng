@@ -106,6 +106,12 @@ function injectModernStyles() {
             .btn-check-modern:hover { background: #f3f4f6; border-color: #d1d5db; }
             .btn-check-modern.checked { background: #22c55e; border-color: #22c55e; color: white; transform: scale(1.1); box-shadow: 0 4px 10px rgba(34, 197, 94, 0.4); }
             
+            /* DISABLED STATE UNTUK TOMBOL VALIDASI MITRA */
+            .btn-check-modern.disabled {
+                background: #e5e7eb !important; border-color: #d1d5db !important; color: #9ca3af !important;
+                cursor: not-allowed !important; pointer-events: none; opacity: 0.7;
+            }
+
             /* Accordion Styling */
             .accordion-button::after { display: none !important; }
             .custom-arrow { transition: transform 0.3s ease; }
@@ -234,7 +240,6 @@ function processAndRender(rawData, targetPoint) {
     const normalize = (str) => String(str || "").trim().toUpperCase();
     const safeTarget = normalize(targetPoint);
 
-    // Reset Data Global
     globalMitraList = [];
 
     if (!rawData || rawData.length === 0) {
@@ -248,7 +253,7 @@ function processAndRender(rawData, targetPoint) {
         const p_majelis = getValue(row, ["majelis", "group", "kelompok"]) || "Umum";
         const p_hari    = getValue(row, ["hari", "day"]) || "";
         
-        // Ambil data Bucket sebagai String agar teks '01. Current' terbaca
+        // Ambil data Bucket
         const rawBucket = String(getValue(row, ["bucket", "dpd", "kolek"]) || "0").trim();
         
         const st_bayar  = getValue(row, ["status_bayar", "bayar"]) || "Belum";
@@ -285,7 +290,7 @@ function processAndRender(rawData, targetPoint) {
             status_bayar: st_bayar,
             status_kirim: st_kirim,
             jenis_bayar: p_jenis,
-            bucket: rawBucket, // Simpan Raw Data Bucket
+            bucket: rawBucket, 
             alasan: alasan_db,
             is_lunas: isLunas,
             is_terkirim: isTerkirim,
@@ -450,43 +455,34 @@ function createMitraCard(mitra) {
 
     const styleJenis = "background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;";
 
-    // --- LOGIKA TAMPILAN BUCKET / DPD (FIXED) ---
-    // Jika ada kata 'Current', 'Lancar', atau angka <= 1 -> "Lancar"
-    // Selain itu tampilkan teks aslinya (misal "02. DPD 1-7")
-    
+    // --- LOGIKA TAMPILAN BUCKET / DPD ---
     let bucketText = "";
     let styleBucket = "";
     const bucketRaw = String(mitra.bucket);
     const bucketLower = bucketRaw.toLowerCase();
     const bucketNum = parseInt(bucketRaw);
 
-    // Cek apakah Current / Lancar
     if (bucketLower.includes("current") || bucketLower.includes("lancar") || (!isNaN(bucketNum) && bucketNum <= 1)) {
         bucketText = "Lancar";
-        styleBucket = "background-color: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe;"; // Indigo soft
+        styleBucket = "background-color: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe;"; 
     } else {
-        // Tampilkan teks bucket apa adanya jika tidak current
-        // Bisa dibersihkan sedikit jika perlu, misal menghapus '02. '
-        bucketText = bucketRaw; 
-        
-        // Warna warning (Kuning) atau danger (Merah)
-        // Asumsi: jika mengandung 'DPD', beri warna kuning/merah
-        if (bucketRaw.includes("DPD")) {
-             styleBucket = "background-color: #fef3c7; color: #92400e; border: 1px solid #fcd34d;"; // Kuning default
-             
-             // Cek jika macet parah (misal bucket > 2 atau ada kata 'macet')
-             // Sesuaikan logika ini jika ada aturan khusus dari spreadsheet
-             if (bucketRaw.includes(">") || bucketNum > 7) {
-                 styleBucket = "background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5;"; // Red
-             }
+        bucketText = `DPD: ${mitra.bucket}`; 
+        if (mitra.bucket > 7) {
+             styleBucket = "background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5;"; 
         } else {
-             // Default Abu-abu jika format tidak dikenali
-             styleBucket = "background-color: #f3f4f6; color: #374151; border: 1px solid #d1d5db;";
+             styleBucket = "background-color: #fef3c7; color: #92400e; border: 1px solid #fcd34d;"; 
         }
     }
 
     const isLunas = stBayar.includes('lunas') || stBayar.includes('bayar') || stBayar.includes('sudah');
     const isTerkirim = stKirim.includes('terkirim') || stKirim.includes('sudah') || stKirim.includes('kirim');
+
+    // --- LOGIKA DISABLE TOMBOL VALIDASI ---
+    // Jika belum terkirim -> DISABLE
+    const isValidationLocked = !isTerkirim;
+    const lockedClass = isValidationLocked ? "disabled" : "";
+    const lockedAttr = isValidationLocked ? "" : `onclick="toggleValidation(this, '${mitra.id}')"`;
+    const lockedTitle = isValidationLocked ? "Status Kirim Belum Selesai (Terkunci)" : "Klik untuk Validasi";
 
     let specialUI = "";
     if (!isLunas && isTerkirim) {
@@ -546,9 +542,9 @@ function createMitraCard(mitra) {
             </div>
             
             <div class="ms-3 border-start ps-3">
-                <div class="btn-check-modern shadow-sm ${checkBtnClass}" 
-                     onclick="toggleValidation(this, '${mitra.id}')" 
-                     title="Klik untuk Validasi">
+                <div class="btn-check-modern shadow-sm ${checkBtnClass} ${lockedClass}" 
+                     ${lockedAttr}
+                     title="${lockedTitle}">
                     <i class="fa-solid fa-check"></i>
                 </div>
             </div>
@@ -560,7 +556,12 @@ function createMitraCard(mitra) {
 
 window.saveReasonInput = function(id, value) {
     const btn = document.querySelector(`.btn-check-modern[onclick*="'${id}'"]`);
-    const isChecked = btn && btn.classList.contains('checked');
+    // Jika tombol disabled, jangan simpan state checked-nya (tapi input tetap bisa disave jika perlu)
+    if (!btn || btn.classList.contains('disabled')) {
+        saveToStorage(id, false, value); 
+        return;
+    }
+    const isChecked = btn.classList.contains('checked');
     saveToStorage(id, isChecked, value);
 };
 
@@ -605,6 +606,9 @@ function updateMajelisStats(btnElement) {
 }
 
 window.toggleValidation = function(element, id) {
+    // Double check agar tidak bisa diklik jika disabled
+    if (element.classList.contains('disabled')) return;
+
     const inputReason = document.getElementById(`validasi-${id}`);
     const isRequired = inputReason.getAttribute('data-required') === "true";
     
