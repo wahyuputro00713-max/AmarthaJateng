@@ -24,38 +24,55 @@ const ADMIN_ID = "17246";
 let userProfile = null;
 let currentDayName = ""; 
 let globalMitraList = []; 
-let draftData = {}; // Variabel untuk menyimpan data draft (cache)
+let draftData = {}; 
+let readStatusData = {}; // Simpan status notifikasi yang sudah dibaca
 
-// --- 1. MANAGEMEN PENYIMPANAN LOKAL (AUTO-SAVE) ---
+// --- 1. MANAGEMEN PENYIMPANAN LOKAL (AUTO-SAVE & NOTIFIKASI) ---
 function getStorageKey() {
-    // Key unik per hari agar reset setiap ganti hari
     const dateStr = new Date().toISOString().split('T')[0];
     return `closing_draft_${dateStr}`; 
 }
 
-function loadDraftFromStorage() {
+function getReadStatusKey() {
+    const dateStr = new Date().toISOString().split('T')[0];
+    return `closing_read_${dateStr}`; 
+}
+
+function loadFromStorage() {
     try {
-        const raw = localStorage.getItem(getStorageKey());
-        draftData = raw ? JSON.parse(raw) : {};
+        const rawDraft = localStorage.getItem(getStorageKey());
+        draftData = rawDraft ? JSON.parse(rawDraft) : {};
+
+        const rawRead = localStorage.getItem(getReadStatusKey());
+        readStatusData = rawRead ? JSON.parse(rawRead) : {};
     } catch (e) {
         draftData = {};
+        readStatusData = {};
     }
 }
 
 function saveToStorage(id, isChecked, reason) {
     if (!draftData) draftData = {};
     
-    // Update data di memori
     if (!draftData[id]) draftData[id] = {};
     draftData[id].checked = isChecked;
     draftData[id].reason = reason;
 
-    // Simpan ke LocalStorage
     localStorage.setItem(getStorageKey(), JSON.stringify(draftData));
-    
-    // Update UI Counter
-    updateValidationStatus();
+    updateGlobalValidationStatus();
 }
+
+// Fungsi untuk menandai Majelis sudah dibaca (hilangkan notif)
+window.markMajelisAsRead = function(uniqueKey, elementId) {
+    if (!readStatusData[uniqueKey]) {
+        readStatusData[uniqueKey] = true;
+        localStorage.setItem(getReadStatusKey(), JSON.stringify(readStatusData));
+        
+        // Hilangkan dot merah secara visual
+        const dot = document.getElementById(`notif-${elementId}`);
+        if(dot) dot.style.display = 'none';
+    }
+};
 
 // --- 2. INJECT STYLE MODERN (CSS) ---
 function injectModernStyles() {
@@ -83,7 +100,6 @@ function injectModernStyles() {
             .mitra-id { font-size: 0.75rem; color: #6b7280; background: #f3f4f6; padding: 2px 8px; border-radius: 6px; }
             .badge-status { font-size: 0.7rem; padding: 4px 10px; border-radius: 20px; font-weight: 600; letter-spacing: 0.3px; text-transform: uppercase; display: inline-block; }
             
-            /* Custom Check Button */
             .btn-check-modern {
                 width: 42px; height: 42px; border-radius: 50%; background: #f9fafb; border: 2px solid #e5e7eb; color: #d1d5db;
                 display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -96,8 +112,7 @@ function injectModernStyles() {
             .accordion-button::after { display: none !important; }
             .custom-arrow { transition: transform 0.3s ease; }
             .accordion-button:not(.collapsed) .custom-arrow { transform: rotate(180deg); }
-            .card-header[aria-expanded="true"] .custom-arrow { transform: rotate(180deg); }
-
+            
             .accordion-button { font-weight: 600; border-radius: 12px !important; }
             .accordion-button:not(.collapsed) { background-color: #eef2ff; color: #4f46e5; box-shadow: none; }
             .accordion-item { border: none; margin-bottom: 10px; background: transparent; }
@@ -109,7 +124,18 @@ function injectModernStyles() {
             .input-modern.required { border-color: #f87171; background-color: #fef2f2; }
             .input-modern.required:focus { border-color: #ef4444; }
 
-            /* Counter & Status Bar */
+            /* Notifikasi Dot */
+            .notif-dot {
+                width: 10px; height: 10px; background-color: #ef4444;
+                border-radius: 50%; display: inline-block; margin-left: 8px;
+                box-shadow: 0 0 0 2px white; animation: pulse-dot 2s infinite;
+            }
+            @keyframes pulse-dot {
+                0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+                70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+                100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+            }
+
             .validation-status-bar {
                 background: white; border-radius: 8px; padding: 10px 15px; margin-bottom: 10px;
                 display: flex; justify-content: space-between; align-items: center;
@@ -125,7 +151,7 @@ function injectModernStyles() {
 onAuthStateChanged(auth, (user) => {
     if (user) {
         injectModernStyles(); 
-        loadDraftFromStorage(); // Load data tersimpan saat login
+        loadFromStorage(); 
         checkUserRole(user.uid);
     } else {
         window.location.replace("index.html");
@@ -225,7 +251,7 @@ function processAndRender(rawData, targetPoint) {
         const p_majelis = getValue(row, ["majelis", "group", "kelompok"]) || "Umum";
         const p_hari    = getValue(row, ["hari", "day"]) || "";
         
-        const p_bucket  = parseInt(getValue(row, ["bucket", "dpd", "kolek"]) || 0); // Ambil Data Bucket
+        const p_bucket  = parseInt(getValue(row, ["bucket", "dpd", "kolek"]) || 0); 
         const st_bayar  = getValue(row, ["status_bayar", "bayar"]) || "Belum";
         const st_kirim  = getValue(row, ["status_kirim", "kirim"]) || "Belum";
         const alasan_db = getValue(row, ["keterangan", "alasan"]) || "";
@@ -259,7 +285,7 @@ function processAndRender(rawData, targetPoint) {
             status_bayar: st_bayar,
             status_kirim: st_kirim,
             jenis_bayar: p_jenis,
-            bucket: p_bucket, // Simpan Data Bucket
+            bucket: p_bucket,
             alasan: alasan_db,
             is_lunas: isLunas,
             is_terkirim: isTerkirim,
@@ -276,7 +302,7 @@ function processAndRender(rawData, targetPoint) {
 
     renderStats(stats);
     renderAccordion(hierarchy);
-    updateValidationStatus();
+    updateGlobalValidationStatus();
 }
 
 function renderStats(stats) {
@@ -322,19 +348,46 @@ function renderAccordion(hierarchy) {
         
         majelisKeys.forEach((majName, majIndex) => {
             const mitraList = majelisObj[majName];
+            
+            // Hitung data untuk header Majelis
+            let checkedCount = 0;
+            let hasNewUpdate = false; // Flag untuk notif merah
+
+            // Cek status dari draft & data asli
+            mitraList.forEach(m => {
+                const saved = draftData[m.id] || {};
+                if (saved.checked) checkedCount++;
+                if (m.is_terkirim) hasNewUpdate = true; // Jika ada status terkirim
+            });
+
+            // Logic Notifikasi Dot (Unread)
+            const uniqueKey = `${bpName}_${majName}`.replace(/\s+/g, '_');
+            const isRead = readStatusData[uniqueKey] === true;
+            const showDot = hasNewUpdate && !isRead;
+            const dotHtml = showDot ? `<span class="notif-dot" id="notif-maj-${bpIndex}-${majIndex}"></span>` : ``;
+
+            // Render Mitra Rows
             let mitraRows = mitraList.map(m => createMitraCard(m)).join('');
 
             majelisHtml += `
                 <div class="accordion-item mt-2">
                     <h2 class="accordion-header" id="headingMaj-${bpIndex}-${majIndex}">
-                        <button class="accordion-button collapsed py-2 px-3 bg-white border shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMaj-${bpIndex}-${majIndex}">
+                        <button class="accordion-button collapsed py-2 px-3 bg-white border shadow-sm" 
+                                type="button" 
+                                data-bs-toggle="collapse" 
+                                data-bs-target="#collapseMaj-${bpIndex}-${majIndex}"
+                                onclick="markMajelisAsRead('${uniqueKey}', 'maj-${bpIndex}-${majIndex}')">
                             <div class="d-flex align-items-center w-100 gap-3">
                                 <div class="bg-indigo-50 text-indigo p-2 rounded">
                                     <i class="fa-solid fa-users-rectangle text-primary"></i>
                                 </div>
                                 <div class="flex-grow-1">
-                                    <div class="fw-bold text-dark" style="font-size:0.9rem;">${majName}</div>
-                                    <div class="small text-muted">${mitraList.length} Mitra</div>
+                                    <div class="d-flex align-items-center">
+                                        <div class="fw-bold text-dark" style="font-size:0.9rem;">${majName}</div>
+                                        ${dotHtml} </div>
+                                    <div class="small text-muted" id="count-maj-${bpIndex}-${majIndex}">
+                                        ${checkedCount} / ${mitraList.length} Validasi
+                                    </div>
                                 </div>
                                 <i class="fa-solid fa-chevron-down text-muted small custom-arrow"></i>
                             </div>
@@ -383,7 +436,7 @@ function createMitraCard(mitra) {
     // -- Cek Draft (Data tersimpan di browser) --
     const savedData = draftData[mitra.id] || {};
     const isChecked = savedData.checked ? "checked" : "";
-    const savedReason = savedData.reason || ""; // Ambil alasan tersimpan
+    const savedReason = savedData.reason || ""; 
 
     // Style Status Pembayaran
     let styleBayar = "";
@@ -402,7 +455,6 @@ function createMitraCard(mitra) {
     }
 
     const styleJenis = "background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;";
-    // Style Baru untuk DPD Bucket
     const styleBucket = "background-color: #f3f4f6; color: #374151; border: 1px solid #d1d5db;";
 
     const isLunas = stBayar.includes('lunas') || stBayar.includes('bayar') || stBayar.includes('sudah');
@@ -428,14 +480,11 @@ function createMitraCard(mitra) {
     const isRequired = !jenisNormal; 
     const placeholder = isRequired ? "Wajib isi alasan (Jenis: " + mitra.jenis_bayar + ")..." : "Keterangan (Opsional)...";
     const requiredClass = isRequired ? "required" : "";
-    // Jika ada draft tersimpan, gunakan nilai tersebut. Jika tidak, kosongkan.
     const inputValue = savedReason; 
-
-    // Tambahkan class 'checked' pada tombol jika status tersimpan adalah checked
     const checkBtnClass = isChecked ? "checked" : "";
 
     return `
-        <div class="mitra-card">
+        <div class="mitra-card" data-majelis-header="header-unknown">
             <div style="flex: 1;">
                 <div class="d-flex align-items-center gap-2 mb-2">
                     <span class="mitra-name mb-0">${mitra.nama}</span>
@@ -489,7 +538,8 @@ window.saveReasonInput = function(id, value) {
     saveToStorage(id, isChecked, value);
 };
 
-function updateValidationStatus() {
+// Fungsi Update status Global & Per Majelis
+function updateGlobalValidationStatus() {
     const totalMitra = document.querySelectorAll('.btn-check-modern').length;
     const checkedMitra = document.querySelectorAll('.btn-check-modern.checked').length;
     
@@ -512,6 +562,23 @@ function updateValidationStatus() {
             btnValAll.classList.remove('btn-success');
             btnValAll.classList.add('btn-secondary');
         }
+    }
+}
+
+// Update Counter per Majelis saat tombol diklik
+function updateMajelisStats(btnElement) {
+    // Cari elemen collapse pembungkus
+    const collapseDiv = btnElement.closest('.accordion-collapse');
+    if (!collapseDiv) return;
+
+    // Cari header yang sesuai dengan collapse ini
+    const headerId = collapseDiv.getAttribute('aria-labelledby') || collapseDiv.id.replace('collapse', 'heading');
+    const countDiv = document.querySelector(`#${headerId} .small.text-muted`); // div untuk text counter
+
+    if (countDiv) {
+        const allInMajelis = collapseDiv.querySelectorAll('.btn-check-modern').length;
+        const checkedInMajelis = collapseDiv.querySelectorAll('.btn-check-modern.checked').length;
+        countDiv.innerText = `${checkedInMajelis} / ${allInMajelis} Validasi`;
     }
 }
 
@@ -545,8 +612,11 @@ window.toggleValidation = function(element, id) {
         element.classList.remove('checked');
     }
 
-    // SIMPAN STATUS BARU
+    // Update penyimpanan & Status Global
     saveToStorage(id, element.classList.contains('checked'), inputReason.value);
+    
+    // Update Status per Majelis
+    updateMajelisStats(element);
 };
 
 // --- 8. FUNGSI DOWNLOAD CSV ---
@@ -562,7 +632,6 @@ function downloadCSV() {
         const inputReason = document.getElementById(`validasi-${m.id}`);
         const userReason = inputReason ? inputReason.value : "";
         
-        // Cek juga dari storage jika elemen tidak ditemukan (misal hidden accordion)
         const stored = draftData[m.id] || {};
         const finalReason = userReason || stored.reason || m.alasan || "-";
 
@@ -574,7 +643,7 @@ function downloadCSV() {
             m.status_bayar,
             m.status_kirim,
             m.jenis_bayar,
-            m.bucket, // Tambahkan Bucket ke CSV
+            m.bucket, 
             `"${finalReason}"`
         ].join(",");
 
