@@ -41,6 +41,13 @@ let draftData = {};
 let readStatusData = {}; 
 let isPageLocked = false; 
 
+// --- HELPER: MEMBERSIHKAN STRING UTK PENCOCOKAN ---
+// Menghapus spasi, simbol, dan huruf besar -> jadi lowercase polos
+const clean = (str) => {
+    if (!str) return "";
+    return String(str).toLowerCase().replace(/[^a-z0-9]/g, "");
+};
+
 // --- 1. MANAGEMEN PENYIMPANAN LOKAL ---
 function getStorageKey() {
     const dateStr = new Date().toISOString().split('T')[0];
@@ -185,10 +192,10 @@ function injectModernStyles() {
             }
             .header-select:focus { outline: none; border-color: var(--primary-color); }
             
-            /* DEBUG TABLE */
-            .debug-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; margin-top: 10px; }
-            .debug-table th, .debug-table td { border: 1px solid #ddd; padding: 4px; text-align: left; }
-            .debug-table th { background-color: #f2f2f2; }
+            /* TABLE DEBUG STYLE */
+            .debug-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; margin-top:10px; color: #333; }
+            .debug-table th, .debug-table td { border: 1px solid #ccc; padding: 4px; text-align: left; }
+            .debug-table th { background: #f0f0f0; }
         `;
         document.head.appendChild(style);
     }
@@ -230,15 +237,15 @@ function checkUserRole(uid) {
 }
 
 function initPage() {
-    // --- MANUAL DAY MAPPER (Supaya tidak error locale) ---
+    // FORCE HARDCODED DAY MAP UNTUK MENGHINDARI BUG LOCALE BROWSER
     const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
     const today = new Date();
-    currentDayName = days[today.getDay()]; // Hari ini (Senin, Selasa, dll)
-
+    currentDayName = days[today.getDay()]; 
+    
     const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
     document.getElementById('displayDate').textContent = today.toLocaleDateString('id-ID', options);
     
-    // Tampilkan Teks Default dulu sebelum data di-load
+    // Tampilkan Default
     const userArea = userProfile.area || "Area -";
     const userPoint = userProfile.point || userProfile.cabang || "Point -";
 
@@ -278,20 +285,20 @@ async function fetchRepaymentData(targetPoint) {
         
         allRawData = result.data || [];
         
-        // Setup Header Dropdown (Membuat Element Select jika belum ada)
+        // Setup Header Dropdown (Select)
         setupHeaderFilters();
         
-        // --- LOGIKA RENDER AWAL ---
+        // Render Awal
         if (currentRole === "BM") {
             filterAndRenderData();
         } else {
-            // RM/AM: Kosongkan area tampilan, tunggu user klik tombol
+            // RM/AM Menunggu klik
             if(container) {
                 container.innerHTML = `
                     <div class="text-center py-5 text-muted">
                         <i class="fa-solid fa-filter fa-2x mb-3 text-info"></i>
                         <h6 class="text-dark fw-bold">Siap Menampilkan Data</h6>
-                        <p>Total Data Masuk: <b>${allRawData.length} Baris</b>.<br>Silakan pilih Area & Point, lalu klik tombol <span class="badge bg-primary">Tampilkan Data</span>.</p>
+                        <p class="small">Total Data Masuk: <b>${allRawData.length} Baris</b>.<br>Silakan pilih Area & Point, lalu klik tombol <b>Tampilkan Data</b>.</p>
                     </div>`;
             }
         }
@@ -311,9 +318,9 @@ async function fetchRepaymentData(targetPoint) {
 function getValue(row, keys) {
     const rowKeys = Object.keys(row);
     for (let k of keys) {
-        // Strict compare key name
         const found = rowKeys.find(rk => rk.toLowerCase() === k.toLowerCase());
-        if (found) return row[found];
+        // Tambahkan || "" untuk mencegah error Undefined
+        if (found) return row[found] || "";
     }
     return "";
 }
@@ -446,26 +453,22 @@ function filterAndRenderData() {
     let stats = { mm_total: 0, mm_bayar: 0, mm_kirim: 0, nc_total: 0, nc_bayar: 0, nc_kirim: 0 };
     let hierarchy = {}; 
     
-    // NORMALIZE HELPER: Hapus spasi dan simbol, jadikan lowercase
-    // Contoh: "01-Wedi" -> "01wedi"
-    const clean = (str) => String(str || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-
     const elArea = document.getElementById('selectArea');
     const elPoint = document.getElementById('selectPoint');
     
+    // CEK ELEMENT EXIST DULU BIAR GA ERROR
     let filterArea = "ALL";
-    let filterPoint = "ALL";
-
-    if (elArea) {
+    if (elArea && elArea.value) {
         filterArea = elArea.value; 
     } else if (currentRole === 'AM') {
-        filterArea = userProfile.area; 
+        filterArea = userProfile.area || "ALL"; 
     } 
 
-    if (elPoint) {
+    let filterPoint = "ALL";
+    if (elPoint && elPoint.value) {
         filterPoint = elPoint.value; 
     } else if (currentRole === 'BM') {
-        filterPoint = userProfile.point; 
+        filterPoint = userProfile.point || "ALL"; 
     }
 
     globalMitraList = [];
@@ -480,29 +483,31 @@ function filterAndRenderData() {
     let matchCount = 0;
     const todayClean = clean(currentDayName);
 
+    // --- LOOP DATA ---
     allRawData.forEach(row => {
         const p_area_raw    = getValue(row, ["area", "region"]);
         const p_cabang_raw  = getValue(row, ["cabang", "point", "unit"]);
-        const p_hari_raw    = getValue(row, ["hari", "day"]) || "";
+        const p_hari_raw    = getValue(row, ["hari", "day"]);
 
+        // BERSIHKAN STRING AGAR LEBIH MUDAH MATCH (Hapus spasi, simbol, lowercase)
         const p_area_clean   = clean(p_area_raw);
         const p_cabang_clean = clean(p_cabang_raw);
         const p_hari_clean   = clean(p_hari_raw);
         
-        // --- FILTERING ---
         // 1. FILTER HARI
         if (p_hari_clean !== todayClean) return;
         
-        // 2. FILTER AREA
+        // 2. FILTER AREA (Flexible Match)
         if (filterArea !== "ALL") {
             const fArea = clean(filterArea);
-            if (!p_area_clean.includes(fArea)) return;
+            // Cek apakah data MENGANDUNG filter, atau filter MENGANDUNG data
+            if (!p_area_clean.includes(fArea) && !fArea.includes(p_area_clean)) return;
         }
         
-        // 3. FILTER POINT
+        // 3. FILTER POINT (Flexible Match)
         if (filterPoint !== "ALL") {
             const fPoint = clean(filterPoint);
-            // Flexible Match: "01wedi" matches "wedi" OR "wedi" matches "01wedi"
+            // Cek dua arah
             if (!p_cabang_clean.includes(fPoint) && !fPoint.includes(p_cabang_clean)) return;
         }
 
@@ -559,8 +564,8 @@ function filterAndRenderData() {
     renderStats(stats);
     
     if (matchCount === 0) {
-        // --- DEBUG DATA (TAMPILKAN DATA ASLI JIKA HASIL 0) ---
-        // Ambil 5 data pertama untuk ditampilkan agar user tahu isinya apa
+        // --- DEBUG TABLE: TAMPILKAN 5 BARIS PERTAMA DARI DATABASE ---
+        // Ini untuk membantu Anda melihat format asli di Database
         let debugRows = "";
         allRawData.slice(0, 5).forEach(r => {
             const h = getValue(r, ["hari", "day"]);
@@ -571,7 +576,7 @@ function filterAndRenderData() {
 
         const debugTable = `
             <div class="mt-3 p-2 bg-white border rounded text-start">
-                <strong>Sample Data Asli dari Database (5 Baris):</strong>
+                <strong>Contoh 5 Baris Data Asli dari Server:</strong>
                 <table class="debug-table">
                     <tr><th>Hari</th><th>Area</th><th>Point/Cabang</th></tr>
                     ${debugRows}
@@ -583,16 +588,14 @@ function filterAndRenderData() {
             <div class="text-center text-muted py-5">
                 <i class="fa-solid fa-filter-circle-xmark fa-2x mb-3 text-warning"></i>
                 <h6 class="text-dark">Data Tidak Ditemukan</h6>
-                <p class="mb-0">Tidak ada data yang cocok dengan Filter.</p>
-                <div class="small mt-2">
-                    Filter Hari Ini: <b>${currentDayName}</b><br>
-                    Filter Area: <b>${filterArea}</b><br>
-                    Filter Point: <b>${filterPoint}</b>
+                <p class="mb-0">Filter yang Anda pilih tidak cocok dengan data apapun.</p>
+                <div class="small mt-2 p-2 bg-light d-inline-block rounded">
+                    Dicari: Hari=<b>${currentDayName}</b>, Area=<b>${filterArea}</b>, Point=<b>${filterPoint}</b>
                 </div>
                 ${debugTable}
                 <div class="alert alert-warning mt-3 small">
                     <i class="fa-solid fa-circle-info me-1"></i> 
-                    Silakan cek tabel Sample Data di atas. Pastikan <b>Hari</b>, <b>Area</b>, dan <b>Point</b> tertulis sama persis di Database Anda.
+                    <b>Periksa Tabel di atas:</b> Pastikan nama Hari, Area, dan Point di Database tertulis sama (atau mirip) dengan filter.
                 </div>
             </div>`;
     } else {
