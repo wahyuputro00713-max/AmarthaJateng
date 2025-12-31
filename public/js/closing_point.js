@@ -23,13 +23,14 @@ const ADMIN_ID = "17246";
 
 let userProfile = null;
 let currentDayName = ""; 
+let currentRole = ""; // Simpan Role User
 let globalMitraList = []; 
+let allRawData = []; // Simpan Data Mentah untuk Filtering
 let draftData = {}; 
 let readStatusData = {}; 
-let isPageLocked = false; // Status Penguncian Halaman
+let isPageLocked = false; 
 
-// --- 1. MANAGEMEN PENYIMPANAN LOKAL (AUTO-SAVE, NOTIFIKASI & LOCK) ---
-// Key menggunakan Tanggal Lengkap (YYYY-MM-DD) agar reset otomatis saat ganti tanggal
+// --- 1. MANAGEMEN PENYIMPANAN LOKAL ---
 function getStorageKey() {
     const dateStr = new Date().toISOString().split('T')[0];
     return `closing_draft_${dateStr}`; 
@@ -53,7 +54,6 @@ function loadFromStorage() {
         const rawRead = localStorage.getItem(getReadStatusKey());
         readStatusData = rawRead ? JSON.parse(rawRead) : {};
 
-        // Cek status Lock hari ini
         const rawLock = localStorage.getItem(getLockStatusKey());
         isPageLocked = rawLock === "true"; 
     } catch (e) {
@@ -64,7 +64,7 @@ function loadFromStorage() {
 }
 
 function saveToStorage(id, isChecked, reason) {
-    if (isPageLocked) return; // Jangan simpan jika terkunci
+    if (isPageLocked) return; 
 
     if (!draftData) draftData = {};
     if (!draftData[id]) draftData[id] = {};
@@ -75,7 +75,6 @@ function saveToStorage(id, isChecked, reason) {
     updateGlobalValidationStatus();
 }
 
-// Fungsi Mengunci Halaman (Dipanggil setelah download CSV)
 function setPageLocked() {
     isPageLocked = true;
     localStorage.setItem(getLockStatusKey(), "true");
@@ -92,7 +91,7 @@ window.markMajelisAsRead = function(uniqueKey, elementId) {
     }
 };
 
-// --- 2. INJECT STYLE MODERN (CSS) ---
+// --- 2. INJECT STYLE MODERN ---
 function injectModernStyles() {
     const styleId = 'closing-point-modern-style';
     if (!document.getElementById(styleId)) {
@@ -114,8 +113,6 @@ function injectModernStyles() {
                 transition: all 0.2s ease; display: flex; align-items: flex-start; justify-content: space-between;
             }
             .mitra-card:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(0,0,0,0.06); border-color: var(--primary-color); }
-            
-            /* LOCKED STATE CARD */
             .mitra-card.locked-card { opacity: 0.8; background-color: #fafafa; border-color: #e5e7eb; pointer-events: none; }
 
             .mitra-name { font-weight: 700; color: #1f2937; font-size: 0.95rem; display: block; margin-bottom: 4px; }
@@ -129,8 +126,6 @@ function injectModernStyles() {
             }
             .btn-check-modern:hover { background: #f3f4f6; border-color: #d1d5db; }
             .btn-check-modern.checked { background: #22c55e; border-color: #22c55e; color: white; transform: scale(1.1); box-shadow: 0 4px 10px rgba(34, 197, 94, 0.4); }
-            
-            /* DISABLED STATE UNTUK TOMBOL VALIDASI */
             .btn-check-modern.disabled {
                 background: #e5e7eb !important; border-color: #d1d5db !important; color: #9ca3af !important;
                 cursor: not-allowed !important; pointer-events: none; opacity: 0.7;
@@ -139,24 +134,18 @@ function injectModernStyles() {
             .accordion-button::after { display: none !important; }
             .custom-arrow { transition: transform 0.3s ease; }
             .accordion-button:not(.collapsed) .custom-arrow { transform: rotate(180deg); }
-            
             .accordion-button { font-weight: 600; border-radius: 12px !important; }
             .accordion-button:not(.collapsed) { background-color: #eef2ff; color: #4f46e5; box-shadow: none; }
             .accordion-item { border: none; margin-bottom: 10px; background: transparent; }
-            .accordion-button:focus { box-shadow: none; border-color: rgba(0,0,0,.125); }
             
             .alert-modern { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; border-radius: 8px; padding: 8px 10px; font-size: 0.8rem; margin-top: 8px; }
             .input-modern { width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px; font-size: 0.85rem; margin-top: 8px; transition: border-color 0.2s; background: #fafafa; }
             .input-modern:focus { outline: none; border-color: var(--primary-color); background: #fff; }
             .input-modern.required { border-color: #f87171; background-color: #fef2f2; }
-            .input-modern.required:focus { border-color: #ef4444; }
-            
-            /* INPUT READONLY STATE */
             .input-modern:disabled { background: #e9ecef; color: #6c757d; border-color: #ced4da; }
 
             .notif-dot {
-                width: 10px; height: 10px; background-color: #ef4444;
-                border-radius: 50%; display: inline-block; margin-left: 8px;
+                width: 10px; height: 10px; background-color: #ef4444; border-radius: 50%; display: inline-block; margin-left: 8px;
                 box-shadow: 0 0 0 2px white; animation: pulse-dot 2s infinite;
             }
             @keyframes pulse-dot {
@@ -171,6 +160,14 @@ function injectModernStyles() {
                 box-shadow: 0 2px 5px rgba(0,0,0,0.05); font-size: 0.9rem; font-weight: 600; color: #374151;
             }
             .status-counter { color: #4f46e5; font-weight: bold; }
+            
+            /* Styles untuk Dropdown Header */
+            .header-select {
+                border: 1px solid #ced4da; border-radius: 6px; padding: 4px 8px; 
+                font-size: 1rem; font-weight: 700; color: #2c3e50; 
+                background-color: white; cursor: pointer; max-width: 200px;
+            }
+            .header-select:focus { outline: none; border-color: var(--primary-color); }
         `;
         document.head.appendChild(style);
     }
@@ -193,6 +190,10 @@ function checkUserRole(uid) {
         if (snapshot.exists()) {
             const data = snapshot.val();
             const jabatan = (data.jabatan || "").toUpperCase();
+            
+            // Simpan Role Global
+            currentRole = jabatan;
+            
             const allowed = ["RM", "AM", "BM", "ADMIN"]; 
 
             if (allowed.includes(jabatan) || String(data.idKaryawan).trim() === ADMIN_ID) {
@@ -214,13 +215,22 @@ function initPage() {
     currentDayName = today.toLocaleDateString('id-ID', { weekday: 'long' });
     
     document.getElementById('displayDate').textContent = today.toLocaleDateString('id-ID', options);
+    
+    // Set Teks Awal
     const userArea = userProfile.area || "Area -";
-    const userPoint = userProfile.point || "Point -";
-
+    const userPoint = userProfile.point || userProfile.cabang || "Point -";
     document.getElementById('areaName').textContent = userArea;
     document.getElementById('pointName').textContent = userPoint;
 
-    fetchRepaymentData(userPoint);
+    // LOGIKA FETCH DATA BERDASARKAN JABATAN
+    // RM & AM & ADMIN -> Fetch ALL data untuk memungkinkan filter dropdown
+    // BM -> Fetch spesifik point
+    let targetPoint = userPoint;
+    if (["RM", "AM", "ADMIN"].includes(currentRole)) {
+        targetPoint = "ALL";
+    }
+
+    fetchRepaymentData(targetPoint);
 }
 
 // --- 4. FETCH DATA ---
@@ -238,7 +248,15 @@ async function fetchRepaymentData(targetPoint) {
             alert("Gagal: " + result.error);
             return;
         }
-        processAndRender(result.data, targetPoint);
+        
+        // Simpan data mentah untuk filtering di frontend
+        allRawData = result.data;
+        
+        // Setup Dropdown Header berdasarkan Role
+        setupHeaderFilters();
+        
+        // Render data awal
+        filterAndRenderData();
 
     } catch (error) {
         console.error(error);
@@ -259,29 +277,139 @@ function getValue(row, keys) {
     return "";
 }
 
-// --- 5. PROCESSING DATA ---
-function processAndRender(rawData, targetPoint) {
+// --- FUNGSI BARU: SETUP HEADER DROPDOWNS ---
+function setupHeaderFilters() {
+    const pointEl = document.getElementById('pointName');
+    const areaEl = document.getElementById('areaName');
+    
+    // Ambil list unik dari data
+    const normalize = (str) => String(str || "").trim();
+    const uniqueAreas = [...new Set(allRawData.map(r => normalize(getValue(r, ["area", "region"]))) )].sort();
+    const uniquePoints = [...new Set(allRawData.map(r => normalize(getValue(r, ["cabang", "point", "unit"]))) )].sort();
+
+    // 1. JIKA ROLE RM / ADMIN: Area Dropdown & Point Dropdown
+    if (currentRole === "RM" || currentRole === "ADMIN") {
+        // Ganti Area dengan Select
+        let areaOpts = `<option value="ALL">Semua Area</option>`;
+        uniqueAreas.forEach(a => {
+            const selected = (a === userProfile.area) ? "selected" : "";
+            areaOpts += `<option value="${a}" ${selected}>${a}</option>`;
+        });
+        
+        // Replace element p dengan select, tapi pertahankan styling parent
+        const parentArea = areaEl.parentElement;
+        parentArea.innerHTML = parentArea.innerHTML.replace(areaEl.outerHTML, 
+            `<select id="selectArea" class="header-select text-secondary" style="font-size:0.9rem; border:none; background:transparent; padding:0;">${areaOpts}</select>`
+        );
+
+        // Ganti Point dengan Select
+        // Point options akan di-populate ulang saat area berubah
+        const parentPoint = pointEl.parentElement; // div wrapping h4 & p
+        // Kita perlu mengganti h4 dengan select
+        const oldH4 = document.getElementById('pointName');
+        if(oldH4) {
+            oldH4.outerHTML = `<select id="selectPoint" class="header-select mb-1"></select>`;
+        }
+
+        // Add Event Listener
+        document.getElementById('selectArea').addEventListener('change', () => {
+            updatePointDropdownOptions();
+            filterAndRenderData();
+        });
+        document.getElementById('selectPoint').addEventListener('change', filterAndRenderData);
+        
+        // Init Point Options
+        updatePointDropdownOptions();
+    }
+    
+    // 2. JIKA ROLE AM: Area Tetap, Point Dropdown
+    else if (currentRole === "AM") {
+        // Area tetap teks (sudah di set di initPage)
+        
+        // Ganti Point dengan Select
+        const oldH4 = document.getElementById('pointName');
+        if(oldH4) {
+            oldH4.outerHTML = `<select id="selectPoint" class="header-select mb-1"></select>`;
+        }
+        
+        // Listener
+        document.getElementById('selectPoint').addEventListener('change', filterAndRenderData);
+        
+        // Init Point Options (Filter points by User Area)
+        updatePointDropdownOptions(userProfile.area);
+    }
+}
+
+function updatePointDropdownOptions(fixedArea = null) {
+    const selectPoint = document.getElementById('selectPoint');
+    if (!selectPoint) return;
+
+    const selectArea = document.getElementById('selectArea');
+    const selectedArea = fixedArea || (selectArea ? selectArea.value : "ALL");
+    
+    const normalize = (str) => String(str || "").trim();
+    
+    // Filter points based on selected area
+    let filteredPoints = allRawData;
+    if (selectedArea !== "ALL") {
+        filteredPoints = allRawData.filter(r => normalize(getValue(r, ["area", "region"])) === selectedArea);
+    }
+    
+    const uniquePoints = [...new Set(filteredPoints.map(r => normalize(getValue(r, ["cabang", "point", "unit"]))) )].sort();
+    
+    let pointOpts = `<option value="ALL">Semua Point</option>`;
+    uniquePoints.forEach(p => {
+        pointOpts += `<option value="${p}">${p}</option>`;
+    });
+    
+    selectPoint.innerHTML = pointOpts;
+    
+    // Jika user punya default point dan ada di list, select it
+    if (uniquePoints.includes(userProfile.point)) {
+        selectPoint.value = userProfile.point;
+    }
+}
+
+// --- 5. PROCESSING DATA (FILTERING & RENDERING) ---
+function filterAndRenderData() {
     let stats = { mm_total: 0, mm_bayar: 0, mm_kirim: 0, nc_total: 0, nc_bayar: 0, nc_kirim: 0 };
     let hierarchy = {}; 
-    const normalize = (str) => String(str || "").trim().toUpperCase();
-    const safeTarget = normalize(targetPoint);
+    const normalize = (str) => String(str || "").trim();
 
+    // Ambil nilai filter dari dropdown (jika ada)
+    const elArea = document.getElementById('selectArea');
+    const elPoint = document.getElementById('selectPoint');
+    
+    const filterArea = elArea ? elArea.value : (currentRole === 'AM' ? userProfile.area : "ALL");
+    const filterPoint = elPoint ? elPoint.value : (["RM","AM","ADMIN"].includes(currentRole) ? "ALL" : userProfile.point);
+
+    // Reset Data Global
     globalMitraList = [];
 
-    if (!rawData || rawData.length === 0) {
+    if (!allRawData || allRawData.length === 0) {
         document.getElementById('accordionBP').innerHTML = `<div class="text-center py-5">Data Kosong.</div>`;
         return;
     }
 
-    rawData.forEach(row => {
+    allRawData.forEach(row => {
+        const p_area    = normalize(getValue(row, ["area", "region"]));
         const p_cabang  = normalize(getValue(row, ["cabang", "point", "unit"]));
         const p_bp      = getValue(row, ["bp", "petugas", "ao"]) || "Tanpa BP";
         const p_majelis = getValue(row, ["majelis", "group", "kelompok"]) || "Umum";
         const p_hari    = getValue(row, ["hari", "day"]) || "";
         
-        // Ambil Raw Bucket dari Kolom H
-        const rawBucket = String(getValue(row, ["bucket", "dpd", "kolek"]) || "0").trim();
+        // --- FILTERING LOGIC ---
+        // 1. Filter Hari
+        if (p_hari.toLowerCase() !== currentDayName.toLowerCase()) return;
         
+        // 2. Filter Area (Jika tidak ALL)
+        if (filterArea !== "ALL" && p_area !== filterArea) return;
+        
+        // 3. Filter Point (Jika tidak ALL)
+        if (filterPoint !== "ALL" && p_cabang !== filterPoint) return;
+
+        // Ambil Data Lain
+        const rawBucket = String(getValue(row, ["bucket", "dpd", "kolek"]) || "0").trim();
         const st_bayar  = getValue(row, ["status_bayar", "bayar"]) || "Belum";
         const st_kirim  = getValue(row, ["status_kirim", "kirim"]) || "Belum";
         const alasan_db = getValue(row, ["keterangan", "alasan"]) || "";
@@ -293,10 +421,7 @@ function processAndRender(rawData, targetPoint) {
         const isLunas = bayarLower.includes("lunas") || bayarLower.includes("bayar") || bayarLower.includes("sudah");
         const isTerkirim = kirimLower.includes("terkirim") || kirimLower.includes("sudah") || kirimLower.includes("kirim");
 
-        if (safeTarget !== "ALL" && p_cabang !== safeTarget) return; 
-        if (p_hari.toLowerCase() !== currentDayName.toLowerCase()) return;
-
-        // Logic cek Current: Jika mengandung "Current", "Lancar", atau angka <= 1
+        // Logic cek Current
         const bucketNum = parseInt(rawBucket);
         const isCurrent = rawBucket.toLowerCase().includes("current") || rawBucket.toLowerCase().includes("lancar") || (!isNaN(bucketNum) && bucketNum <= 1);
 
@@ -316,7 +441,7 @@ function processAndRender(rawData, targetPoint) {
             status_bayar: st_bayar,
             status_kirim: st_kirim,
             jenis_bayar: p_jenis,
-            bucket: rawBucket,
+            bucket: rawBucket, 
             alasan: alasan_db,
             is_lunas: isLunas,
             is_terkirim: isTerkirim,
@@ -335,7 +460,6 @@ function processAndRender(rawData, targetPoint) {
     renderAccordion(hierarchy);
     updateGlobalValidationStatus();
     
-    // --- CEK APAKAH HALAMAN TERKUNCI ---
     if (isPageLocked) {
         applyLockMode();
     }
@@ -372,7 +496,7 @@ function renderAccordion(hierarchy) {
                     <i class="fa-solid fa-calendar-xmark fa-2x"></i>
                 </div>
                 <h6 class="fw-bold text-dark">Tidak Ada Jadwal</h6>
-                <p class="small">Tidak ada data majelis untuk hari <b>${currentDayName}</b>.</p>
+                <p class="small">Tidak ada data majelis untuk hari <b>${currentDayName}</b> sesuai filter.</p>
             </div>`;
         return;
     }
@@ -486,7 +610,6 @@ function createMitraCard(mitra) {
 
     const styleJenis = "background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;";
 
-    // --- LOGIKA TAMPILAN BUCKET / DPD ---
     let bucketText = "";
     let styleBucket = "";
     const bucketRaw = String(mitra.bucket);
@@ -626,7 +749,15 @@ function applyLockMode() {
 function updateGlobalValidationStatus() {
     if (isPageLocked) return;
 
-    const totalMitra = document.querySelectorAll('.btn-check-modern').length;
+    // Hitung tombol yang BISA diklik (tidak disabled) dan yang SUDAH diklik (checked)
+    // Ingat, tombol disabled tidak masuk hitungan harus divalidasi manual, karena mereka menunggu status kirim.
+    
+    // Tapi tombol validasi CSV mengharuskan *semua* yang tampil. 
+    // Jika ada yang belum terkirim (disabled), user TIDAK BISA download CSV. 
+    // Jadi hitungannya: Total Mitra Tampil vs Checked Mitra.
+    
+    const allMitraCards = document.querySelectorAll('.mitra-card');
+    const totalMitra = allMitraCards.length;
     const checkedMitra = document.querySelectorAll('.btn-check-modern.checked').length;
     
     const counterEl = document.getElementById('statusCounter');
@@ -637,6 +768,7 @@ function updateGlobalValidationStatus() {
 
     const btnValAll = document.getElementById('btnValidateAll');
     if(btnValAll) {
+        // Tombol aktif HANYA JIKA semua mitra sudah dicentang
         if (checkedMitra === totalMitra && totalMitra > 0) {
             btnValAll.disabled = false;
             btnValAll.innerHTML = `<i class="fa-solid fa-file-csv me-1"></i> Download Laporan CSV`; 
@@ -751,7 +883,7 @@ document.addEventListener("DOMContentLoaded", () => {
         btnValAll.addEventListener('click', () => {
             if(confirm("Apakah Anda yakin ingin mengunduh laporan validasi ini?\n\nPERINGATAN: Setelah diunduh, data akan TERKUNCI dan tidak bisa diedit lagi hari ini.")) {
                downloadCSV();
-               setPageLocked(); // Kunci halaman setelah download
+               setPageLocked();
             }
         });
     }
