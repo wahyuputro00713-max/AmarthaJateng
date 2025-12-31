@@ -21,6 +21,17 @@ const db = getDatabase(app);
 const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; 
 const ADMIN_ID = "17246";
 
+// --- DATA POINT (DITAMBAHKAN UNTUK OPSI DROPDOWN RM) ---
+const dataPoints = {
+    "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucuk"],
+    "Magelang": ["Grabag", "Mungkid", "Pakis", "Salam"],
+    "Solo": ["Banjarsari", "Gemolong", "Masaran", "Tangen"],
+    "Solo 2": ["Gatak", "Jumantono", "Karanganyar", "Nguter", "Pasar Kliwon"],
+    "Yogyakarta": ["01 Sleman", "Kalasan", "Ngaglik", "Umbulharjo"],
+    "Yogyakarta 2": ["01 Pandak", "01 Pengasih", "01 Pleret", "Kutoarjo", "Purworejo", "Saptosari"],
+    "Wonogiri": ["Jatisrono", "Ngadirojo", "Ngawen 2", "Pracimantoro", "Wonosari"]
+};
+
 let userProfile = null;
 let currentDayName = ""; 
 let currentRole = ""; 
@@ -286,40 +297,32 @@ function getValue(row, keys) {
     return "";
 }
 
-// --- FUNGSI SETUP HEADER DROPDOWNS (PERBAIKAN LOGIKA REPLACEMENT) ---
+// --- FUNGSI SETUP HEADER DROPDOWNS (PERBAIKAN LOGIKA) ---
 function setupHeaderFilters() {
     const areaEl = document.getElementById('areaName');
     const pointEl = document.getElementById('pointName');
     
-    // Cek apakah elemen target ada
     if (!areaEl || !pointEl) return;
 
-    // Cek apakah sudah diganti menjadi select, jika ya tidak perlu replace lagi
-    // Cukup update option jika perlu, tapi untuk inisialisasi awal biarkan saja
+    // Jika sudah select, tidak perlu buat ulang
     if (areaEl.tagName === 'SELECT' && pointEl.tagName === 'SELECT' && currentRole === 'RM') {
         return; 
     }
 
-    const normalize = (str) => String(str || "").trim();
-    // Ambil list unik area dan point
-    const uniqueAreas = [...new Set(allRawData.map(r => normalize(getValue(r, ["area", "region"]))) )].filter(x => x).sort();
-
-    // 1. JIKA ROLE RM / ADMIN
+    // 1. JIKA ROLE RM / ADMIN -> BUAT DROPDOWN AREA DARI dataPoints
     if (currentRole === "RM" || currentRole === "ADMIN") {
         
         // --- Buat Dropdown Area ---
-        // Jika belum select, kita ganti
         if (areaEl.tagName !== 'SELECT') {
             const selArea = document.createElement('select');
-            selArea.id = 'selectArea'; // ID baru agar mudah diselect
-            // Salin ID lama jika perlu atau gunakan ID spesifik untuk logika filter
-            // Disini kita biarkan ID lama hilang, kita gunakan ID baru untuk logic
+            selArea.id = 'selectArea';
             selArea.className = 'header-select text-secondary mb-1';
             
+            // OPSI AREA DIAMBIL DARI VARIABLE dataPoints AGAR LENGKAP
             let areaOpts = `<option value="ALL">Semua Area</option>`;
-            uniqueAreas.forEach(a => {
-                const selected = (a === userProfile.area) ? "selected" : "";
-                areaOpts += `<option value="${a}" ${selected}>${a}</option>`;
+            Object.keys(dataPoints).forEach(area => {
+                const selected = (area === userProfile.area) ? "selected" : "";
+                areaOpts += `<option value="${area}" ${selected}>${area}</option>`;
             });
             selArea.innerHTML = areaOpts;
             
@@ -352,7 +355,7 @@ function setupHeaderFilters() {
     
     // 2. JIKA ROLE AM (Area Tetap, Point Dropdown)
     else if (currentRole === "AM") {
-        // Area tetap teks (tidak diapa-apakan)
+        // Area tetap teks
         
         // Ganti Point dengan Dropdown
         if (pointEl.tagName !== 'SELECT') {
@@ -361,7 +364,6 @@ function setupHeaderFilters() {
             selPoint.className = 'header-select mb-1';
             
             pointEl.replaceWith(selPoint);
-            
             selPoint.addEventListener('change', filterAndRenderData);
             
             // Init Options (Filter by AM Area)
@@ -376,23 +378,27 @@ function updatePointDropdownOptions(fixedArea = null) {
     if (!selectPoint) return;
 
     // Ambil nilai area terpilih
-    // Jika RM, ambil dari dropdown selectArea
-    // Jika AM, ambil dari parameter fixedArea (profil user)
     const selectArea = document.getElementById('selectArea');
     const selectedArea = fixedArea || (selectArea ? selectArea.value : "ALL");
     
-    const normalize = (str) => String(str || "").trim();
-    
-    // Filter points based on selected area
-    let filteredPoints = allRawData;
+    // MENYIAPKAN OPSI POINT BERDASARKAN dataPoints
+    let availablePoints = [];
+
     if (selectedArea !== "ALL") {
-        filteredPoints = allRawData.filter(r => normalize(getValue(r, ["area", "region"])) === selectedArea);
+        // Ambil point spesifik area
+        if (dataPoints[selectedArea]) {
+            availablePoints = dataPoints[selectedArea];
+        }
+    } else {
+        // Jika ALL, gabungkan semua point
+        Object.values(dataPoints).forEach(pts => {
+            availablePoints = availablePoints.concat(pts);
+        });
+        availablePoints.sort(); // Urutkan abjad
     }
     
-    const uniquePoints = [...new Set(filteredPoints.map(r => normalize(getValue(r, ["cabang", "point", "unit"]))) )].filter(x => x).sort();
-    
     let pointOpts = `<option value="ALL">Semua Point</option>`;
-    uniquePoints.forEach(p => {
+    availablePoints.forEach(p => {
         pointOpts += `<option value="${p}">${p}</option>`;
     });
     
@@ -400,9 +406,9 @@ function updatePointDropdownOptions(fixedArea = null) {
     selectPoint.innerHTML = pointOpts;
     
     // Restore selection if valid
-    if (uniquePoints.includes(oldValue)) {
+    if (availablePoints.includes(oldValue)) {
         selectPoint.value = oldValue;
-    } else if (uniquePoints.includes(userProfile.point)) {
+    } else if (availablePoints.includes(userProfile.point)) {
         selectPoint.value = userProfile.point;
     } else {
         selectPoint.value = "ALL";
@@ -446,8 +452,6 @@ function filterAndRenderData() {
         if (p_hari.toLowerCase() !== currentDayName.toLowerCase()) return;
         
         // 2. Area (Hanya jika filterArea bukan ALL)
-        // Untuk RM yang belum pilih area (ALL), tampilkan semua area
-        // Untuk BM, filterArea biasanya "ALL" karena tidak ada dropdown, jadi logic ini skip
         if (filterArea !== "ALL" && p_area !== filterArea) return;
         
         // 3. Point
