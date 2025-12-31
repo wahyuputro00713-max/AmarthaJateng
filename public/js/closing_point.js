@@ -22,6 +22,7 @@ const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev";
 const ADMIN_ID = "17246";
 
 // --- DATA POINT (OPSI DROPDOWN) ---
+// Pastikan nama ini sesuai dengan yang ada di Data Excel/Database (Case insensitive)
 const dataPoints = {
     "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucuk"],
     "Magelang": ["Grabag", "Mungkid", "Pakis", "Salam"],
@@ -226,16 +227,16 @@ function checkUserRole(uid) {
 
 function initPage() {
     const today = new Date();
-    const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+    // FORCE INDONESIAN LOCALE untuk Hari
     currentDayName = today.toLocaleDateString('id-ID', { weekday: 'long' });
     
+    const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
     document.getElementById('displayDate').textContent = today.toLocaleDateString('id-ID', options);
     
     // Tampilkan Teks Default dulu sebelum data di-load
     const userArea = userProfile.area || "Area -";
     const userPoint = userProfile.point || userProfile.cabang || "Point -";
 
-    // Pastikan elemen ada
     const areaEl = document.getElementById('areaName');
     const pointEl = document.getElementById('pointName');
     
@@ -253,9 +254,9 @@ function initPage() {
 
 // --- 4. FETCH DATA ---
 async function fetchRepaymentData(targetPoint) {
+    const container = document.getElementById('accordionBP');
     try {
-        const container = document.getElementById('accordionBP');
-        if(container) container.innerHTML = `<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div><p>Mengambil Data...</p></div>`;
+        if(container) container.innerHTML = `<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div><p>Mengambil Data Server...</p></div>`;
 
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
@@ -272,21 +273,28 @@ async function fetchRepaymentData(targetPoint) {
         
         allRawData = result.data || [];
         
-        // Setup Header Dropdown
+        // Setup Header Dropdown (Membuat Element Select jika belum ada)
         setupHeaderFilters();
         
-        // Render Awal:
-        // BM -> Langsung render
-        // RM/AM -> Tunggu klik tombol (Tampilkan pesan suruh pilih)
+        // --- LOGIKA RENDER AWAL ---
         if (currentRole === "BM") {
+            // BM: Langsung tampilkan data sesuai profil
             filterAndRenderData();
         } else {
-            if(container) container.innerHTML = `<div class="text-center py-5 text-muted"><i class="fa-solid fa-filter fa-2x mb-3"></i><p>Silakan pilih Area/Point dan klik <b>Tampilkan Data</b></p></div>`;
+            // RM/AM: Kosongkan area tampilan, tunggu user klik tombol
+            if(container) {
+                container.innerHTML = `
+                    <div class="text-center py-5 text-muted">
+                        <i class="fa-solid fa-filter fa-2x mb-3 text-info"></i>
+                        <h6 class="text-dark fw-bold">Siap Menampilkan Data</h6>
+                        <p>Silakan pilih <b>Area & Point</b>, lalu klik tombol <br> <span class="badge bg-primary">Tampilkan Data</span>.</p>
+                        <small class="text-muted">Total Data Masuk: ${allRawData.length} baris</small>
+                    </div>`;
+            }
         }
 
     } catch (error) {
         console.error(error);
-        const container = document.getElementById('accordionBP');
         if(container) {
             container.innerHTML = `
             <div class="text-center text-secondary py-5">
@@ -300,6 +308,7 @@ async function fetchRepaymentData(targetPoint) {
 function getValue(row, keys) {
     const rowKeys = Object.keys(row);
     for (let k of keys) {
+        // Strict compare key name
         const found = rowKeys.find(rk => rk.toLowerCase() === k.toLowerCase());
         if (found) return row[found];
     }
@@ -313,7 +322,8 @@ function setupHeaderFilters() {
     
     if (!areaEl || !pointEl) return;
 
-    if (areaEl.tagName === 'SELECT' && pointEl.tagName === 'SELECT' && currentRole === 'RM') {
+    // Cek apakah sudah berupa SELECT, jika ya, jangan buat ulang
+    if (areaEl.tagName === 'SELECT' && pointEl.tagName === 'SELECT') {
         return; 
     }
 
@@ -332,11 +342,12 @@ function setupHeaderFilters() {
              this.disabled = true;
              this.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin me-1"></i> Memuat...';
              
+             // Jalankan filter dengan sedikit delay agar UI loading terlihat
              setTimeout(() => {
                 filterAndRenderData();
                 this.disabled = false;
                 this.innerHTML = originalText;
-             }, 300);
+             }, 200);
         });
         
         const pointSelect = document.getElementById('selectPoint');
@@ -347,7 +358,7 @@ function setupHeaderFilters() {
         }
     };
 
-    // 1. JIKA ROLE RM / ADMIN
+    // 1. JIKA ROLE RM / ADMIN -> Buat Dropdown Area & Point
     if (currentRole === "RM" || currentRole === "ADMIN") {
         
         if (areaEl.tagName !== 'SELECT') {
@@ -363,6 +374,7 @@ function setupHeaderFilters() {
             selArea.innerHTML = areaOpts;
             areaEl.replaceWith(selArea);
             
+            // Saat Area berubah, update opsi Point
             selArea.addEventListener('change', () => {
                 updatePointDropdownOptions();
             });
@@ -379,7 +391,7 @@ function setupHeaderFilters() {
         createButton();
     }
     
-    // 2. JIKA ROLE AM
+    // 2. JIKA ROLE AM -> Buat Dropdown Point Saja
     else if (currentRole === "AM") {
         if (pointEl.tagName !== 'SELECT') {
             const selPoint = document.createElement('select');
@@ -397,6 +409,7 @@ function updatePointDropdownOptions(fixedArea = null) {
     if (!selectPoint) return;
 
     const selectArea = document.getElementById('selectArea');
+    // Jika fixedArea ada (AM), pakai itu. Jika tidak, ambil dari dropdown Area (RM).
     const selectedArea = fixedArea || (selectArea ? selectArea.value : "ALL");
     
     let availablePoints = [];
@@ -406,6 +419,7 @@ function updatePointDropdownOptions(fixedArea = null) {
             availablePoints = dataPoints[selectedArea];
         }
     } else {
+        // Jika ALL, gabungkan semua point
         Object.values(dataPoints).forEach(pts => {
             availablePoints = availablePoints.concat(pts);
         });
@@ -417,6 +431,7 @@ function updatePointDropdownOptions(fixedArea = null) {
         pointOpts += `<option value="${p}">${p}</option>`;
     });
     
+    // Pertahankan seleksi sebelumnya jika valid
     const oldValue = selectPoint.value;
     selectPoint.innerHTML = pointOpts;
     
@@ -433,24 +448,26 @@ function updatePointDropdownOptions(fixedArea = null) {
 function filterAndRenderData() {
     let stats = { mm_total: 0, mm_bayar: 0, mm_kirim: 0, nc_total: 0, nc_bayar: 0, nc_kirim: 0 };
     let hierarchy = {}; 
+    
     const normalize = (str) => String(str || "").trim().toLowerCase();
 
-    // --- AMBIL NILAI FILTER ---
+    // --- AMBIL NILAI FILTER DARI ELEMENT / PROFIL ---
     const elArea = document.getElementById('selectArea');
     const elPoint = document.getElementById('selectPoint');
     
     let filterArea = "ALL";
     let filterPoint = "ALL";
 
-    // Logic: Ambil nilai dari dropdown jika ada, jika tidak ada (BM) ambil dari profil
+    // Logic Area
     if (elArea) {
-        filterArea = elArea.value; // RM/Admin
+        filterArea = elArea.value; // RM/Admin dari Dropdown
     } else if (currentRole === 'AM') {
-        filterArea = userProfile.area; // AM (hidden area)
-    }
+        filterArea = userProfile.area; // AM dari Profil
+    } 
 
+    // Logic Point
     if (elPoint) {
-        filterPoint = elPoint.value; // RM/AM/Admin
+        filterPoint = elPoint.value; // RM/AM/Admin dari Dropdown
     } else if (currentRole === 'BM') {
         filterPoint = userProfile.point; // BM locked
     }
@@ -465,6 +482,7 @@ function filterAndRenderData() {
     }
 
     let matchCount = 0;
+    const todayNorm = normalize(currentDayName);
 
     allRawData.forEach(row => {
         // Ambil Data Row
@@ -472,22 +490,34 @@ function filterAndRenderData() {
         const p_cabang_raw  = getValue(row, ["cabang", "point", "unit"]);
         const p_hari_raw    = getValue(row, ["hari", "day"]) || "";
 
-        // Normalize
+        // Normalize Data
         const p_area    = normalize(p_area_raw);
         const p_cabang  = normalize(p_cabang_raw);
         const p_hari    = normalize(p_hari_raw);
-        const todayNorm = normalize(currentDayName);
         
-        // --- FILTERING LOGIC ---
+        // --- FILTERING LOGIC (STRICT) ---
 
-        // 1. FILTER HARI (WAJIB SESUAI HARI INI - REVERTED)
+        // 1. FILTER HARI (Wajib Sama)
         if (p_hari !== todayNorm) return;
         
-        // 2. FILTER AREA (Jika dipilih, dan bukan ALL)
-        if (filterArea !== "ALL" && p_area !== normalize(filterArea)) return;
+        // 2. FILTER AREA
+        // Gunakan includes untuk fleksibilitas (Misal: "Solo" matches "Solo Area")
+        // Tapi pastikan filterArea bukan "ALL"
+        if (filterArea !== "ALL") {
+            const fArea = normalize(filterArea);
+            if (!p_area.includes(fArea)) return;
+        }
         
-        // 3. FILTER POINT (Jika dipilih, dan bukan ALL)
-        if (filterPoint !== "ALL" && p_cabang !== normalize(filterPoint)) return;
+        // 3. FILTER POINT
+        // Gunakan includes agar "01 Wedi" bisa match dengan "Wedi" atau "01 Wedi"
+        if (filterPoint !== "ALL") {
+            const fPoint = normalize(filterPoint);
+            // Cek dua arah: data includes filter ATAU filter includes data
+            // Ini menangani kasus Dropdown="01 Wedi", Data="Wedi" (Mungkin tidak match)
+            // Atau Dropdown="Wedi", Data="01 Wedi" (Match)
+            // Kita pakai strict includes: Data harus mengandung kata kunci Filter
+            if (!p_cabang.includes(fPoint) && !fPoint.includes(p_cabang)) return;
+        }
 
         matchCount++;
 
@@ -544,11 +574,24 @@ function filterAndRenderData() {
     renderStats(stats);
     
     if (matchCount === 0) {
+        // Tampilkan Pesan Debug yang Informatif
+        const debugInfo = `
+            <ul class="text-start d-inline-block text-muted small mt-2">
+                <li>Hari Database Wajib: <b>${todayNorm}</b></li>
+                <li>Filter Area: <b>${filterArea}</b></li>
+                <li>Filter Point: <b>${filterPoint}</b></li>
+            </ul>
+        `;
+        
         container.innerHTML = `
             <div class="text-center text-muted py-5">
-                <i class="fa-solid fa-filter-circle-xmark fa-2x mb-3"></i>
-                <h6>Data Tidak Ditemukan</h6>
-                <p>Tidak ada jadwal majelis hari <b>${currentDayName}</b> untuk Area/Point yang dipilih.</p>
+                <i class="fa-solid fa-filter-circle-xmark fa-2x mb-3 text-warning"></i>
+                <h6 class="text-dark">Data Tidak Ditemukan</h6>
+                <p class="mb-0">Tidak ada jadwal majelis yang cocok dengan filter di atas.</p>
+                ${debugInfo}
+                <div class="alert alert-light mt-3 small">
+                    <i class="fa-solid fa-circle-info me-1"></i> Pastikan Hari di Database sesuai dengan Hari Ini (${currentDayName}).
+                </div>
             </div>`;
     } else {
         renderAccordion(hierarchy);
