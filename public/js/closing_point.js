@@ -170,6 +170,7 @@ function injectModernStyles() {
                 border: 1px solid #ced4da; border-radius: 6px; padding: 4px 8px; 
                 font-size: 1rem; font-weight: 700; color: #2c3e50; 
                 background-color: white; cursor: pointer; max-width: 250px;
+                margin-bottom: 5px; display: block;
             }
             .header-select:focus { outline: none; border-color: var(--primary-color); }
         `;
@@ -219,16 +220,18 @@ function initPage() {
     
     document.getElementById('displayDate').textContent = today.toLocaleDateString('id-ID', options);
     
+    // Tampilkan Teks Default dulu sebelum data di-load
     const userArea = userProfile.area || "Area -";
     const userPoint = userProfile.point || userProfile.cabang || "Point -";
 
-    // Pastikan elemen ada sebelum diisi
+    // Pastikan elemen ada
     const areaEl = document.getElementById('areaName');
     const pointEl = document.getElementById('pointName');
+    
     if(areaEl) areaEl.textContent = userArea;
     if(pointEl) pointEl.textContent = userPoint;
 
-    // LOGIKA FETCH
+    // LOGIKA FETCH DATA
     let targetPoint = userPoint;
     if (["RM", "AM", "ADMIN"].includes(currentRole)) {
         targetPoint = "ALL";
@@ -255,8 +258,10 @@ async function fetchRepaymentData(targetPoint) {
         
         allRawData = result.data || [];
         
-        // SETUP FILTER & RENDER
+        // Panggil setup header SETELAH data diterima
         setupHeaderFilters();
+        
+        // Render data pertama kali
         filterAndRenderData();
 
     } catch (error) {
@@ -281,86 +286,104 @@ function getValue(row, keys) {
     return "";
 }
 
-// --- SETUP HEADER DROPDOWNS (PERBAIKAN ERROR) ---
+// --- FUNGSI SETUP HEADER DROPDOWNS (PERBAIKAN LOGIKA REPLACEMENT) ---
 function setupHeaderFilters() {
-    // 1. Cek apakah dropdown sudah ada (agar tidak error jika dipanggil ulang)
-    if (document.getElementById('selectArea') || document.getElementById('selectPoint')) {
-        // Jika sudah ada, mungkin perlu update options, tapi struktur tidak perlu diubah lagi
+    const areaEl = document.getElementById('areaName');
+    const pointEl = document.getElementById('pointName');
+    
+    // Cek apakah elemen target ada
+    if (!areaEl || !pointEl) return;
+
+    // Cek apakah sudah diganti menjadi select, jika ya tidak perlu replace lagi
+    // Cukup update option jika perlu, tapi untuk inisialisasi awal biarkan saja
+    if (areaEl.tagName === 'SELECT' && pointEl.tagName === 'SELECT' && currentRole === 'RM') {
         return; 
     }
 
-    const pointEl = document.getElementById('pointName');
-    const areaEl = document.getElementById('areaName');
-    
-    // Safety Check: Jika elemen tidak ditemukan, hentikan
-    if (!pointEl || !areaEl) return;
-
     const normalize = (str) => String(str || "").trim();
-    // Ambil Unique Areas & Points dari data
+    // Ambil list unik area dan point
     const uniqueAreas = [...new Set(allRawData.map(r => normalize(getValue(r, ["area", "region"]))) )].filter(x => x).sort();
 
-    // -- ROLE RM / ADMIN --
+    // 1. JIKA ROLE RM / ADMIN
     if (currentRole === "RM" || currentRole === "ADMIN") {
-        // Create Select Area
-        const selArea = document.createElement('select');
-        selArea.id = 'selectArea';
-        selArea.className = 'header-select text-secondary mb-1';
-        selArea.style.cssText = 'font-size:0.9rem; border:none; background:transparent; padding:0;';
         
-        let areaOpts = `<option value="ALL">Semua Area</option>`;
-        uniqueAreas.forEach(a => {
-            const selected = (a === userProfile.area) ? "selected" : "";
-            areaOpts += `<option value="${a}" ${selected}>${a}</option>`;
-        });
-        selArea.innerHTML = areaOpts;
+        // --- Buat Dropdown Area ---
+        // Jika belum select, kita ganti
+        if (areaEl.tagName !== 'SELECT') {
+            const selArea = document.createElement('select');
+            selArea.id = 'selectArea'; // ID baru agar mudah diselect
+            // Salin ID lama jika perlu atau gunakan ID spesifik untuk logika filter
+            // Disini kita biarkan ID lama hilang, kita gunakan ID baru untuk logic
+            selArea.className = 'header-select text-secondary mb-1';
+            
+            let areaOpts = `<option value="ALL">Semua Area</option>`;
+            uniqueAreas.forEach(a => {
+                const selected = (a === userProfile.area) ? "selected" : "";
+                areaOpts += `<option value="${a}" ${selected}>${a}</option>`;
+            });
+            selArea.innerHTML = areaOpts;
+            
+            // Ganti elemen P (areaName) dengan Select
+            areaEl.replaceWith(selArea);
+            
+            // Tambah Listener Change Area
+            selArea.addEventListener('change', () => {
+                updatePointDropdownOptions();
+                filterAndRenderData();
+            });
+        }
 
-        // Replace Area Text with Select
-        areaEl.replaceWith(selArea);
+        // --- Buat Dropdown Point ---
+        if (pointEl.tagName !== 'SELECT') {
+            const selPoint = document.createElement('select');
+            selPoint.id = 'selectPoint';
+            selPoint.className = 'header-select mb-1';
+            
+            // Ganti elemen H4 (pointName) dengan Select
+            pointEl.replaceWith(selPoint);
+            
+            // Tambah Listener Change Point
+            selPoint.addEventListener('change', filterAndRenderData);
+        }
 
-        // Create Select Point
-        const selPoint = document.createElement('select');
-        selPoint.id = 'selectPoint';
-        selPoint.className = 'header-select mb-1';
-        
-        // Replace Point Text with Select
-        pointEl.replaceWith(selPoint);
-
-        // Add Listeners
-        selArea.addEventListener('change', () => {
-            updatePointDropdownOptions();
-            filterAndRenderData();
-        });
-        selPoint.addEventListener('change', filterAndRenderData);
-        
-        // Init Options
+        // Populate Point Options Awal
         updatePointDropdownOptions();
     }
     
-    // -- ROLE AM --
+    // 2. JIKA ROLE AM (Area Tetap, Point Dropdown)
     else if (currentRole === "AM") {
-        // Create Select Point Only
-        const selPoint = document.createElement('select');
-        selPoint.id = 'selectPoint';
-        selPoint.className = 'header-select mb-1';
+        // Area tetap teks (tidak diapa-apakan)
         
-        pointEl.replaceWith(selPoint);
-        
-        selPoint.addEventListener('change', filterAndRenderData);
-        
-        // Init Options (Filter by AM Area)
-        updatePointDropdownOptions(userProfile.area);
+        // Ganti Point dengan Dropdown
+        if (pointEl.tagName !== 'SELECT') {
+            const selPoint = document.createElement('select');
+            selPoint.id = 'selectPoint';
+            selPoint.className = 'header-select mb-1';
+            
+            pointEl.replaceWith(selPoint);
+            
+            selPoint.addEventListener('change', filterAndRenderData);
+            
+            // Init Options (Filter by AM Area)
+            updatePointDropdownOptions(userProfile.area);
+        }
     }
 }
 
 function updatePointDropdownOptions(fixedArea = null) {
     const selectPoint = document.getElementById('selectPoint');
+    // Jika elemen selectPoint belum ada (misal role BM), keluar
     if (!selectPoint) return;
 
+    // Ambil nilai area terpilih
+    // Jika RM, ambil dari dropdown selectArea
+    // Jika AM, ambil dari parameter fixedArea (profil user)
     const selectArea = document.getElementById('selectArea');
     const selectedArea = fixedArea || (selectArea ? selectArea.value : "ALL");
     
     const normalize = (str) => String(str || "").trim();
     
+    // Filter points based on selected area
     let filteredPoints = allRawData;
     if (selectedArea !== "ALL") {
         filteredPoints = allRawData.filter(r => normalize(getValue(r, ["area", "region"])) === selectedArea);
@@ -376,6 +399,7 @@ function updatePointDropdownOptions(fixedArea = null) {
     const oldValue = selectPoint.value;
     selectPoint.innerHTML = pointOpts;
     
+    // Restore selection if valid
     if (uniquePoints.includes(oldValue)) {
         selectPoint.value = oldValue;
     } else if (uniquePoints.includes(userProfile.point)) {
@@ -391,11 +415,15 @@ function filterAndRenderData() {
     let hierarchy = {}; 
     const normalize = (str) => String(str || "").trim();
 
+    // Ambil Filter dari Dropdown (jika ada) atau Default Profil
     const elArea = document.getElementById('selectArea');
     const elPoint = document.getElementById('selectPoint');
     
+    // Jika dropdown ada, pakai nilainya. Jika tidak, pakai profil user (untuk BM/AM)
     const filterArea = elArea ? elArea.value : (currentRole === 'AM' ? userProfile.area : "ALL");
-    const filterPoint = elPoint ? elPoint.value : (["RM","AM","ADMIN"].includes(currentRole) ? "ALL" : userProfile.point);
+    // Jika RM/AM/Admin pilih ALL, tampilkan semua. Jika BM, tampilkan point dia saja.
+    const defaultPointFilter = (["RM","AM","ADMIN"].includes(currentRole)) ? "ALL" : userProfile.point;
+    const filterPoint = elPoint ? elPoint.value : defaultPointFilter;
 
     globalMitraList = [];
     const container = document.getElementById('accordionBP');
@@ -414,10 +442,18 @@ function filterAndRenderData() {
         const p_hari    = getValue(row, ["hari", "day"]) || "";
         
         // --- FILTERING ---
+        // 1. Hari
         if (p_hari.toLowerCase() !== currentDayName.toLowerCase()) return;
+        
+        // 2. Area (Hanya jika filterArea bukan ALL)
+        // Untuk RM yang belum pilih area (ALL), tampilkan semua area
+        // Untuk BM, filterArea biasanya "ALL" karena tidak ada dropdown, jadi logic ini skip
         if (filterArea !== "ALL" && p_area !== filterArea) return;
+        
+        // 3. Point
         if (filterPoint !== "ALL" && p_cabang !== filterPoint) return;
 
+        // Data Lain
         const rawBucket = String(getValue(row, ["bucket", "dpd", "kolek"]) || "0").trim();
         const st_bayar  = getValue(row, ["status_bayar", "bayar"]) || "Belum";
         const st_kirim  = getValue(row, ["status_kirim", "kirim"]) || "Belum";
