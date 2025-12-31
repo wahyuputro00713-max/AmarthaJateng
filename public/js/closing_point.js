@@ -25,7 +25,7 @@ let userProfile = null;
 let currentDayName = ""; 
 let globalMitraList = []; 
 let draftData = {}; 
-let readStatusData = {}; // Simpan status notifikasi yang sudah dibaca
+let readStatusData = {}; 
 
 // --- 1. MANAGEMEN PENYIMPANAN LOKAL (AUTO-SAVE & NOTIFIKASI) ---
 function getStorageKey() {
@@ -62,13 +62,11 @@ function saveToStorage(id, isChecked, reason) {
     updateGlobalValidationStatus();
 }
 
-// Fungsi untuk menandai Majelis sudah dibaca (hilangkan notif)
 window.markMajelisAsRead = function(uniqueKey, elementId) {
     if (!readStatusData[uniqueKey]) {
         readStatusData[uniqueKey] = true;
         localStorage.setItem(getReadStatusKey(), JSON.stringify(readStatusData));
         
-        // Hilangkan dot merah secara visual
         const dot = document.getElementById(`notif-${elementId}`);
         if(dot) dot.style.display = 'none';
     }
@@ -86,7 +84,6 @@ function injectModernStyles() {
                 --success-bg: #dcfce7; --success-text: #166534;
                 --danger-bg: #fee2e2; --danger-text: #991b1b;
                 --info-bg: #e0f2fe; --info-text: #0369a1;
-                --gray-bg: #f3f4f6; --gray-text: #374151;
                 --bg-card: #ffffff;
                 --bg-body: #f3f4f6;
             }
@@ -124,7 +121,6 @@ function injectModernStyles() {
             .input-modern.required { border-color: #f87171; background-color: #fef2f2; }
             .input-modern.required:focus { border-color: #ef4444; }
 
-            /* Notifikasi Dot */
             .notif-dot {
                 width: 10px; height: 10px; background-color: #ef4444;
                 border-radius: 50%; display: inline-block; margin-left: 8px;
@@ -237,7 +233,6 @@ function processAndRender(rawData, targetPoint) {
     const normalize = (str) => String(str || "").trim().toUpperCase();
     const safeTarget = normalize(targetPoint);
 
-    // Reset Data Global
     globalMitraList = [];
 
     if (!rawData || rawData.length === 0) {
@@ -278,7 +273,6 @@ function processAndRender(rawData, targetPoint) {
             if (isTerkirim) stats.nc_kirim++;
         }
 
-        // Object Mitra
         const mitraData = {
             id: getValue(row, ["id_mitra", "id", "account_id"]),
             nama: getValue(row, ["nama_mitra", "nama", "client_name"]),
@@ -349,24 +343,20 @@ function renderAccordion(hierarchy) {
         majelisKeys.forEach((majName, majIndex) => {
             const mitraList = majelisObj[majName];
             
-            // Hitung data untuk header Majelis
             let checkedCount = 0;
-            let hasNewUpdate = false; // Flag untuk notif merah
+            let hasNewUpdate = false; 
 
-            // Cek status dari draft & data asli
             mitraList.forEach(m => {
                 const saved = draftData[m.id] || {};
                 if (saved.checked) checkedCount++;
-                if (m.is_terkirim) hasNewUpdate = true; // Jika ada status terkirim
+                if (m.is_terkirim) hasNewUpdate = true; 
             });
 
-            // Logic Notifikasi Dot (Unread)
             const uniqueKey = `${bpName}_${majName}`.replace(/\s+/g, '_');
             const isRead = readStatusData[uniqueKey] === true;
             const showDot = hasNewUpdate && !isRead;
             const dotHtml = showDot ? `<span class="notif-dot" id="notif-maj-${bpIndex}-${majIndex}"></span>` : ``;
 
-            // Render Mitra Rows
             let mitraRows = mitraList.map(m => createMitraCard(m)).join('');
 
             majelisHtml += `
@@ -384,7 +374,8 @@ function renderAccordion(hierarchy) {
                                 <div class="flex-grow-1">
                                     <div class="d-flex align-items-center">
                                         <div class="fw-bold text-dark" style="font-size:0.9rem;">${majName}</div>
-                                        ${dotHtml} </div>
+                                        ${dotHtml} 
+                                    </div>
                                     <div class="small text-muted" id="count-maj-${bpIndex}-${majIndex}">
                                         ${checkedCount} / ${mitraList.length} Validasi
                                     </div>
@@ -433,12 +424,10 @@ function createMitraCard(mitra) {
     const stBayar = (mitra.status_bayar || "").toLowerCase();
     const stKirim = (mitra.status_kirim || "").toLowerCase();
 
-    // -- Cek Draft (Data tersimpan di browser) --
     const savedData = draftData[mitra.id] || {};
     const isChecked = savedData.checked ? "checked" : "";
     const savedReason = savedData.reason || ""; 
 
-    // Style Status Pembayaran
     let styleBayar = "";
     if (stBayar.includes('lunas') || stBayar.includes('bayar') || stBayar.includes('sudah')) {
         styleBayar = "background-color: #d1e7dd; color: #0f5132; border: 1px solid #badbcc;"; 
@@ -446,7 +435,6 @@ function createMitraCard(mitra) {
         styleBayar = "background-color: #f8d7da; color: #842029; border: 1px solid #f5c2c7;"; 
     }
 
-    // Style Status Pengiriman
     let styleKirim = "";
     if (stKirim.includes('terkirim') || stKirim.includes('sudah') || stKirim.includes('kirim')) {
         styleKirim = "background-color: #198754; color: white; box-shadow: 0 2px 4px rgba(25, 135, 84, 0.3);"; 
@@ -455,7 +443,23 @@ function createMitraCard(mitra) {
     }
 
     const styleJenis = "background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;";
-    const styleBucket = "background-color: #f3f4f6; color: #374151; border: 1px solid #d1d5db;";
+
+    // --- LOGIKA TAMPILAN BUCKET / DPD ---
+    // Jika 0 (Current) -> "Lancar", selain itu -> "DPD: X"
+    let bucketText = "";
+    let styleBucket = "";
+
+    if (mitra.bucket == 0) {
+        bucketText = "Lancar";
+        styleBucket = "background-color: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe;"; // Indigo soft
+    } else {
+        bucketText = `DPD: ${mitra.bucket}`;
+        if (mitra.bucket > 7) {
+             styleBucket = "background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5;"; // Red
+        } else {
+             styleBucket = "background-color: #fef3c7; color: #92400e; border: 1px solid #fcd34d;"; // Yellow
+        }
+    }
 
     const isLunas = stBayar.includes('lunas') || stBayar.includes('bayar') || stBayar.includes('sudah');
     const isTerkirim = stKirim.includes('terkirim') || stKirim.includes('sudah') || stKirim.includes('kirim');
@@ -475,7 +479,6 @@ function createMitraCard(mitra) {
         `;
     }
 
-    // --- LOGIKA WAJIB REASON ---
     const jenisNormal = mitra.jenis_bayar.toLowerCase().includes("normal");
     const isRequired = !jenisNormal; 
     const placeholder = isRequired ? "Wajib isi alasan (Jenis: " + mitra.jenis_bayar + ")..." : "Keterangan (Opsional)...";
@@ -484,7 +487,7 @@ function createMitraCard(mitra) {
     const checkBtnClass = isChecked ? "checked" : "";
 
     return `
-        <div class="mitra-card" data-majelis-header="header-unknown">
+        <div class="mitra-card">
             <div style="flex: 1;">
                 <div class="d-flex align-items-center gap-2 mb-2">
                     <span class="mitra-name mb-0">${mitra.nama}</span>
@@ -502,7 +505,7 @@ function createMitraCard(mitra) {
                         <i class="fa-solid fa-receipt me-1"></i>${mitra.jenis_bayar}
                     </span>
                     <span class="badge-status" style="${styleBucket}">
-                        <i class="fa-solid fa-box-archive me-1"></i>DPD: ${mitra.bucket}
+                        <i class="fa-solid fa-chart-line me-1"></i>${bucketText}
                     </span>
                 </div>
 
@@ -531,14 +534,12 @@ function createMitraCard(mitra) {
 
 // --- 7. EXPORTS & EVENTS ---
 
-// Fungsi baru untuk menyimpan input teks secara realtime
 window.saveReasonInput = function(id, value) {
     const btn = document.querySelector(`.btn-check-modern[onclick*="'${id}'"]`);
     const isChecked = btn && btn.classList.contains('checked');
     saveToStorage(id, isChecked, value);
 };
 
-// Fungsi Update status Global & Per Majelis
 function updateGlobalValidationStatus() {
     const totalMitra = document.querySelectorAll('.btn-check-modern').length;
     const checkedMitra = document.querySelectorAll('.btn-check-modern.checked').length;
@@ -565,15 +566,12 @@ function updateGlobalValidationStatus() {
     }
 }
 
-// Update Counter per Majelis saat tombol diklik
 function updateMajelisStats(btnElement) {
-    // Cari elemen collapse pembungkus
     const collapseDiv = btnElement.closest('.accordion-collapse');
     if (!collapseDiv) return;
 
-    // Cari header yang sesuai dengan collapse ini
     const headerId = collapseDiv.getAttribute('aria-labelledby') || collapseDiv.id.replace('collapse', 'heading');
-    const countDiv = document.querySelector(`#${headerId} .small.text-muted`); // div untuk text counter
+    const countDiv = document.querySelector(`#${headerId} .small.text-muted`); 
 
     if (countDiv) {
         const allInMajelis = collapseDiv.querySelectorAll('.btn-check-modern').length;
@@ -612,10 +610,7 @@ window.toggleValidation = function(element, id) {
         element.classList.remove('checked');
     }
 
-    // Update penyimpanan & Status Global
     saveToStorage(id, element.classList.contains('checked'), inputReason.value);
-    
-    // Update Status per Majelis
     updateMajelisStats(element);
 };
 
