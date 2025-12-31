@@ -25,12 +25,12 @@ let userProfile = null;
 let currentDayName = ""; 
 let currentRole = ""; 
 let globalMitraList = []; 
-let allRawData = []; // Data mentah untuk filter
+let allRawData = []; 
 let draftData = {}; 
 let readStatusData = {}; 
 let isPageLocked = false; 
 
-// --- 1. MANAGEMEN PENYIMPANAN LOKAL (AUTO-SAVE, NOTIFIKASI & LOCK) ---
+// --- 1. MANAGEMEN PENYIMPANAN LOKAL ---
 function getStorageKey() {
     const dateStr = new Date().toISOString().split('T')[0];
     return `closing_draft_${dateStr}`; 
@@ -91,7 +91,7 @@ window.markMajelisAsRead = function(uniqueKey, elementId) {
     }
 };
 
-// --- 2. INJECT STYLE MODERN (CSS) ---
+// --- 2. INJECT STYLE MODERN ---
 function injectModernStyles() {
     const styleId = 'closing-point-modern-style';
     if (!document.getElementById(styleId)) {
@@ -126,7 +126,6 @@ function injectModernStyles() {
             }
             .btn-check-modern:hover { background: #f3f4f6; border-color: #d1d5db; }
             .btn-check-modern.checked { background: #22c55e; border-color: #22c55e; color: white; transform: scale(1.1); box-shadow: 0 4px 10px rgba(34, 197, 94, 0.4); }
-            
             .btn-check-modern.disabled {
                 background: #e5e7eb !important; border-color: #d1d5db !important; color: #9ca3af !important;
                 cursor: not-allowed !important; pointer-events: none; opacity: 0.7;
@@ -150,8 +149,7 @@ function injectModernStyles() {
             .input-modern:disabled { background: #e9ecef; color: #6c757d; border-color: #ced4da; }
 
             .notif-dot {
-                width: 10px; height: 10px; background-color: #ef4444;
-                border-radius: 50%; display: inline-block; margin-left: 8px;
+                width: 10px; height: 10px; background-color: #ef4444; border-radius: 50%; display: inline-block; margin-left: 8px;
                 box-shadow: 0 0 0 2px white; animation: pulse-dot 2s infinite;
             }
             @keyframes pulse-dot {
@@ -197,7 +195,7 @@ function checkUserRole(uid) {
             const data = snapshot.val();
             const jabatan = (data.jabatan || "").toUpperCase();
             
-            currentRole = jabatan; // SIMPAN ROLE
+            currentRole = jabatan; 
             
             const allowed = ["RM", "AM", "BM", "ADMIN"]; 
 
@@ -224,11 +222,13 @@ function initPage() {
     const userArea = userProfile.area || "Area -";
     const userPoint = userProfile.point || userProfile.cabang || "Point -";
 
-    document.getElementById('areaName').textContent = userArea;
-    document.getElementById('pointName').textContent = userPoint;
+    // Pastikan elemen ada sebelum diisi
+    const areaEl = document.getElementById('areaName');
+    const pointEl = document.getElementById('pointName');
+    if(areaEl) areaEl.textContent = userArea;
+    if(pointEl) pointEl.textContent = userPoint;
 
-    // JIKA RM / AM / ADMIN -> FETCH ALL DATA (Supaya bisa filter)
-    // JIKA BM -> FETCH SPECIFIC POINT
+    // LOGIKA FETCH
     let targetPoint = userPoint;
     if (["RM", "AM", "ADMIN"].includes(currentRole)) {
         targetPoint = "ALL";
@@ -253,22 +253,22 @@ async function fetchRepaymentData(targetPoint) {
             return;
         }
         
-        // SIMPAN DATA MENTAH
-        allRawData = result.data;
+        allRawData = result.data || [];
         
-        // SETUP FILTER BERDASARKAN ROLE
+        // SETUP FILTER & RENDER
         setupHeaderFilters();
-        
-        // RENDER AWAL
         filterAndRenderData();
 
     } catch (error) {
         console.error(error);
-        document.getElementById('accordionBP').innerHTML = `
+        const container = document.getElementById('accordionBP');
+        if(container) {
+            container.innerHTML = `
             <div class="text-center text-secondary py-5">
                 <i class="fa-solid fa-cloud-bolt fa-2x mb-3 text-muted"></i>
                 <p>Gagal koneksi server.</p>
             </div>`;
+        }
     }
 }
 
@@ -281,64 +281,73 @@ function getValue(row, keys) {
     return "";
 }
 
-// --- FUNGSI BARU: SETUP HEADER DROPDOWNS ---
+// --- SETUP HEADER DROPDOWNS (PERBAIKAN ERROR) ---
 function setupHeaderFilters() {
+    // 1. Cek apakah dropdown sudah ada (agar tidak error jika dipanggil ulang)
+    if (document.getElementById('selectArea') || document.getElementById('selectPoint')) {
+        // Jika sudah ada, mungkin perlu update options, tapi struktur tidak perlu diubah lagi
+        return; 
+    }
+
     const pointEl = document.getElementById('pointName');
     const areaEl = document.getElementById('areaName');
     
+    // Safety Check: Jika elemen tidak ditemukan, hentikan
+    if (!pointEl || !areaEl) return;
+
     const normalize = (str) => String(str || "").trim();
+    // Ambil Unique Areas & Points dari data
     const uniqueAreas = [...new Set(allRawData.map(r => normalize(getValue(r, ["area", "region"]))) )].filter(x => x).sort();
 
-    // 1. JIKA ROLE RM / ADMIN
+    // -- ROLE RM / ADMIN --
     if (currentRole === "RM" || currentRole === "ADMIN") {
-        // Build Area Select
+        // Create Select Area
+        const selArea = document.createElement('select');
+        selArea.id = 'selectArea';
+        selArea.className = 'header-select text-secondary mb-1';
+        selArea.style.cssText = 'font-size:0.9rem; border:none; background:transparent; padding:0;';
+        
         let areaOpts = `<option value="ALL">Semua Area</option>`;
         uniqueAreas.forEach(a => {
             const selected = (a === userProfile.area) ? "selected" : "";
             areaOpts += `<option value="${a}" ${selected}>${a}</option>`;
         });
-        
-        // Ganti Teks Area dengan Dropdown
-        const parentArea = areaEl.parentElement;
-        parentArea.innerHTML = parentArea.innerHTML.replace(areaEl.outerHTML, 
-            `<select id="selectArea" class="header-select text-secondary mb-1" style="font-size:0.9rem; border:none; background:transparent; padding:0;">${areaOpts}</select>`
-        );
+        selArea.innerHTML = areaOpts;
 
-        // Ganti Teks Point dengan Dropdown
-        const oldH4 = document.getElementById('pointName');
-        if(oldH4) {
-            oldH4.outerHTML = `<select id="selectPoint" class="header-select mb-1"></select>`;
-        }
+        // Replace Area Text with Select
+        areaEl.replaceWith(selArea);
+
+        // Create Select Point
+        const selPoint = document.createElement('select');
+        selPoint.id = 'selectPoint';
+        selPoint.className = 'header-select mb-1';
+        
+        // Replace Point Text with Select
+        pointEl.replaceWith(selPoint);
 
         // Add Listeners
-        const selArea = document.getElementById('selectArea');
-        const selPoint = document.getElementById('selectPoint');
-
-        if(selArea) selArea.addEventListener('change', () => {
+        selArea.addEventListener('change', () => {
             updatePointDropdownOptions();
             filterAndRenderData();
         });
-        
-        if(selPoint) selPoint.addEventListener('change', filterAndRenderData);
+        selPoint.addEventListener('change', filterAndRenderData);
         
         // Init Options
         updatePointDropdownOptions();
     }
     
-    // 2. JIKA ROLE AM (Area Tetap, Point Dropdown)
+    // -- ROLE AM --
     else if (currentRole === "AM") {
-        // Area tetap Teks (sudah diset di initPage)
+        // Create Select Point Only
+        const selPoint = document.createElement('select');
+        selPoint.id = 'selectPoint';
+        selPoint.className = 'header-select mb-1';
         
-        // Ganti Point dengan Dropdown
-        const oldH4 = document.getElementById('pointName');
-        if(oldH4) {
-            oldH4.outerHTML = `<select id="selectPoint" class="header-select mb-1"></select>`;
-        }
+        pointEl.replaceWith(selPoint);
         
-        const selPoint = document.getElementById('selectPoint');
-        if(selPoint) selPoint.addEventListener('change', filterAndRenderData);
+        selPoint.addEventListener('change', filterAndRenderData);
         
-        // Init Options (Filter by AM's Area)
+        // Init Options (Filter by AM Area)
         updatePointDropdownOptions(userProfile.area);
     }
 }
@@ -352,7 +361,6 @@ function updatePointDropdownOptions(fixedArea = null) {
     
     const normalize = (str) => String(str || "").trim();
     
-    // Filter points based on selected area
     let filteredPoints = allRawData;
     if (selectedArea !== "ALL") {
         filteredPoints = allRawData.filter(r => normalize(getValue(r, ["area", "region"])) === selectedArea);
@@ -368,7 +376,6 @@ function updatePointDropdownOptions(fixedArea = null) {
     const oldValue = selectPoint.value;
     selectPoint.innerHTML = pointOpts;
     
-    // Restore selection if valid
     if (uniquePoints.includes(oldValue)) {
         selectPoint.value = oldValue;
     } else if (uniquePoints.includes(userProfile.point)) {
@@ -384,7 +391,6 @@ function filterAndRenderData() {
     let hierarchy = {}; 
     const normalize = (str) => String(str || "").trim();
 
-    // Ambil Filter
     const elArea = document.getElementById('selectArea');
     const elPoint = document.getElementById('selectPoint');
     
@@ -392,9 +398,11 @@ function filterAndRenderData() {
     const filterPoint = elPoint ? elPoint.value : (["RM","AM","ADMIN"].includes(currentRole) ? "ALL" : userProfile.point);
 
     globalMitraList = [];
+    const container = document.getElementById('accordionBP');
+    if(!container) return;
 
     if (!allRawData || allRawData.length === 0) {
-        document.getElementById('accordionBP').innerHTML = `<div class="text-center py-5">Data Kosong.</div>`;
+        container.innerHTML = `<div class="text-center py-5">Data Kosong.</div>`;
         return;
     }
 
@@ -406,16 +414,10 @@ function filterAndRenderData() {
         const p_hari    = getValue(row, ["hari", "day"]) || "";
         
         // --- FILTERING ---
-        // 1. Hari
         if (p_hari.toLowerCase() !== currentDayName.toLowerCase()) return;
-        
-        // 2. Area
         if (filterArea !== "ALL" && p_area !== filterArea) return;
-        
-        // 3. Point
         if (filterPoint !== "ALL" && p_cabang !== filterPoint) return;
 
-        // Data Lain
         const rawBucket = String(getValue(row, ["bucket", "dpd", "kolek"]) || "0").trim();
         const st_bayar  = getValue(row, ["status_bayar", "bayar"]) || "Belum";
         const st_kirim  = getValue(row, ["status_kirim", "kirim"]) || "Belum";
@@ -447,7 +449,7 @@ function filterAndRenderData() {
             status_bayar: st_bayar,
             status_kirim: st_kirim,
             jenis_bayar: p_jenis,
-            bucket: rawBucket,
+            bucket: rawBucket, 
             alasan: alasan_db,
             is_lunas: isLunas,
             is_terkirim: isTerkirim,
@@ -472,17 +474,19 @@ function filterAndRenderData() {
 }
 
 function renderStats(stats) {
-    document.getElementById('mmTotal').textContent = stats.mm_total;
-    document.getElementById('mmBayar').textContent = stats.mm_bayar;
-    document.getElementById('mmKirim').textContent = stats.mm_kirim;
-    document.getElementById('ncTotal').textContent = stats.nc_total;
-    document.getElementById('ncBayar').textContent = stats.nc_bayar;
-    document.getElementById('ncKirim').textContent = stats.nc_kirim;
+    const el = (id) => document.getElementById(id);
+    if(el('mmTotal')) el('mmTotal').textContent = stats.mm_total;
+    if(el('mmBayar')) el('mmBayar').textContent = stats.mm_bayar;
+    if(el('mmKirim')) el('mmKirim').textContent = stats.mm_kirim;
+    if(el('ncTotal')) el('ncTotal').textContent = stats.nc_total;
+    if(el('ncBayar')) el('ncBayar').textContent = stats.nc_bayar;
+    if(el('ncKirim')) el('ncKirim').textContent = stats.nc_kirim;
 }
 
 // --- 6. RENDER UI ---
 function renderAccordion(hierarchy) {
     const container = document.getElementById('accordionBP');
+    if(!container) return;
     container.innerHTML = ""; 
 
     const counterHtml = `
@@ -879,7 +883,7 @@ document.addEventListener("DOMContentLoaded", () => {
         btnValAll.addEventListener('click', () => {
             if(confirm("Apakah Anda yakin ingin mengunduh laporan validasi ini?\n\nPERINGATAN: Setelah diunduh, data akan TERKUNCI dan tidak bisa diedit lagi hari ini.")) {
                downloadCSV();
-               setPageLocked(); // Kunci halaman setelah download
+               setPageLocked(); 
             }
         });
     }
