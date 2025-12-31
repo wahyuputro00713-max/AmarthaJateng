@@ -21,7 +21,7 @@ const db = getDatabase(app);
 const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; 
 const ADMIN_ID = "17246";
 
-// --- DATA POINT (DITAMBAHKAN UNTUK OPSI DROPDOWN RM) ---
+// --- DATA POINT (OPSI DROPDOWN) ---
 const dataPoints = {
     "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucuk"],
     "Magelang": ["Grabag", "Mungkid", "Pakis", "Salam"],
@@ -272,7 +272,8 @@ async function fetchRepaymentData(targetPoint) {
         // Panggil setup header SETELAH data diterima
         setupHeaderFilters();
         
-        // Render data pertama kali
+        // Render data pertama kali (Tampilkan Semua atau Kosong tergantung preferensi)
+        // Di sini kita render data default (Semua/Sesuai Profil)
         filterAndRenderData();
 
     } catch (error) {
@@ -297,19 +298,45 @@ function getValue(row, keys) {
     return "";
 }
 
-// --- FUNGSI SETUP HEADER DROPDOWNS (PERBAIKAN LOGIKA) ---
+// --- FUNGSI SETUP HEADER DROPDOWNS (DENGAN TOMBOL TAMPILKAN) ---
 function setupHeaderFilters() {
     const areaEl = document.getElementById('areaName');
     const pointEl = document.getElementById('pointName');
     
     if (!areaEl || !pointEl) return;
 
-    // Jika sudah select, tidak perlu buat ulang
+    // Jika sudah select, skip setup ulang
     if (areaEl.tagName === 'SELECT' && pointEl.tagName === 'SELECT' && currentRole === 'RM') {
         return; 
     }
 
-    // 1. JIKA ROLE RM / ADMIN -> BUAT DROPDOWN AREA DARI dataPoints
+    // Helper: Buat Tombol Tampilkan Data
+    const createButton = (targetParent) => {
+        if(document.getElementById('btnShowData')) return; 
+
+        const btn = document.createElement('button');
+        btn.id = 'btnShowData';
+        btn.className = 'btn btn-sm btn-primary mt-1 mb-1 shadow-sm d-block';
+        btn.innerHTML = '<i class="fa-solid fa-magnifying-glass me-1"></i> Tampilkan Data';
+        btn.style.fontSize = "0.8rem";
+        btn.addEventListener('click', () => {
+             filterAndRenderData();
+        });
+        
+        // Masukkan tombol di bawah Point (di dalam div parent)
+        // Point adalah elemen pertama (h4), Area adalah elemen kedua (p) di HTML.
+        // Kita append ke parent agar muncul di urutan paling bawah atau disisipkan.
+        // Sesuai request "dibawah tulisan Point", kita sisipkan setelah Point Select.
+        const pointSelect = document.getElementById('selectPoint');
+        if(pointSelect && pointSelect.parentNode) {
+            pointSelect.parentNode.insertBefore(btn, pointSelect.nextSibling);
+        } else {
+             // Fallback append ke parent
+             pointEl.parentNode.appendChild(btn);
+        }
+    };
+
+    // 1. JIKA ROLE RM / ADMIN
     if (currentRole === "RM" || currentRole === "ADMIN") {
         
         // --- Buat Dropdown Area ---
@@ -318,7 +345,6 @@ function setupHeaderFilters() {
             selArea.id = 'selectArea';
             selArea.className = 'header-select text-secondary mb-1';
             
-            // OPSI AREA DIAMBIL DARI VARIABLE dataPoints AGAR LENGKAP
             let areaOpts = `<option value="ALL">Semua Area</option>`;
             Object.keys(dataPoints).forEach(area => {
                 const selected = (area === userProfile.area) ? "selected" : "";
@@ -326,13 +352,11 @@ function setupHeaderFilters() {
             });
             selArea.innerHTML = areaOpts;
             
-            // Ganti elemen P (areaName) dengan Select
             areaEl.replaceWith(selArea);
             
-            // Tambah Listener Change Area
+            // Listener Area: HANYA Update Dropdown Point, JANGAN Render Data Otomatis
             selArea.addEventListener('change', () => {
                 updatePointDropdownOptions();
-                filterAndRenderData();
             });
         }
 
@@ -342,18 +366,19 @@ function setupHeaderFilters() {
             selPoint.id = 'selectPoint';
             selPoint.className = 'header-select mb-1';
             
-            // Ganti elemen H4 (pointName) dengan Select
             pointEl.replaceWith(selPoint);
             
-            // Tambah Listener Change Point
-            selPoint.addEventListener('change', filterAndRenderData);
+            // Listener Point: TIDAK ADA (Tunggu tombol diklik)
         }
 
-        // Populate Point Options Awal
+        // Init Options
         updatePointDropdownOptions();
+        
+        // TAMBAHKAN TOMBOL
+        createButton();
     }
     
-    // 2. JIKA ROLE AM (Area Tetap, Point Dropdown)
+    // 2. JIKA ROLE AM
     else if (currentRole === "AM") {
         // Area tetap teks
         
@@ -364,37 +389,38 @@ function setupHeaderFilters() {
             selPoint.className = 'header-select mb-1';
             
             pointEl.replaceWith(selPoint);
-            selPoint.addEventListener('change', filterAndRenderData);
             
-            // Init Options (Filter by AM Area)
+            // Listener Point: TIDAK ADA (Tunggu tombol diklik)
+            
+            // Init Options
             updatePointDropdownOptions(userProfile.area);
         }
+
+        // TAMBAHKAN TOMBOL
+        createButton();
     }
+
+    // 3. JIKA ROLE BM (Tidak ada perubahan, tetap otomatis)
 }
 
 function updatePointDropdownOptions(fixedArea = null) {
     const selectPoint = document.getElementById('selectPoint');
-    // Jika elemen selectPoint belum ada (misal role BM), keluar
     if (!selectPoint) return;
 
-    // Ambil nilai area terpilih
     const selectArea = document.getElementById('selectArea');
     const selectedArea = fixedArea || (selectArea ? selectArea.value : "ALL");
     
-    // MENYIAPKAN OPSI POINT BERDASARKAN dataPoints
     let availablePoints = [];
 
     if (selectedArea !== "ALL") {
-        // Ambil point spesifik area
         if (dataPoints[selectedArea]) {
             availablePoints = dataPoints[selectedArea];
         }
     } else {
-        // Jika ALL, gabungkan semua point
         Object.values(dataPoints).forEach(pts => {
             availablePoints = availablePoints.concat(pts);
         });
-        availablePoints.sort(); // Urutkan abjad
+        availablePoints.sort();
     }
     
     let pointOpts = `<option value="ALL">Semua Point</option>`;
@@ -405,7 +431,6 @@ function updatePointDropdownOptions(fixedArea = null) {
     const oldValue = selectPoint.value;
     selectPoint.innerHTML = pointOpts;
     
-    // Restore selection if valid
     if (availablePoints.includes(oldValue)) {
         selectPoint.value = oldValue;
     } else if (availablePoints.includes(userProfile.point)) {
@@ -417,100 +442,97 @@ function updatePointDropdownOptions(fixedArea = null) {
 
 // --- 5. PROCESSING DATA (FILTERING) ---
 function filterAndRenderData() {
-    let stats = { mm_total: 0, mm_bayar: 0, mm_kirim: 0, nc_total: 0, nc_bayar: 0, nc_kirim: 0 };
-    let hierarchy = {}; 
-    const normalize = (str) => String(str || "").trim();
+    // Tampilkan Loading indikator di accordion jika perlu (Opsional)
+    // const container = document.getElementById('accordionBP');
+    // container.innerHTML = `<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></div>`;
 
-    // Ambil Filter dari Dropdown (jika ada) atau Default Profil
-    const elArea = document.getElementById('selectArea');
-    const elPoint = document.getElementById('selectPoint');
-    
-    // Jika dropdown ada, pakai nilainya. Jika tidak, pakai profil user (untuk BM/AM)
-    const filterArea = elArea ? elArea.value : (currentRole === 'AM' ? userProfile.area : "ALL");
-    // Jika RM/AM/Admin pilih ALL, tampilkan semua. Jika BM, tampilkan point dia saja.
-    const defaultPointFilter = (["RM","AM","ADMIN"].includes(currentRole)) ? "ALL" : userProfile.point;
-    const filterPoint = elPoint ? elPoint.value : defaultPointFilter;
+    setTimeout(() => { // Kasih delay dikit biar kerasa loading (opsional)
+        let stats = { mm_total: 0, mm_bayar: 0, mm_kirim: 0, nc_total: 0, nc_bayar: 0, nc_kirim: 0 };
+        let hierarchy = {}; 
+        const normalize = (str) => String(str || "").trim();
 
-    globalMitraList = [];
-    const container = document.getElementById('accordionBP');
-    if(!container) return;
-
-    if (!allRawData || allRawData.length === 0) {
-        container.innerHTML = `<div class="text-center py-5">Data Kosong.</div>`;
-        return;
-    }
-
-    allRawData.forEach(row => {
-        const p_area    = normalize(getValue(row, ["area", "region"]));
-        const p_cabang  = normalize(getValue(row, ["cabang", "point", "unit"]));
-        const p_bp      = getValue(row, ["bp", "petugas", "ao"]) || "Tanpa BP";
-        const p_majelis = getValue(row, ["majelis", "group", "kelompok"]) || "Umum";
-        const p_hari    = getValue(row, ["hari", "day"]) || "";
+        const elArea = document.getElementById('selectArea');
+        const elPoint = document.getElementById('selectPoint');
         
-        // --- FILTERING ---
-        // 1. Hari
-        if (p_hari.toLowerCase() !== currentDayName.toLowerCase()) return;
-        
-        // 2. Area (Hanya jika filterArea bukan ALL)
-        if (filterArea !== "ALL" && p_area !== filterArea) return;
-        
-        // 3. Point
-        if (filterPoint !== "ALL" && p_cabang !== filterPoint) return;
+        const filterArea = elArea ? elArea.value : (currentRole === 'AM' ? userProfile.area : "ALL");
+        const defaultPointFilter = (["RM","AM","ADMIN"].includes(currentRole)) ? "ALL" : userProfile.point;
+        const filterPoint = elPoint ? elPoint.value : defaultPointFilter;
 
-        // Data Lain
-        const rawBucket = String(getValue(row, ["bucket", "dpd", "kolek"]) || "0").trim();
-        const st_bayar  = getValue(row, ["status_bayar", "bayar"]) || "Belum";
-        const st_kirim  = getValue(row, ["status_kirim", "kirim"]) || "Belum";
-        const alasan_db = getValue(row, ["keterangan", "alasan"]) || "";
-        const p_jenis   = getValue(row, ["jenis_pembayaran", "jenis", "type"]) || "-";
+        globalMitraList = [];
+        const container = document.getElementById('accordionBP');
+        if(!container) return;
 
-        const bayarLower = st_bayar.toLowerCase();
-        const kirimLower = st_kirim.toLowerCase();
-
-        const isLunas = bayarLower.includes("lunas") || bayarLower.includes("bayar") || bayarLower.includes("sudah");
-        const isTerkirim = kirimLower.includes("terkirim") || kirimLower.includes("sudah") || kirimLower.includes("kirim");
-
-        const bucketNum = parseInt(rawBucket);
-        const isCurrent = rawBucket.toLowerCase().includes("current") || rawBucket.toLowerCase().includes("lancar") || (!isNaN(bucketNum) && bucketNum <= 1);
-
-        if (isCurrent) {
-            stats.mm_total++;
-            if (isLunas) stats.mm_bayar++;
-            if (isTerkirim) stats.mm_kirim++;
-        } else {
-            stats.nc_total++;
-            if (isLunas) stats.nc_bayar++;
-            if (isTerkirim) stats.nc_kirim++;
+        if (!allRawData || allRawData.length === 0) {
+            container.innerHTML = `<div class="text-center py-5">Data Kosong.</div>`;
+            return;
         }
 
-        const mitraData = {
-            id: getValue(row, ["id_mitra", "id", "account_id"]),
-            nama: getValue(row, ["nama_mitra", "nama", "client_name"]),
-            status_bayar: st_bayar,
-            status_kirim: st_kirim,
-            jenis_bayar: p_jenis,
-            bucket: rawBucket, 
-            alasan: alasan_db,
-            is_lunas: isLunas,
-            is_terkirim: isTerkirim,
-            bp: p_bp,
-            majelis: p_majelis
-        };
+        allRawData.forEach(row => {
+            const p_area    = normalize(getValue(row, ["area", "region"]));
+            const p_cabang  = normalize(getValue(row, ["cabang", "point", "unit"]));
+            const p_bp      = getValue(row, ["bp", "petugas", "ao"]) || "Tanpa BP";
+            const p_majelis = getValue(row, ["majelis", "group", "kelompok"]) || "Umum";
+            const p_hari    = getValue(row, ["hari", "day"]) || "";
+            
+            // --- FILTERING ---
+            if (p_hari.toLowerCase() !== currentDayName.toLowerCase()) return;
+            if (filterArea !== "ALL" && p_area !== filterArea) return;
+            if (filterPoint !== "ALL" && p_cabang !== filterPoint) return;
 
-        globalMitraList.push(mitraData);
+            const rawBucket = String(getValue(row, ["bucket", "dpd", "kolek"]) || "0").trim();
+            const st_bayar  = getValue(row, ["status_bayar", "bayar"]) || "Belum";
+            const st_kirim  = getValue(row, ["status_kirim", "kirim"]) || "Belum";
+            const alasan_db = getValue(row, ["keterangan", "alasan"]) || "";
+            const p_jenis   = getValue(row, ["jenis_pembayaran", "jenis", "type"]) || "-";
 
-        if (!hierarchy[p_bp]) hierarchy[p_bp] = {};
-        if (!hierarchy[p_bp][p_majelis]) hierarchy[p_bp][p_majelis] = [];
-        hierarchy[p_bp][p_majelis].push(mitraData);
-    });
+            const bayarLower = st_bayar.toLowerCase();
+            const kirimLower = st_kirim.toLowerCase();
 
-    renderStats(stats);
-    renderAccordion(hierarchy);
-    updateGlobalValidationStatus();
-    
-    if (isPageLocked) {
-        applyLockMode();
-    }
+            const isLunas = bayarLower.includes("lunas") || bayarLower.includes("bayar") || bayarLower.includes("sudah");
+            const isTerkirim = kirimLower.includes("terkirim") || kirimLower.includes("sudah") || kirimLower.includes("kirim");
+
+            const bucketNum = parseInt(rawBucket);
+            const isCurrent = rawBucket.toLowerCase().includes("current") || rawBucket.toLowerCase().includes("lancar") || (!isNaN(bucketNum) && bucketNum <= 1);
+
+            if (isCurrent) {
+                stats.mm_total++;
+                if (isLunas) stats.mm_bayar++;
+                if (isTerkirim) stats.mm_kirim++;
+            } else {
+                stats.nc_total++;
+                if (isLunas) stats.nc_bayar++;
+                if (isTerkirim) stats.nc_kirim++;
+            }
+
+            const mitraData = {
+                id: getValue(row, ["id_mitra", "id", "account_id"]),
+                nama: getValue(row, ["nama_mitra", "nama", "client_name"]),
+                status_bayar: st_bayar,
+                status_kirim: st_kirim,
+                jenis_bayar: p_jenis,
+                bucket: rawBucket, 
+                alasan: alasan_db,
+                is_lunas: isLunas,
+                is_terkirim: isTerkirim,
+                bp: p_bp,
+                majelis: p_majelis
+            };
+
+            globalMitraList.push(mitraData);
+
+            if (!hierarchy[p_bp]) hierarchy[p_bp] = {};
+            if (!hierarchy[p_bp][p_majelis]) hierarchy[p_bp][p_majelis] = [];
+            hierarchy[p_bp][p_majelis].push(mitraData);
+        });
+
+        renderStats(stats);
+        renderAccordion(hierarchy);
+        updateGlobalValidationStatus();
+        
+        if (isPageLocked) {
+            applyLockMode();
+        }
+    }, 50); // Delay kecil
 }
 
 function renderStats(stats) {
