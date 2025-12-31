@@ -23,10 +23,41 @@ const ADMIN_ID = "17246";
 
 let userProfile = null;
 let currentDayName = ""; 
-// Variabel baru untuk menyimpan data agar bisa di-download
 let globalMitraList = []; 
+let draftData = {}; // Variabel untuk menyimpan data draft (cache)
 
-// --- 1. INJECT STYLE MODERN (CSS) ---
+// --- 1. MANAGEMEN PENYIMPANAN LOKAL (AUTO-SAVE) ---
+function getStorageKey() {
+    // Key unik per hari agar reset setiap ganti hari
+    const dateStr = new Date().toISOString().split('T')[0];
+    return `closing_draft_${dateStr}`; 
+}
+
+function loadDraftFromStorage() {
+    try {
+        const raw = localStorage.getItem(getStorageKey());
+        draftData = raw ? JSON.parse(raw) : {};
+    } catch (e) {
+        draftData = {};
+    }
+}
+
+function saveToStorage(id, isChecked, reason) {
+    if (!draftData) draftData = {};
+    
+    // Update data di memori
+    if (!draftData[id]) draftData[id] = {};
+    draftData[id].checked = isChecked;
+    draftData[id].reason = reason;
+
+    // Simpan ke LocalStorage
+    localStorage.setItem(getStorageKey(), JSON.stringify(draftData));
+    
+    // Update UI Counter
+    updateValidationStatus();
+}
+
+// --- 2. INJECT STYLE MODERN (CSS) ---
 function injectModernStyles() {
     const styleId = 'closing-point-modern-style';
     if (!document.getElementById(styleId)) {
@@ -38,6 +69,7 @@ function injectModernStyles() {
                 --success-bg: #dcfce7; --success-text: #166534;
                 --danger-bg: #fee2e2; --danger-text: #991b1b;
                 --info-bg: #e0f2fe; --info-text: #0369a1;
+                --gray-bg: #f3f4f6; --gray-text: #374151;
                 --bg-card: #ffffff;
                 --bg-body: #f3f4f6;
             }
@@ -89,10 +121,11 @@ function injectModernStyles() {
     }
 }
 
-// --- 2. AUTH & INIT ---
+// --- 3. AUTH & INIT ---
 onAuthStateChanged(auth, (user) => {
     if (user) {
         injectModernStyles(); 
+        loadDraftFromStorage(); // Load data tersimpan saat login
         checkUserRole(user.uid);
     } else {
         window.location.replace("index.html");
@@ -135,7 +168,7 @@ function initPage() {
     fetchRepaymentData(userPoint);
 }
 
-// --- 3. FETCH DATA ---
+// --- 4. FETCH DATA ---
 async function fetchRepaymentData(targetPoint) {
     try {
         const response = await fetch(SCRIPT_URL, {
@@ -171,7 +204,7 @@ function getValue(row, keys) {
     return "";
 }
 
-// --- 4. PROCESSING DATA ---
+// --- 5. PROCESSING DATA ---
 function processAndRender(rawData, targetPoint) {
     let stats = { mm_total: 0, mm_bayar: 0, mm_kirim: 0, nc_total: 0, nc_bayar: 0, nc_kirim: 0 };
     let hierarchy = {}; 
@@ -192,7 +225,7 @@ function processAndRender(rawData, targetPoint) {
         const p_majelis = getValue(row, ["majelis", "group", "kelompok"]) || "Umum";
         const p_hari    = getValue(row, ["hari", "day"]) || "";
         
-        const p_bucket  = parseInt(getValue(row, ["bucket", "dpd", "kolek"]) || 0);
+        const p_bucket  = parseInt(getValue(row, ["bucket", "dpd", "kolek"]) || 0); // Ambil Data Bucket
         const st_bayar  = getValue(row, ["status_bayar", "bayar"]) || "Belum";
         const st_kirim  = getValue(row, ["status_kirim", "kirim"]) || "Belum";
         const alasan_db = getValue(row, ["keterangan", "alasan"]) || "";
@@ -226,6 +259,7 @@ function processAndRender(rawData, targetPoint) {
             status_bayar: st_bayar,
             status_kirim: st_kirim,
             jenis_bayar: p_jenis,
+            bucket: p_bucket, // Simpan Data Bucket
             alasan: alasan_db,
             is_lunas: isLunas,
             is_terkirim: isTerkirim,
@@ -233,10 +267,8 @@ function processAndRender(rawData, targetPoint) {
             majelis: p_majelis
         };
 
-        // Simpan ke Global List untuk CSV
         globalMitraList.push(mitraData);
 
-        // Masukkan ke Hierarchy untuk Render
         if (!hierarchy[p_bp]) hierarchy[p_bp] = {};
         if (!hierarchy[p_bp][p_majelis]) hierarchy[p_bp][p_majelis] = [];
         hierarchy[p_bp][p_majelis].push(mitraData);
@@ -256,7 +288,7 @@ function renderStats(stats) {
     document.getElementById('ncKirim').textContent = stats.nc_kirim;
 }
 
-// --- 5. RENDER UI ---
+// --- 6. RENDER UI ---
 function renderAccordion(hierarchy) {
     const container = document.getElementById('accordionBP');
     container.innerHTML = ""; 
@@ -348,6 +380,12 @@ function createMitraCard(mitra) {
     const stBayar = (mitra.status_bayar || "").toLowerCase();
     const stKirim = (mitra.status_kirim || "").toLowerCase();
 
+    // -- Cek Draft (Data tersimpan di browser) --
+    const savedData = draftData[mitra.id] || {};
+    const isChecked = savedData.checked ? "checked" : "";
+    const savedReason = savedData.reason || ""; // Ambil alasan tersimpan
+
+    // Style Status Pembayaran
     let styleBayar = "";
     if (stBayar.includes('lunas') || stBayar.includes('bayar') || stBayar.includes('sudah')) {
         styleBayar = "background-color: #d1e7dd; color: #0f5132; border: 1px solid #badbcc;"; 
@@ -355,6 +393,7 @@ function createMitraCard(mitra) {
         styleBayar = "background-color: #f8d7da; color: #842029; border: 1px solid #f5c2c7;"; 
     }
 
+    // Style Status Pengiriman
     let styleKirim = "";
     if (stKirim.includes('terkirim') || stKirim.includes('sudah') || stKirim.includes('kirim')) {
         styleKirim = "background-color: #198754; color: white; box-shadow: 0 2px 4px rgba(25, 135, 84, 0.3);"; 
@@ -363,6 +402,8 @@ function createMitraCard(mitra) {
     }
 
     const styleJenis = "background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;";
+    // Style Baru untuk DPD Bucket
+    const styleBucket = "background-color: #f3f4f6; color: #374151; border: 1px solid #d1d5db;";
 
     const isLunas = stBayar.includes('lunas') || stBayar.includes('bayar') || stBayar.includes('sudah');
     const isTerkirim = stKirim.includes('terkirim') || stKirim.includes('sudah') || stKirim.includes('kirim');
@@ -387,6 +428,11 @@ function createMitraCard(mitra) {
     const isRequired = !jenisNormal; 
     const placeholder = isRequired ? "Wajib isi alasan (Jenis: " + mitra.jenis_bayar + ")..." : "Keterangan (Opsional)...";
     const requiredClass = isRequired ? "required" : "";
+    // Jika ada draft tersimpan, gunakan nilai tersebut. Jika tidak, kosongkan.
+    const inputValue = savedReason; 
+
+    // Tambahkan class 'checked' pada tombol jika status tersimpan adalah checked
+    const checkBtnClass = isChecked ? "checked" : "";
 
     return `
         <div class="mitra-card">
@@ -406,6 +452,9 @@ function createMitraCard(mitra) {
                     <span class="badge-status" style="${styleJenis}">
                         <i class="fa-solid fa-receipt me-1"></i>${mitra.jenis_bayar}
                     </span>
+                    <span class="badge-status" style="${styleBucket}">
+                        <i class="fa-solid fa-box-archive me-1"></i>DPD: ${mitra.bucket}
+                    </span>
                 </div>
 
                 ${specialUI}
@@ -414,12 +463,16 @@ function createMitraCard(mitra) {
                     <input type="text" class="input-modern ${requiredClass}" 
                            placeholder="${placeholder}" 
                            id="validasi-${mitra.id}" 
-                           data-required="${isRequired}">
+                           data-required="${isRequired}"
+                           value="${inputValue}"
+                           oninput="window.saveReasonInput('${mitra.id}', this.value)">
                 </div>
             </div>
             
             <div class="ms-3 border-start ps-3">
-                <div class="btn-check-modern shadow-sm" onclick="toggleValidation(this, '${mitra.id}')" title="Klik untuk Validasi">
+                <div class="btn-check-modern shadow-sm ${checkBtnClass}" 
+                     onclick="toggleValidation(this, '${mitra.id}')" 
+                     title="Klik untuk Validasi">
                     <i class="fa-solid fa-check"></i>
                 </div>
             </div>
@@ -427,7 +480,14 @@ function createMitraCard(mitra) {
     `;
 }
 
-// --- 6. EXPORTS & EVENTS ---
+// --- 7. EXPORTS & EVENTS ---
+
+// Fungsi baru untuk menyimpan input teks secara realtime
+window.saveReasonInput = function(id, value) {
+    const btn = document.querySelector(`.btn-check-modern[onclick*="'${id}'"]`);
+    const isChecked = btn && btn.classList.contains('checked');
+    saveToStorage(id, isChecked, value);
+};
 
 function updateValidationStatus() {
     const totalMitra = document.querySelectorAll('.btn-check-modern').length;
@@ -443,9 +503,9 @@ function updateValidationStatus() {
     if(btnValAll) {
         if (checkedMitra === totalMitra && totalMitra > 0) {
             btnValAll.disabled = false;
-            btnValAll.innerHTML = `<i class="fa-solid fa-file-csv me-1"></i> Download Laporan CSV`; // Ubah Text
+            btnValAll.innerHTML = `<i class="fa-solid fa-file-csv me-1"></i> Download Laporan CSV`; 
             btnValAll.classList.remove('btn-secondary');
-            btnValAll.classList.add('btn-success'); // Ubah Warna ke Hijau
+            btnValAll.classList.add('btn-success'); 
         } else {
             btnValAll.disabled = true;
             btnValAll.innerHTML = `<i class="fa-solid fa-lock me-1"></i> Selesaikan ${totalMitra - checkedMitra} Lagi`;
@@ -485,42 +545,42 @@ window.toggleValidation = function(element, id) {
         element.classList.remove('checked');
     }
 
-    updateValidationStatus();
+    // SIMPAN STATUS BARU
+    saveToStorage(id, element.classList.contains('checked'), inputReason.value);
 };
 
-// --- 7. FUNGSI DOWNLOAD CSV ---
+// --- 8. FUNGSI DOWNLOAD CSV ---
 function downloadCSV() {
     if (globalMitraList.length === 0) {
         alert("Tidak ada data untuk diunduh.");
         return;
     }
 
-    // Header CSV
-    let csvContent = "ID Mitra,Nama Mitra,BP,Majelis,Status Bayar,Status Kirim,Jenis Bayar,Keterangan/Alasan\n";
+    let csvContent = "ID Mitra,Nama Mitra,BP,Majelis,Status Bayar,Status Kirim,Jenis Bayar,DPD Bucket,Keterangan/Alasan\n";
 
-    // Loop data
     globalMitraList.forEach(m => {
-        // Ambil nilai terbaru dari input (karena user mungkin mengeditnya)
         const inputReason = document.getElementById(`validasi-${m.id}`);
         const userReason = inputReason ? inputReason.value : "";
-        const finalReason = userReason || m.alasan || "-";
+        
+        // Cek juga dari storage jika elemen tidak ditemukan (misal hidden accordion)
+        const stored = draftData[m.id] || {};
+        const finalReason = userReason || stored.reason || m.alasan || "-";
 
-        // Susun baris CSV (gunakan kutip untuk menangani koma dalam teks)
         const row = [
-            `'${m.id}`, // Tambah kutip agar excel baca sebagai teks
+            `'${m.id}`, 
             `"${m.nama}"`,
             `"${m.bp}"`,
             `"${m.majelis}"`,
             m.status_bayar,
             m.status_kirim,
             m.jenis_bayar,
+            m.bucket, // Tambahkan Bucket ke CSV
             `"${finalReason}"`
         ].join(",");
 
         csvContent += row + "\n";
     });
 
-    // Buat Blob dan Download
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
