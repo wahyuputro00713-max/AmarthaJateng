@@ -16,20 +16,19 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// URL APPS SCRIPT LANGSUNG
+// URL APPS SCRIPT
 const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev";
 
 const userNameSpan = document.getElementById('userName') || document.getElementById('welcomeName');
 const logoutBtn = document.getElementById('logoutBtn');
 const btnAdmin = document.getElementById('btnAdmin'); 
-const closingMenuBtn = document.getElementById('closingMenuBtn'); // ID Tombol Closing Baru
+const closingMenuBtn = document.getElementById('closingMenuBtn');
 
-// ID ADMIN
 const ADMIN_ID = "17246";
 
-// --- FITUR AUTO LOGOUT (5 MENIT IDLE) ---
+// --- FITUR AUTO LOGOUT ---
 let idleTime = 0;
-const IDLE_LIMIT = 5; // 5 Menit
+const IDLE_LIMIT = 5; 
 
 function timerIncrement() {
     idleTime = idleTime + 1;
@@ -40,10 +39,7 @@ function timerIncrement() {
         });
     }
 }
-
-function resetTimer() {
-    idleTime = 0;
-}
+function resetTimer() { idleTime = 0; }
 
 window.onload = function() {
     setInterval(timerIncrement, 60000); 
@@ -54,9 +50,8 @@ window.onload = function() {
     window.onkeypress = resetTimer;   
     window.addEventListener('scroll', resetTimer, true); 
 };
-// ----------------------------------------
 
-// --- FUNGSI HELPER: TANGGAL & JAM LOKAL (WIB) ---
+// --- HELPER TIME ---
 function getLocalTodayDate() {
     const d = new Date();
     const year = d.getFullYear();
@@ -67,14 +62,11 @@ function getLocalTodayDate() {
 
 function getCurrentTimeWIB() {
     return new Date().toLocaleTimeString('en-GB', {
-        timeZone: 'Asia/Jakarta',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
+        timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', hour12: false
     });
 }
 
-// --- FUNGSI CEK STATUS ABSENSI ---
+// --- CEK ABSENSI ---
 async function checkAbsensiStatus(uid) {
     const today = getLocalTodayDate();
     const absensiRef = ref(db, `absensi/${today}/${uid}`);
@@ -82,49 +74,35 @@ async function checkAbsensiStatus(uid) {
     try {
         const snapshot = await get(absensiRef);
         const btnAbsen = document.getElementById('btnAbsen') || document.querySelector('a[href="absensi.html"]');
-
         if (!btnAbsen) return;
 
         const textEl = btnAbsen.querySelector('.menu-text');
 
-        // KONDISI 1: SUDAH ABSEN
         if (snapshot.exists()) {
             btnAbsen.style.pointerEvents = "none";
             btnAbsen.style.opacity = "0.5"; 
             btnAbsen.style.filter = "grayscale(100%)"; 
-            
-            if (textEl) {
-                textEl.innerText = "Sudah Absen";
-                textEl.style.fontWeight = "bold";
-                textEl.style.color = "#666"; 
-            }
-        } 
-        // KONDISI 2: BELUM ABSEN TAPI SUDAH LEWAT JAM 08:15 WIB
-        else {
+            if (textEl) { textEl.innerText = "Sudah Absen"; textEl.style.fontWeight = "bold"; textEl.style.color = "#666"; }
+        } else {
             const jamSekarang = getCurrentTimeWIB();
             const BATAS_WAKTU = "08:15";
-
             if (jamSekarang > BATAS_WAKTU) {
                 btnAbsen.style.pointerEvents = "none";
                 btnAbsen.style.opacity = "0.5"; 
                 btnAbsen.style.filter = "grayscale(100%)"; 
-                
-                if (textEl) {
-                    textEl.innerText = "Absen Tutup";
-                    textEl.style.fontWeight = "bold";
-                    textEl.style.color = "#666"; 
-                }
+                if (textEl) { textEl.innerText = "Absen Tutup"; textEl.style.fontWeight = "bold"; textEl.style.color = "#666"; }
             }
         }
-
-    } catch (error) {
-        console.error("Gagal cek absensi:", error);
-    }
+    } catch (error) { console.error("Gagal cek absensi:", error); }
 }
 
 onAuthStateChanged(auth, (user) => {
     if (user) {
         checkAbsensiStatus(user.uid);
+        
+        // --- LOAD DATA KHUSUS (Termasuk Update Repayment) ---
+        loadLeaderboard();
+        loadRepaymentInfo(); // <--- FUNGSI BARU DIPANGGIL DISINI
 
         const userRef = ref(db, 'users/' + user.uid);
         get(userRef).then((snapshot) => {
@@ -133,26 +111,20 @@ onAuthStateChanged(auth, (user) => {
                 const realName = data.nama || data.idKaryawan || user.email;
                 if (userNameSpan) userNameSpan.textContent = realName;
 
-                // --- CEK ID KARYAWAN UNTUK MENU ADMIN ---
                 if (String(data.idKaryawan).trim() === ADMIN_ID) {
                     if (btnAdmin) btnAdmin.classList.remove('d-none');
                 }
 
-                // --- CEK JABATAN UNTUK MENU CLOSING POINT ---
-                // Hanya untuk RM, AM, BM
                 const userJabatan = data.jabatan || ""; 
                 const allowedRoles = ["RM", "AM", "BM"];
-
                 if (allowedRoles.includes(userJabatan.toUpperCase())) {
                     if (closingMenuBtn) closingMenuBtn.classList.remove('d-none');
                 }
-
             } else {
                 if (userNameSpan) userNameSpan.textContent = user.email;
             }
         }).catch(err => console.log("Gagal load profil:", err));
 
-        loadLeaderboard();
     } else {
         window.location.replace("index.html");
     }
@@ -166,12 +138,41 @@ if (logoutBtn) {
     });
 }
 
+// --- FUNGSI BARU: AMBIL JAM UPDATE DARI KOLOM S ---
+async function loadRepaymentInfo() {
+    const labelUpdate = document.getElementById('repaymentUpdateVal');
+    if (!labelUpdate) return;
+
+    try {
+        // Kita panggil get_majelis karena endpoint ini sudah kita update untuk baca kolom S
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: "get_majelis" }),
+            redirect: "follow",
+            headers: { "Content-Type": "text/plain;charset=utf-8" }
+        });
+
+        const result = await response.json();
+
+        if (result.result === "success" && result.data && result.data.length > 0) {
+            // Ambil jam_update dari baris pertama data (asumsi semua baris punya jam update sama/serupa)
+            // Field 'jam_update' diambil dari Kolom S sesuai script Apps Script
+            const jamUpdate = result.data[0].jam_update; 
+            
+            labelUpdate.textContent = jamUpdate !== "-" ? jamUpdate : "N/A";
+        } else {
+            labelUpdate.textContent = "-";
+        }
+    } catch (error) {
+        console.error("Gagal load update repayment:", error);
+        labelUpdate.textContent = "Err";
+    }
+}
+
 // --- LOGIKA LEADERBOARD ---
 async function loadLeaderboard() {
     try {
-        console.log("Memuat Leaderboard...");
         setLoadingState();
-
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify({ action: "get_leaderboard" }),
@@ -180,7 +181,6 @@ async function loadLeaderboard() {
         });
         
         const result = await response.json();
-
         if (result.result !== "success" || !result.data || result.data.length === 0) {
             showErrorState("Belum Ada Data");
             return;
@@ -204,9 +204,7 @@ async function loadLeaderboard() {
                     }
                 });
             }
-        } catch (dbError) {
-            console.warn("Gagal ambil detail user.");
-        }
+        } catch (dbError) { console.warn("Gagal ambil detail user."); }
 
         updatePodium(".rank-1", top3[0], usersMap);
         updatePodium(".rank-2", top3[1], usersMap);
@@ -274,7 +272,6 @@ function formatJuta(angka) {
     if (!angka) return "Rp 0";
     let num = Number(String(angka).replace(/[^0-9.-]+/g,""));
     if (isNaN(num)) return "Rp 0";
-
     if (num >= 1000000000) return "Rp " + (num / 1000000000).toFixed(1) + "M";
     else if (num >= 1000000) return "Rp " + (num / 1000000).toFixed(1) + "jt";
     else if (num >= 1000) return "Rp " + (num / 1000).toFixed(0) + "rb";
