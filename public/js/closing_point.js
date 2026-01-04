@@ -824,6 +824,48 @@ function createMitraCard(mitra) {
     const inputValue = savedReason; 
     const checkBtnClass = isChecked ? "checked" : "";
 
+    // --- BAGIAN INI UPDATE UNTUK FITUR JB ---
+    const selectId = `payment-${mitra.id}`;
+    const daySelectId = `hari-${mitra.id}`; 
+
+    let actionHtml = "";
+    
+    if(isTerkirim) {
+        actionHtml = `<button class="btn btn-secondary btn-kirim" disabled><i class="fa-solid fa-check"></i> Terkirim</button>`;
+    } else {
+        const safeName = mitra.bp.replace(/'/g, "");
+        actionHtml = `
+            <div class="d-flex flex-column align-items-end gap-1" style="width: 100%; max-width: 160px;">
+                <div class="d-flex align-items-center gap-1 w-100">
+                    <select id="${selectId}" class="form-select form-select-sm p-0 px-1" 
+                        style="height: 28px; font-size: 11px; border-radius: 6px;" 
+                        onchange="window.toggleDaySelect(this, '${daySelectId}')">
+                        <option value="Normal">Normal</option>
+                        <option value="PAR">PAR</option>
+                        <option value="Partial">Partial</option>
+                        <option value="Par Payment">Par Payment</option>
+                        <option value="JB">JB</option> 
+                    </select>
+                    <button class="btn btn-primary btn-kirim" 
+                        onclick="window.kirimData(this, '${safeName}', '${mitra.id}', '${mitra.nama.replace(/'/g,"")}', '${selectId}', '${daySelectId}')"
+                        style="background-color: #9b59b6; border:none; height: 28px; width: 32px; display: flex; align-items: center; justify-content: center;">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </div>
+                
+                <select id="${daySelectId}" class="form-select form-select-sm p-0 px-1 d-none" 
+                    style="width: 100%; height: 26px; font-size: 10px; border-radius: 6px; border: 1px solid #fd7e14; color: #e67e22; background-color: #fffaf0;">
+                    <option value="" disabled selected>Pilih Hari Baru...</option>
+                    <option value="Senin">Senin</option>
+                    <option value="Selasa">Selasa</option>
+                    <option value="Rabu">Rabu</option>
+                    <option value="Kamis">Kamis</option>
+                    <option value="Jumat">Jumat</option>
+                </select>
+            </div>
+        `;
+    }
+
     return `
         <div class="mitra-card">
             <div style="flex: 1;">
@@ -866,11 +908,95 @@ function createMitraCard(mitra) {
                     <i class="fa-solid fa-check"></i>
                 </div>
             </div>
+            
+            <div class="ms-2">
+                ${actionHtml}
+            </div>
         </div>
     `;
 }
 
 // --- 7. EXPORTS & EVENTS ---
+
+// FUNGSI TOGGLE HARI (Dipanggil saat select Payment berubah)
+window.toggleDaySelect = function(el, targetId) {
+    const target = document.getElementById(targetId);
+    if(el.value === "JB") {
+        target.classList.remove('d-none'); // Munculkan
+    } else {
+        target.classList.add('d-none');    // Sembunyikan
+        target.value = ""; // Reset value
+    }
+};
+
+// --- UPDATE FUNGSI KIRIM DATA (Tambahkan parameter daySelectId) ---
+window.kirimData = async function(btn, namaBP, custNo, namaMitra, selectId, daySelectId) {
+    const selectEl = document.getElementById(selectId);
+    const dayEl = document.getElementById(daySelectId); // Element hari
+    
+    const jenisBayar = selectEl ? selectEl.value : "Normal";
+    let hariBaru = "";
+
+    // VALIDASI KHUSUS JB
+    if (jenisBayar === "JB") {
+        if (!dayEl || !dayEl.value) {
+            alert("Harap pilih HARI BARU untuk Mitra yang Janji Bayar (JB)!");
+            return;
+        }
+        hariBaru = dayEl.value;
+    }
+
+    let confirmMsg = `Kirim laporan closing untuk mitra: ${namaMitra}\nJenis Pembayaran: ${jenisBayar}`;
+    if(hariBaru) confirmMsg += `\nPindah ke Hari: ${hariBaru}`;
+    
+    if(!confirm(confirmMsg + "?")) return;
+
+    const originalContent = btn.innerHTML;
+    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
+    btn.disabled = true;
+    if(selectEl) selectEl.disabled = true;
+    if(dayEl) dayEl.disabled = true;
+
+    try {
+        const payload = {
+            jenisLaporan: "ClosingModal",
+            idKaryawan: userProfile.idKaryawan || "Unknown",
+            namaBP: namaBP,
+            customerNumber: custNo,
+            jenisPembayaran: jenisBayar,
+            hariBaru: hariBaru // KIRIM DATA HARI
+        };
+
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+            redirect: "follow",
+            headers: { "Content-Type": "text/plain;charset=utf-8" }
+        });
+
+        const result = await response.json();
+
+        if (result.result === 'success') {
+            // Naik ke parent container (div .d-flex di dalam createMitraCard)
+            // Struktur: button -> div(flex) -> div(parent action)
+            const parentDiv = btn.parentElement.parentElement; 
+            // Ganti jadi tampilan terkirim
+            parentDiv.innerHTML = `
+                <div class="d-flex justify-content-end w-100">
+                    <button class="btn btn-secondary btn-kirim" disabled><i class="fa-solid fa-check"></i> Terkirim</button>
+                </div>`;
+        } else {
+            throw new Error(result.error || "Gagal menyimpan data.");
+        }
+
+    } catch (error) {
+        alert("Gagal Kirim: " + error.message);
+        btn.innerHTML = originalContent;
+        btn.disabled = false;
+        if(selectEl) selectEl.disabled = false;
+        if(dayEl) dayEl.disabled = false;
+    }
+};
 
 window.saveReasonInput = function(id, value) {
     if (isPageLocked) return;
