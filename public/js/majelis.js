@@ -246,6 +246,7 @@ function renderGroupedData(data) {
                             <option value="PAR">PAR</option>
                             <option value="Partial">Partial</option>
                             <option value="Par Payment">Par Payment</option>
+                            <option value="JB">JB</option>
                         </select>
                         <button class="btn btn-primary btn-kirim" 
                             onclick="window.kirimData(this, '${safeName}', '${m.cust_no}', '${safeMitra}', '${selectId}')"
