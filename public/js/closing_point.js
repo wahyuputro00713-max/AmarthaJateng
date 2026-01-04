@@ -128,6 +128,7 @@ function injectModernStyles() {
             .input-modern { width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px; font-size: 0.85rem; margin-top: 8px; transition: border-color 0.2s; background: #fafafa; }
             .input-modern:focus { outline: none; border-color: var(--primary-color); background: #fff; }
             .input-modern.required { border-color: #f87171; background-color: #fef2f2; }
+            .input-modern.required:focus { border-color: #ef4444; }
             .input-modern:disabled { background: #e9ecef; color: #6c757d; border-color: #ced4da; }
             .notif-dot { width: 10px; height: 10px; background-color: #ef4444; border-radius: 50%; display: inline-block; margin-left: 8px; box-shadow: 0 0 0 2px white; animation: pulse-dot 2s infinite; }
             @keyframes pulse-dot { 0% { transform: scale(0.95); } 70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); } 100% { transform: scale(0.95); } }
@@ -414,25 +415,36 @@ function createMitraCard(mitra) {
     const savedReason = savedData.reason || ""; 
     const savedDay = savedData.day || ""; 
 
-    // --- LOGIKA "JB" & "PAR" ---
+    // --- LOGIKA UTAMA (PERBAIKAN) ---
+    // 1. Tentukan Jenis Bayar (Bersihkan string agar tidak error)
     const jenisBayar = String(mitra.jenis_bayar).toUpperCase().trim();
     const isJB = jenisBayar === "JB";
     const isNonNormal = ["PAR", "PARTIAL", "PAR PAYMENT"].includes(jenisBayar);
 
-    // --- STATUS ---
+    // 2. Status Dasar
     const isLunas = stBayar.includes('lunas') || stBayar.includes('bayar') || stBayar.includes('sudah');
-    // Jika JB, otomatis dianggap terkirim agar validasi terbuka
+    
+    // 3. Logika Terkirim: 
+    // Data dianggap "SIAP VALIDASI" jika: 
+    // a. Statusnya sudah terkirim/sudah di spreadsheet
+    // b. ATAU Statusnya adalah JB (karena JB inputnya langsung di sini, dianggap sudah "dikirim" datanya)
     const isTerkirim = stKirim.includes('terkirim') || stKirim.includes('sudah') || stKirim.includes('kirim') || isJB;
 
-    // --- LOGIKA KUNCI TOMBOL VALIDASI ---
+    // 4. Logika Kunci Validasi (Tombol Centang)
+    // Jika belum terkirim DAN bukan JB, maka dikunci. 
+    // Jika JB, maka TIDAK dikunci (enabled).
     const isValidationLocked = !isTerkirim;
     const lockedClass = isValidationLocked ? "disabled" : "";
     const lockedAttr = isValidationLocked ? "" : `onclick="toggleValidation(this, '${mitra.id}')"`;
+    const lockedTitle = isValidationLocked ? "Status Kirim Belum Selesai (Terkunci)" : "Klik untuk Validasi";
+
     const checkBtnClass = isChecked ? "checked" : "";
 
-    // --- STYLES ---
+    // 5. Styles Badge
     let styleBayar = isLunas ? "background-color: #d1e7dd; color: #0f5132; border: 1px solid #badbcc;" : "background-color: #f8d7da; color: #842029; border: 1px solid #f5c2c7;";
     let styleKirim = isTerkirim ? "background-color: #198754; color: white; box-shadow: 0 2px 4px rgba(25, 135, 84, 0.3);" : "background-color: #dc3545; color: white; box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);";
+    const styleJenis = "background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;";
+    
     let bucketText = (mitra.bucket == "0" || String(mitra.bucket).toLowerCase().includes("current")) ? "Lancar" : `DPD: ${mitra.bucket}`;
     let styleBucket = (mitra.bucket == "0" || String(mitra.bucket).toLowerCase().includes("current")) ? "background-color: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe;" : "background-color: #fef3c7; color: #92400e; border: 1px solid #fcd34d;";
 
@@ -461,7 +473,6 @@ function createMitraCard(mitra) {
         // --- TEXT INPUT (PAR/NORMAL) ---
         const placeholder = isNonNormal ? "Wajib isi alasan..." : "Keterangan (Opsional)...";
         const requiredClass = isNonNormal ? "required" : ""; // Class penanda visual
-        // Gunakan atribut data-wajib agar bisa dibaca di JS
         const requiredAttr = isNonNormal ? 'data-wajib="true"' : 'data-wajib="false"';
 
         inputHtml = `
@@ -477,6 +488,7 @@ function createMitraCard(mitra) {
     }
 
     let specialUI = "";
+    // Alert jika telat tapi sudah dikirim (dan BUKAN JB, karena JB wajar telat)
     if (!isLunas && isTerkirim && !isJB) {
         specialUI = `
             <div class="alert-modern">
@@ -524,6 +536,7 @@ window.saveReasonInput = function(id, reason, day) {
     if (isPageLocked) return;
     const btn = document.querySelector(`.btn-check-modern[onclick*="'${id}'"]`);
     const existing = draftData[id] || {};
+    // Pertahankan nilai lama jika parameter undefined/kosong
     const currentReason = reason !== undefined ? reason : (existing.reason || "");
     const currentDay = day !== undefined ? day : (existing.day || "");
     const isChecked = btn && btn.classList.contains('checked');
@@ -540,13 +553,13 @@ window.toggleValidation = function(element, id) {
     if (inputReason) {
         const isWajib = inputReason.getAttribute('data-wajib') === 'true';
         if (isWajib && inputReason.value.trim() === "") {
-            alert("Wajib mengisi alasan/keterangan untuk status ini!");
+            alert("Wajib mengisi alasan/keterangan untuk status ini sebelum validasi!");
             inputReason.focus();
             inputReason.style.borderColor = "red";
             inputReason.style.backgroundColor = "#fff0f0";
             setTimeout(() => { 
-                inputReason.style.borderColor = "#f87171"; 
-                inputReason.style.backgroundColor = "#fef2f2"; 
+                inputReason.style.borderColor = "#d1d5db"; 
+                inputReason.style.backgroundColor = "#fafafa"; 
             }, 2000);
             return;
         }
