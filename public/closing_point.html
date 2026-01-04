@@ -11,6 +11,7 @@
     <style>
         body { background-color: #f4f6f9; font-family: 'Segoe UI', sans-serif; padding-bottom: 50px; }
         
+        /* Header Style */
         .closing-header {
             background: white;
             padding: 20px 30px;
@@ -26,9 +27,14 @@
         .header-title p { margin: 0; font-size: 14px; color: #7f8c8d; }
         .current-date { font-weight: 600; color: #6c5ce7; background: #e0e0ff; padding: 5px 15px; border-radius: 20px; font-size: 13px; }
 
+        /* Stats Cards */
         .stat-card {
-            background: white; border-radius: 12px; padding: 20px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.02); border-left: 5px solid #bdc3c7; height: 100%;
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+            border-left: 5px solid #bdc3c7;
+            height: 100%;
         }
         .stat-card.primary { border-left-color: #3498db; }
         .stat-card.warning { border-left-color: #f1c40f; }
@@ -38,16 +44,35 @@
         .stat-box .val { font-size: 20px; font-weight: bold; color: #2c3e50; display: block; }
         .stat-box .lbl { font-size: 11px; color: #7f8c8d; }
 
+        /* Accordion & List Styles */
         .accordion-button { font-weight: 600; color: #34495e; background-color: #fff; }
         .accordion-button:not(.collapsed) { color: #2980b9; background-color: #ebf5fb; }
         .accordion-button:focus { box-shadow: none; }
 
+        /* Majelis & Mitra Table */
+        .majelis-container {
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            overflow: hidden;
+        }
         .majelis-header {
-            background: #f8f9fa; padding: 10px 15px; font-weight: bold; font-size: 14px;
-            border-bottom: 1px solid #e9ecef; display: flex; justify-content: space-between;
+            background: #f8f9fa;
+            padding: 10px 15px;
+            font-weight: bold;
+            font-size: 14px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex; justify-content: space-between;
         }
 
-        .mitra-row { display: flex; align-items: center; padding: 12px 15px; border-bottom: 1px solid #f1f1f1; flex-wrap: wrap; }
+        .mitra-row {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            border-bottom: 1px solid #f1f1f1;
+            flex-wrap: wrap;
+        }
         .mitra-row:last-child { border-bottom: none; }
         
         .mitra-info { flex: 1; min-width: 200px; }
@@ -60,16 +85,38 @@
         .status-kirim { background: #cce5ff; color: #004085; }
         .status-belum { background: #e2e3e5; color: #383d41; }
 
+        /* Validasi Area */
+        .action-area { display: flex; align-items: center; gap: 10px; }
         .btn-check-custom {
-            width: 35px; height: 35px; border-radius: 50%; border: 2px solid #ddd;
-            background: white; color: white; display: flex; align-items: center; justify-content: center;
+            width: 35px; height: 35px;
+            border-radius: 50%;
+            border: 2px solid #ddd;
+            background: white;
+            color: white;
+            display: flex; align-items: center; justify-content: center;
             cursor: pointer; transition: all 0.2s;
         }
         .btn-check-custom.checked { background: #27ae60; border-color: #27ae60; }
         .btn-check-custom:hover { border-color: #27ae60; }
 
-        .alert-reason { width: 100%; margin-top: 10px; background: #fff3cd; border: 1px solid #ffeeba; border-radius: 6px; padding: 10px; font-size: 12px; }
-        .reason-input { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; margin-top: 5px; font-size: 12px; }
+        /* Alert Khusus (Telat tapi Terkirim) */
+        .alert-reason {
+            width: 100%;
+            margin-top: 10px;
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+            border-radius: 6px;
+            padding: 10px;
+            font-size: 12px;
+        }
+        .reason-input {
+            width: 100%;
+            padding: 6px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-top: 5px;
+            font-size: 12px;
+        }
 
         @media (max-width: 768px) {
             .closing-header { flex-direction: column; align-items: flex-start; gap: 10px; }
@@ -89,17 +136,16 @@
                 </div>
             </div>
         </div>
-        
-        <div class="header-actions d-flex align-items-center justify-content-end">
+        <div class="header-actions">
             <span class="current-date" id="displayDate">-</span>
             
-            <input type="date" id="dateInput" class="form-control form-control-sm d-none ms-2" style="width: auto; max-width: 150px;">
+            <input type="date" id="dateInput" class="form-control form-control-sm d-none ms-2" style="width: auto; max-width: 150px; display: inline-block;">
             
             <button class="btn btn-primary btn-sm ms-2" id="btnValidateAll">
                 <i class="fa-solid fa-calendar-check me-1"></i> Validasi Hari Ini
             </button>
         </div>
-        </div>
+    </div>
 
     <div class="container-fluid px-4">
         <div class="row g-3 mb-4">
