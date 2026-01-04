@@ -80,13 +80,15 @@ function loadFromStorage() {
     }
 }
 
-function saveToStorage(id, isChecked, reason) {
+// UPDATE: Simpan Reason dan Day
+function saveToStorage(id, isChecked, reason, day = "") {
     if (isPageLocked) return; 
 
     if (!draftData) draftData = {};
     if (!draftData[id]) draftData[id] = {};
     draftData[id].checked = isChecked;
     draftData[id].reason = reason;
+    draftData[id].day = day; // Simpan Hari Baru
 
     localStorage.setItem(getStorageKey(), JSON.stringify(draftData));
     updateGlobalValidationStatus();
@@ -236,11 +238,9 @@ function checkUserRole(uid) {
 }
 
 function initPage() {
-    // FORCE HARDCODED DAY MAP UNTUK MENGHINDARI BUG LOCALE BROWSER
     const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
     const today = new Date();
     
-    // Default setup
     const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
     document.getElementById('displayDate').textContent = today.toLocaleDateString('id-ID', options);
 
@@ -258,20 +258,16 @@ function initPage() {
     const displayDate = document.getElementById('displayDate');
 
     if (currentRole === "RM" && dateInput) {
-        // 1. Tampilkan Input Date, Sembunyikan Text
         displayDate.classList.add('d-none');
         dateInput.classList.remove('d-none');
 
-        // 2. Set Value ke Hari Ini (YYYY-MM-DD)
         const year = today.getFullYear();
         const month = String(today.getMonth() + 1).padStart(2, '0');
         const day = String(today.getDate()).padStart(2, '0');
         dateInput.value = `${year}-${month}-${day}`;
 
-        // 3. Set Hari Awal
         currentDayName = days[today.getDay()];
 
-        // 4. Event Listener Change Date
         dateInput.addEventListener('change', function() {
             if (this.value) {
                 const parts = this.value.split('-');
@@ -288,11 +284,9 @@ function initPage() {
         });
 
     } else {
-        // User Default (AM, BM, dll)
         currentDayName = days[today.getDay()]; 
     }
 
-    // LOGIKA FETCH DATA
     let targetPoint = userPoint;
     if (["RM", "AM", "ADMIN"].includes(currentRole)) {
         targetPoint = "ALL";
@@ -321,15 +315,11 @@ async function fetchRepaymentData(targetPoint) {
         }
         
         allRawData = result.data || [];
-        
-        // Setup Header Dropdown (Select)
         setupHeaderFilters();
         
-        // Render Awal
         if (currentRole === "BM") {
             filterAndRenderData();
         } else {
-            // RM/AM Menunggu klik
             if(container) {
                 container.innerHTML = `
                     <div class="text-center py-5 text-muted">
@@ -343,11 +333,7 @@ async function fetchRepaymentData(targetPoint) {
     } catch (error) {
         console.error(error);
         if(container) {
-            container.innerHTML = `
-            <div class="text-center text-secondary py-5">
-                <i class="fa-solid fa-cloud-bolt fa-2x mb-3 text-muted"></i>
-                <p>Gagal koneksi server.</p>
-            </div>`;
+            container.innerHTML = `<div class="text-center text-secondary py-5"><p>Gagal koneksi server.</p></div>`;
         }
     }
 }
@@ -367,15 +353,10 @@ function setupHeaderFilters() {
     const pointEl = document.getElementById('pointName');
     
     if (!areaEl || !pointEl) return;
+    if (areaEl.tagName === 'SELECT' && pointEl.tagName === 'SELECT') return; 
 
-    if (areaEl.tagName === 'SELECT' && pointEl.tagName === 'SELECT') {
-        return; 
-    }
-
-    // Helper: Buat Tombol Tampilkan Data
     const createButton = () => {
         if(document.getElementById('btnShowData')) return; 
-
         const btn = document.createElement('button');
         btn.id = 'btnShowData';
         btn.className = 'btn btn-sm btn-primary mt-1 mb-1 shadow-sm d-block';
@@ -386,30 +367,19 @@ function setupHeaderFilters() {
              const originalText = this.innerHTML;
              this.disabled = true;
              this.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin me-1"></i> Memuat...';
-             
-             setTimeout(() => {
-                filterAndRenderData();
-                this.disabled = false;
-                this.innerHTML = originalText;
-             }, 300);
+             setTimeout(() => { filterAndRenderData(); this.disabled = false; this.innerHTML = originalText; }, 300);
         });
         
         const pointSelect = document.getElementById('selectPoint');
-        if(pointSelect && pointSelect.parentNode) {
-            pointSelect.parentNode.insertBefore(btn, pointSelect.nextSibling);
-        } else {
-             pointEl.parentNode.appendChild(btn);
-        }
+        if(pointSelect && pointSelect.parentNode) pointSelect.parentNode.insertBefore(btn, pointSelect.nextSibling);
+        else pointEl.parentNode.appendChild(btn);
     };
 
-    // 1. JIKA ROLE RM / ADMIN
     if (currentRole === "RM" || currentRole === "ADMIN") {
-        
         if (areaEl.tagName !== 'SELECT') {
             const selArea = document.createElement('select');
             selArea.id = 'selectArea';
             selArea.className = 'header-select text-secondary mb-1';
-            
             let areaOpts = `<option value="ALL">Semua Area</option>`;
             Object.keys(dataPoints).forEach(area => {
                 const selected = (area === userProfile.area) ? "selected" : "";
@@ -417,25 +387,17 @@ function setupHeaderFilters() {
             });
             selArea.innerHTML = areaOpts;
             areaEl.replaceWith(selArea);
-            
-            selArea.addEventListener('change', () => {
-                updatePointDropdownOptions();
-            });
+            selArea.addEventListener('change', () => updatePointDropdownOptions());
         }
-
         if (pointEl.tagName !== 'SELECT') {
             const selPoint = document.createElement('select');
             selPoint.id = 'selectPoint';
             selPoint.className = 'header-select mb-1';
             pointEl.replaceWith(selPoint);
         }
-
         updatePointDropdownOptions();
         createButton();
-    }
-    
-    // 2. JIKA ROLE AM
-    else if (currentRole === "AM") {
+    } else if (currentRole === "AM") {
         if (pointEl.tagName !== 'SELECT') {
             const selPoint = document.createElement('select');
             selPoint.id = 'selectPoint';
@@ -450,38 +412,25 @@ function setupHeaderFilters() {
 function updatePointDropdownOptions(fixedArea = null) {
     const selectPoint = document.getElementById('selectPoint');
     if (!selectPoint) return;
-
     const selectArea = document.getElementById('selectArea');
     const selectedArea = fixedArea || (selectArea ? selectArea.value : "ALL");
-    
     let availablePoints = [];
 
     if (selectedArea !== "ALL") {
-        if (dataPoints[selectedArea]) {
-            availablePoints = dataPoints[selectedArea];
-        }
+        if (dataPoints[selectedArea]) availablePoints = dataPoints[selectedArea];
     } else {
-        Object.values(dataPoints).forEach(pts => {
-            availablePoints = availablePoints.concat(pts);
-        });
+        Object.values(dataPoints).forEach(pts => availablePoints = availablePoints.concat(pts));
         availablePoints.sort();
     }
     
     let pointOpts = `<option value="ALL">Semua Point</option>`;
-    availablePoints.forEach(p => {
-        pointOpts += `<option value="${p}">${p}</option>`;
-    });
+    availablePoints.forEach(p => pointOpts += `<option value="${p}">${p}</option>`);
     
     const oldValue = selectPoint.value;
     selectPoint.innerHTML = pointOpts;
-    
-    if (availablePoints.includes(oldValue)) {
-        selectPoint.value = oldValue;
-    } else if (availablePoints.includes(userProfile.point)) {
-        selectPoint.value = userProfile.point;
-    } else {
-        selectPoint.value = "ALL";
-    }
+    if (availablePoints.includes(oldValue)) selectPoint.value = oldValue;
+    else if (availablePoints.includes(userProfile.point)) selectPoint.value = userProfile.point;
+    else selectPoint.value = "ALL";
 }
 
 // --- 5. PROCESSING DATA (FILTERING) ---
@@ -492,20 +441,8 @@ function filterAndRenderData() {
     const elArea = document.getElementById('selectArea');
     const elPoint = document.getElementById('selectPoint');
     
-    // CEK ELEMENT EXIST DULU BIAR GA ERROR
-    let filterArea = "ALL";
-    if (elArea && elArea.value) {
-        filterArea = elArea.value; 
-    } else if (currentRole === 'AM') {
-        filterArea = userProfile.area || "ALL"; 
-    } 
-
-    let filterPoint = "ALL";
-    if (elPoint && elPoint.value) {
-        filterPoint = elPoint.value; 
-    } else if (currentRole === 'BM') {
-        filterPoint = userProfile.point || "ALL"; 
-    }
+    let filterArea = (elArea && elArea.value) ? elArea.value : (currentRole === 'AM' ? (userProfile.area || "ALL") : "ALL");
+    let filterPoint = (elPoint && elPoint.value) ? elPoint.value : (currentRole === 'BM' ? (userProfile.point || "ALL") : "ALL");
 
     globalMitraList = [];
     const container = document.getElementById('accordionBP');
@@ -519,27 +456,22 @@ function filterAndRenderData() {
     let matchCount = 0;
     const todayClean = clean(currentDayName);
 
-    // --- LOOP DATA ---
     allRawData.forEach(row => {
         const p_area_raw    = getValue(row, ["area", "region"]);
         const p_cabang_raw  = getValue(row, ["cabang", "point", "unit"]);
         const p_hari_raw    = getValue(row, ["hari", "day"]);
 
-        // BERSIHKAN STRING AGAR LEBIH MUDAH MATCH (Hapus spasi, simbol, lowercase)
         const p_area_clean   = clean(p_area_raw);
         const p_cabang_clean = clean(p_cabang_raw);
         const p_hari_clean   = clean(p_hari_raw);
         
-        // 1. FILTER HARI
         if (p_hari_clean !== todayClean) return;
         
-        // 2. FILTER AREA (Flexible Match)
         if (filterArea !== "ALL") {
             const fArea = clean(filterArea);
             if (!p_area_clean.includes(fArea) && !fArea.includes(p_area_clean)) return;
         }
         
-        // 3. FILTER POINT (Flexible Match)
         if (filterPoint !== "ALL") {
             const fPoint = clean(filterPoint);
             if (!p_cabang_clean.includes(fPoint) && !fPoint.includes(p_cabang_clean)) return;
@@ -547,7 +479,6 @@ function filterAndRenderData() {
 
         matchCount++;
 
-        // Data Lain
         const p_bp      = getValue(row, ["bp", "petugas", "ao"]) || "Tanpa BP";
         const p_majelis = getValue(row, ["majelis", "group", "kelompok"]) || "Umum";
         const rawBucket = String(getValue(row, ["bucket", "dpd", "kolek"]) || "0").trim();
@@ -598,45 +529,15 @@ function filterAndRenderData() {
     renderStats(stats);
     
     if (matchCount === 0) {
-        let debugRows = "";
-        allRawData.slice(0, 5).forEach(r => {
-            const h = getValue(r, ["hari", "day"]);
-            const a = getValue(r, ["area", "region"]);
-            const c = getValue(r, ["cabang", "point", "unit"]);
-            debugRows += `<tr><td>${h}</td><td>${a}</td><td>${c}</td></tr>`;
-        });
-
-        const debugTable = `
-            <div class="mt-3 p-2 bg-white border rounded text-start">
-                <strong>Contoh 5 Baris Data Asli dari Server:</strong>
-                <table class="debug-table">
-                    <tr><th>Hari</th><th>Area</th><th>Point/Cabang</th></tr>
-                    ${debugRows}
-                </table>
-            </div>
-        `;
-
         container.innerHTML = `
             <div class="text-center text-muted py-5">
-                <i class="fa-solid fa-filter-circle-xmark fa-2x mb-3 text-warning"></i>
                 <h6 class="text-dark">Data Tidak Ditemukan</h6>
-                <p class="mb-0">Filter yang Anda pilih tidak cocok dengan data apapun.</p>
-                <div class="small mt-2 p-2 bg-light d-inline-block rounded">
-                    Dicari: Hari=<b>${currentDayName}</b>, Area=<b>${filterArea}</b>, Point=<b>${filterPoint}</b>
-                </div>
-                ${debugTable}
-                <div class="alert alert-warning mt-3 small">
-                    <i class="fa-solid fa-circle-info me-1"></i> 
-                    <b>Periksa Tabel di atas:</b> Pastikan nama Hari, Area, dan Point di Database tertulis sama (atau mirip) dengan filter.
-                </div>
+                <p>Cek filter: Hari=<b>${currentDayName}</b>, Area=<b>${filterArea}</b>, Point=<b>${filterPoint}</b></p>
             </div>`;
     } else {
         renderAccordion(hierarchy);
         updateGlobalValidationStatus();
-        
-        if (isPageLocked) {
-            applyLockMode();
-        }
+        if (isPageLocked) applyLockMode();
     }
 }
 
@@ -758,71 +659,60 @@ function createMitraCard(mitra) {
     const savedData = draftData[mitra.id] || {};
     const isChecked = savedData.checked ? "checked" : "";
     const savedReason = savedData.reason || ""; 
+    const savedDay = savedData.day || ""; // Load saved day
 
-    let styleBayar = "";
-    if (stBayar.includes('lunas') || stBayar.includes('bayar') || stBayar.includes('sudah')) {
-        styleBayar = "background-color: #d1e7dd; color: #0f5132; border: 1px solid #badbcc;"; 
-    } else {
-        styleBayar = "background-color: #f8d7da; color: #842029; border: 1px solid #f5c2c7;"; 
-    }
+    // --- LOGIKA WARNA BADGE ---
+    let styleBayar = stBayar.includes('lunas') || stBayar.includes('bayar') ? "background-color: #d1e7dd; color: #0f5132; border: 1px solid #badbcc;" : "background-color: #f8d7da; color: #842029; border: 1px solid #f5c2c7;";
+    let styleKirim = stKirim.includes('terkirim') ? "background-color: #198754; color: white;" : "background-color: #dc3545; color: white;";
+    let styleJenis = "background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;";
+    
+    let bucketText = (mitra.bucket == "0" || mitra.bucket.toLowerCase().includes("current")) ? "Lancar" : `DPD: ${mitra.bucket}`;
+    let styleBucket = (mitra.bucket == "0" || mitra.bucket.toLowerCase().includes("current")) ? "background-color: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe;" : "background-color: #fef3c7; color: #92400e; border: 1px solid #fcd34d;";
 
-    let styleKirim = "";
-    if (stKirim.includes('terkirim') || stKirim.includes('sudah') || stKirim.includes('kirim')) {
-        styleKirim = "background-color: #198754; color: white; box-shadow: 0 2px 4px rgba(25, 135, 84, 0.3);"; 
-    } else {
-        styleKirim = "background-color: #dc3545; color: white; box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);"; 
-    }
-
-    const styleJenis = "background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;";
-
-    let bucketText = "";
-    let styleBucket = "";
-    const bucketRaw = String(mitra.bucket);
-    const bucketLower = bucketRaw.toLowerCase();
-    const bucketNum = parseInt(bucketRaw);
-
-    if (bucketLower.includes("current") || bucketLower.includes("lancar") || (!isNaN(bucketNum) && bucketNum <= 1)) {
-        bucketText = "Lancar";
-        styleBucket = "background-color: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe;"; 
-    } else {
-        bucketText = `DPD: ${mitra.bucket}`; 
-        if (mitra.bucket > 7) {
-             styleBucket = "background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5;"; 
-        } else {
-             styleBucket = "background-color: #fef3c7; color: #92400e; border: 1px solid #fcd34d;"; 
-        }
-    }
-
-    const isLunas = stBayar.includes('lunas') || stBayar.includes('bayar') || stBayar.includes('sudah');
-    const isTerkirim = stKirim.includes('terkirim') || stKirim.includes('sudah') || stKirim.includes('kirim');
-
-    // --- LOGIKA DISABLE TOMBOL VALIDASI ---
+    const isLunas = stBayar.includes('lunas') || stBayar.includes('bayar');
+    const isTerkirim = stKirim.includes('terkirim');
     const isValidationLocked = !isTerkirim;
     const lockedClass = isValidationLocked ? "disabled" : "";
     const lockedAttr = isValidationLocked ? "" : `onclick="toggleValidation(this, '${mitra.id}')"`;
-    const lockedTitle = isValidationLocked ? "Status Kirim Belum Selesai (Terkunci)" : "Klik untuk Validasi";
+    const checkBtnClass = isChecked ? "checked" : "";
 
-    let specialUI = "";
-    if (!isLunas && isTerkirim) {
-        specialUI = `
-            <div class="alert-modern">
-                <div class="d-flex align-items-start gap-2">
-                    <i class="fa-solid fa-triangle-exclamation mt-1"></i>
-                    <div>
-                        <strong>Cek Kembali:</strong> Status Telat tapi sudah dikirim.
-                        <div class="small mt-1 fst-italic text-muted">"${mitra.alasan || '-'}"</div>
-                    </div>
-                </div>
+    // --- CEK APAKAH STATUSNYA JB ---
+    // Pastikan jenis_bayar di clean stringnya
+    const jenisBayar = String(mitra.jenis_bayar).toUpperCase().trim();
+    const isJB = jenisBayar === "JB";
+
+    // --- UI INPUT: JIKA JB MUNCULKAN PILIHAN HARI, JIKA TIDAK MUNCULKAN ALASAN ---
+    let inputHtml = "";
+    if (isJB) {
+        // Tampilkan Dropdown Hari
+        inputHtml = `
+            <div class="mt-2">
+                <label class="small fw-bold text-warning mb-1"><i class="fa-solid fa-calendar-days me-1"></i>Pilih Hari Baru (Wajib):</label>
+                <select class="form-select form-select-sm input-modern required"
+                        id="day-${mitra.id}"
+                        style="background-color: #fffaf0; border-color: #fcd34d; color: #92400e;"
+                        onchange="window.saveReasonInput('${mitra.id}', '', this.value)">
+                    <option value="" disabled ${savedDay === "" ? "selected" : ""}>Pilih Hari...</option>
+                    <option value="Senin" ${savedDay === "Senin" ? "selected" : ""}>Senin</option>
+                    <option value="Selasa" ${savedDay === "Selasa" ? "selected" : ""}>Selasa</option>
+                    <option value="Rabu" ${savedDay === "Rabu" ? "selected" : ""}>Rabu</option>
+                    <option value="Kamis" ${savedDay === "Kamis" ? "selected" : ""}>Kamis</option>
+                    <option value="Jumat" ${savedDay === "Jumat" ? "selected" : ""}>Jumat</option>
+                </select>
+            </div>
+        `;
+    } else {
+        // Tampilkan Input Alasan Biasa
+        inputHtml = `
+            <div>
+                <input type="text" class="input-modern" 
+                       placeholder="Keterangan (Opsional)..." 
+                       id="validasi-${mitra.id}" 
+                       value="${savedReason}"
+                       oninput="window.saveReasonInput('${mitra.id}', this.value, '')">
             </div>
         `;
     }
-
-    const jenisNormal = mitra.jenis_bayar.toLowerCase().includes("normal");
-    const isRequired = !jenisNormal; 
-    const placeholder = isRequired ? "Wajib isi alasan (Jenis: " + mitra.jenis_bayar + ")..." : "Keterangan (Opsional)...";
-    const requiredClass = isRequired ? "required" : "";
-    const inputValue = savedReason; 
-    const checkBtnClass = isChecked ? "checked" : "";
 
     return `
         <div class="mitra-card">
@@ -833,36 +723,19 @@ function createMitraCard(mitra) {
                 </div>
                 
                 <div class="d-flex flex-wrap gap-2 mb-2">
-                    <span class="badge-status" style="${styleBayar}">
-                        <i class="fa-solid fa-money-bill-wave me-1"></i>${mitra.status_bayar}
-                    </span>
-                    <span class="badge-status" style="${styleKirim}">
-                        <i class="fa-solid fa-paper-plane me-1"></i>${mitra.status_kirim}
-                    </span>
-                    <span class="badge-status" style="${styleJenis}">
-                        <i class="fa-solid fa-receipt me-1"></i>${mitra.jenis_bayar}
-                    </span>
-                    <span class="badge-status" style="${styleBucket}">
-                        <i class="fa-solid fa-chart-line me-1"></i>${bucketText}
-                    </span>
+                    <span class="badge-status" style="${styleBayar}">${mitra.status_bayar}</span>
+                    <span class="badge-status" style="${styleKirim}">${mitra.status_kirim}</span>
+                    <span class="badge-status" style="${styleJenis}">${mitra.jenis_bayar}</span>
+                    <span class="badge-status" style="${styleBucket}">${bucketText}</span>
                 </div>
 
-                ${specialUI}
-
-                <div>
-                    <input type="text" class="input-modern ${requiredClass}" 
-                           placeholder="${placeholder}" 
-                           id="validasi-${mitra.id}" 
-                           data-required="${isRequired}"
-                           value="${inputValue}"
-                           oninput="window.saveReasonInput('${mitra.id}', this.value)">
-                </div>
+                ${inputHtml}
             </div>
             
-            <div class="ms-3 border-start ps-3">
+            <div class="ms-3 border-start ps-3 d-flex align-items-center">
                 <div class="btn-check-modern shadow-sm ${checkBtnClass} ${lockedClass}" 
                      ${lockedAttr}
-                     title="${lockedTitle}">
+                     title="Klik untuk Validasi">
                     <i class="fa-solid fa-check"></i>
                 </div>
             </div>
@@ -872,24 +745,115 @@ function createMitraCard(mitra) {
 
 // --- 7. EXPORTS & EVENTS ---
 
-window.saveReasonInput = function(id, value) {
+// UPDATE: Menyimpan reason ATAU day
+window.saveReasonInput = function(id, reason, day) {
     if (isPageLocked) return;
 
     const btn = document.querySelector(`.btn-check-modern[onclick*="'${id}'"]`);
-    if (!btn || btn.classList.contains('disabled')) {
-        saveToStorage(id, false, value); 
-        return;
-    }
-    const isChecked = btn.classList.contains('checked');
-    saveToStorage(id, isChecked, value);
+    
+    // Ambil data lama agar tidak tertimpa null jika salah satu kosong
+    const existing = draftData[id] || {};
+    const currentReason = reason !== undefined ? reason : (existing.reason || "");
+    const currentDay = day !== undefined ? day : (existing.day || "");
+
+    const isChecked = btn && btn.classList.contains('checked');
+    saveToStorage(id, isChecked, currentReason, currentDay);
 };
+
+window.toggleValidation = function(element, id) {
+    if (isPageLocked || element.classList.contains('disabled')) return;
+
+    // Cek apakah JB dan Hari belum dipilih
+    const daySelect = document.getElementById(`day-${id}`);
+    if (daySelect) {
+        if (daySelect.value === "") {
+            alert("Harap pilih HARI BARU terlebih dahulu untuk mitra JB!");
+            daySelect.focus();
+            daySelect.style.borderColor = "red";
+            return; 
+        } else {
+            daySelect.style.borderColor = "#fcd34d";
+        }
+    }
+
+    element.style.transform = "scale(0.9)";
+    setTimeout(() => {
+        if (element.classList.contains('checked')) {
+            element.style.transform = "scale(1)";
+        } else {
+            element.style.transform = "scale(1.1)";
+        }
+    }, 100);
+
+    if (!element.classList.contains('checked')) {
+        element.classList.add('checked');
+    } else {
+        element.classList.remove('checked');
+    }
+
+    // Ambil nilai input saat ini
+    const inputReason = document.getElementById(`validasi-${id}`);
+    const valReason = inputReason ? inputReason.value : "";
+    const valDay = daySelect ? daySelect.value : "";
+
+    saveToStorage(id, element.classList.contains('checked'), valReason, valDay);
+    updateMajelisStats(element);
+};
+
+// --- FUNGSI UPDATE DATA SPREADSHEET (JB) ---
+async function updateJBDaysToServer() {
+    // Cari semua data JB yang dicentang dan punya hari baru
+    const updates = [];
+    
+    globalMitraList.forEach(m => {
+        const stored = draftData[m.id];
+        const isJB = String(m.jenis_bayar).toUpperCase() === "JB";
+        
+        // Syarat: JB, Dicentang, dan ada Hari Baru
+        if (isJB && stored && stored.checked && stored.day) {
+            updates.push({
+                custNo: m.id,
+                namaBP: m.bp,
+                hariBaru: stored.day
+            });
+        }
+    });
+
+    if (updates.length === 0) return; // Tidak ada yang perlu diupdate
+
+    // Kirim request satu per satu (atau batch jika backend support, disini kita loop fetch)
+    // Agar UI tidak freeze, kita lakukan sequential update tapi tanpa blocking UI berat
+    
+    const btn = document.getElementById('btnValidateAll');
+    if(btn) btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-1"></i> Mengupdate Hari...`;
+
+    // Kita gunakan Promise.all agar paralel dan lebih cepat
+    const promises = updates.map(item => {
+        const payload = {
+            jenisLaporan: "ClosingModal",
+            idKaryawan: userProfile.idKaryawan || "Admin",
+            namaBP: item.namaBP,
+            customerNumber: item.custNo,
+            jenisPembayaran: "JB", // Penanda untuk trigger update di backend
+            hariBaru: item.hariBaru
+        };
+
+        return fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+            redirect: "follow",
+            headers: { "Content-Type": "text/plain;charset=utf-8" }
+        }).catch(err => console.error("Gagal update JB:", item.custNo, err));
+    });
+
+    await Promise.all(promises);
+}
 
 function applyLockMode() {
     const allInputs = document.querySelectorAll('.input-modern');
     allInputs.forEach(input => {
         input.disabled = true;
         input.style.backgroundColor = "#e9ecef";
-        input.style.color = "#6c757d";
     });
 
     const allChecks = document.querySelectorAll('.btn-check-modern');
@@ -926,7 +890,7 @@ function updateGlobalValidationStatus() {
     if(btnValAll) {
         if (checkedMitra === totalMitra && totalMitra > 0) {
             btnValAll.disabled = false;
-            btnValAll.innerHTML = `<i class="fa-solid fa-file-csv me-1"></i> Download Laporan CSV`; 
+            btnValAll.innerHTML = `<i class="fa-solid fa-file-csv me-1"></i> Validasi & Download`; 
             btnValAll.classList.remove('btn-secondary');
             btnValAll.classList.add('btn-success'); 
         } else {
@@ -941,10 +905,8 @@ function updateGlobalValidationStatus() {
 function updateMajelisStats(btnElement) {
     const collapseDiv = btnElement.closest('.accordion-collapse');
     if (!collapseDiv) return;
-
     const headerId = collapseDiv.getAttribute('aria-labelledby') || collapseDiv.id.replace('collapse', 'heading');
     const countDiv = document.querySelector(`#${headerId} .small.text-muted`); 
-
     if (countDiv) {
         const allInMajelis = collapseDiv.querySelectorAll('.btn-check-modern').length;
         const checkedInMajelis = collapseDiv.querySelectorAll('.btn-check-modern.checked').length;
@@ -952,57 +914,18 @@ function updateMajelisStats(btnElement) {
     }
 }
 
-window.toggleValidation = function(element, id) {
-    if (isPageLocked || element.classList.contains('disabled')) return;
-
-    const inputReason = document.getElementById(`validasi-${id}`);
-    const isRequired = inputReason.getAttribute('data-required') === "true";
-    
-    element.style.transform = "scale(0.9)";
-    setTimeout(() => {
-        if (element.classList.contains('checked')) {
-            element.style.transform = "scale(1)";
-        } else {
-            element.style.transform = "scale(1.1)";
-        }
-    }, 100);
-
-    if (!element.classList.contains('checked')) {
-        if (isRequired && inputReason.value.trim() === "") {
-            inputReason.style.borderColor = "red";
-            inputReason.style.backgroundColor = "#fff0f0";
-            inputReason.focus();
-            
-            setTimeout(() => {
-                inputReason.style.borderColor = "#d1d5db";
-                inputReason.style.backgroundColor = "#fef2f2";
-            }, 2000);
-            return; 
-        }
-        element.classList.add('checked');
-    } else {
-        element.classList.remove('checked');
-    }
-
-    saveToStorage(id, element.classList.contains('checked'), inputReason.value);
-    updateMajelisStats(element);
-};
-
-// --- 8. FUNGSI DOWNLOAD CSV ---
 function downloadCSV() {
     if (globalMitraList.length === 0) {
         alert("Tidak ada data untuk diunduh.");
         return;
     }
 
-    let csvContent = "ID Mitra,Nama Mitra,BP,Majelis,Status Bayar,Status Kirim,Jenis Bayar,DPD Bucket,Keterangan/Alasan\n";
+    let csvContent = "ID Mitra,Nama Mitra,BP,Majelis,Status Bayar,Status Kirim,Jenis Bayar,Hari Baru (JB),DPD Bucket,Keterangan\n";
 
     globalMitraList.forEach(m => {
-        const inputReason = document.getElementById(`validasi-${m.id}`);
-        const userReason = inputReason ? inputReason.value : "";
-        
         const stored = draftData[m.id] || {};
-        const finalReason = userReason || stored.reason || m.alasan || "-";
+        const finalReason = stored.reason || m.alasan || "-";
+        const finalDay = stored.day || "-";
 
         const row = [
             `'${m.id}`, 
@@ -1012,6 +935,7 @@ function downloadCSV() {
             m.status_bayar,
             m.status_kirim,
             m.jenis_bayar,
+            finalDay,
             m.bucket, 
             `"${finalReason}"`
         ].join(",");
@@ -1035,9 +959,20 @@ document.addEventListener("DOMContentLoaded", () => {
     if(btnValAll) {
         btnValAll.disabled = true;
         
-        btnValAll.addEventListener('click', () => {
-            if(confirm("Apakah Anda yakin ingin mengunduh laporan validasi ini?\n\nPERINGATAN: Setelah diunduh, data akan TERKUNCI dan tidak bisa diedit lagi hari ini.")) {
+        // UPDATE EVENT LISTENER: PANGGIL UPDATE SERVER DULU BARU DOWNLOAD
+        btnValAll.addEventListener('click', async () => {
+            if(confirm("Apakah Anda yakin ingin melakukan VALIDASI dan MENGUNDUH laporan?\n\nPERINGATAN:\n1. Data Hari untuk mitra 'JB' akan diupdate di server.\n2. Laporan ini akan TERKUNCI.")) {
+               
+               // 1. Kunci Halaman dulu visualnya agar user tidak klik lagi
+               btnValAll.disabled = true;
+               
+               // 2. Kirim update ke Server (Spreadsheet) untuk mitra JB
+               await updateJBDaysToServer();
+
+               // 3. Download CSV
                downloadCSV();
+               
+               // 4. Set Lock di LocalStorage
                setPageLocked(); 
             }
         });
