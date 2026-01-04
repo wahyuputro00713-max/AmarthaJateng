@@ -21,7 +21,7 @@ const db = getDatabase(app);
 const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; 
 const ADMIN_ID = "17246";
 
-// --- DATA POINT (OPSI DROPDOWN) ---
+// --- DATA POINT ---
 const dataPoints = {
     "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucuk"],
     "Magelang": ["Grabag", "Mungkid", "Pakis", "Salam"],
@@ -129,6 +129,7 @@ function injectModernStyles() {
             .input-modern { width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px; font-size: 0.85rem; margin-top: 8px; transition: border-color 0.2s; background: #fafafa; }
             .input-modern:focus { outline: none; border-color: var(--primary-color); background: #fff; }
             .input-modern.required { border-color: #f87171; background-color: #fef2f2; }
+            .input-modern.required:focus { border-color: #ef4444; }
             .input-modern:disabled { background: #e9ecef; color: #6c757d; border-color: #ced4da; }
             .notif-dot { width: 10px; height: 10px; background-color: #ef4444; border-radius: 50%; display: inline-block; margin-left: 8px; box-shadow: 0 0 0 2px white; animation: pulse-dot 2s infinite; }
             @keyframes pulse-dot { 0% { transform: scale(0.95); } 70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); } 100% { transform: scale(0.95); } }
@@ -415,80 +416,40 @@ function createMitraCard(mitra) {
     const savedReason = savedData.reason || ""; 
     const savedDay = savedData.day || ""; 
 
-    // --- LOGIKA "JB" ---
-    // Pastikan jenis_bayar di clean stringnya
+    // --- LOGIKA UTAMA (UPDATE) ---
+    // 1. Tentukan Jenis Bayar
     const jenisBayar = String(mitra.jenis_bayar).toUpperCase().trim();
     const isJB = jenisBayar === "JB";
+    const isNonNormal = ["PAR", "PARTIAL", "PAR PAYMENT"].includes(jenisBayar);
 
-    // --- LOGIKA STATUS ---
+    // 2. Status Dasar
     const isLunas = stBayar.includes('lunas') || stBayar.includes('bayar') || stBayar.includes('sudah');
-    // Jika JB, otomatis dianggap terkirim agar validasi terbuka
+    // Jika JB, otomatis dianggap "siap validasi" (mirip terkirim)
     const isTerkirim = stKirim.includes('terkirim') || stKirim.includes('sudah') || stKirim.includes('kirim') || isJB;
 
-    // --- LOGIKA DISABLE TOMBOL VALIDASI ---
-    // Tombol dikunci (disabled) jika: Belum Terkirim
+    // 3. Logika Kunci Validasi
     const isValidationLocked = !isTerkirim;
     const lockedClass = isValidationLocked ? "disabled" : "";
     const lockedAttr = isValidationLocked ? "" : `onclick="toggleValidation(this, '${mitra.id}')"`;
-    const lockedTitle = isValidationLocked ? "Status Kirim Belum Selesai (Terkunci)" : "Klik untuk Validasi";
+    const checkBtnClass = isChecked ? "checked" : "";
 
-    let styleBayar = "";
-    if (stBayar.includes('lunas') || stBayar.includes('bayar') || stBayar.includes('sudah')) {
-        styleBayar = "background-color: #d1e7dd; color: #0f5132; border: 1px solid #badbcc;"; 
-    } else {
-        styleBayar = "background-color: #f8d7da; color: #842029; border: 1px solid #f5c2c7;"; 
-    }
-
-    let styleKirim = "";
-    if (isTerkirim) {
-        styleKirim = "background-color: #198754; color: white; box-shadow: 0 2px 4px rgba(25, 135, 84, 0.3);"; 
-    } else {
-        styleKirim = "background-color: #dc3545; color: white; box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);"; 
-    }
-
+    // 4. Styles
+    let styleBayar = isLunas ? "background-color: #d1e7dd; color: #0f5132; border: 1px solid #badbcc;" : "background-color: #f8d7da; color: #842029; border: 1px solid #f5c2c7;";
+    let styleKirim = isTerkirim ? "background-color: #198754; color: white; box-shadow: 0 2px 4px rgba(25, 135, 84, 0.3);" : "background-color: #dc3545; color: white; box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);";
     const styleJenis = "background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;";
+    
+    let bucketText = (mitra.bucket == "0" || String(mitra.bucket).toLowerCase().includes("current")) ? "Lancar" : `DPD: ${mitra.bucket}`;
+    let styleBucket = (mitra.bucket == "0" || String(mitra.bucket).toLowerCase().includes("current")) ? "background-color: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe;" : "background-color: #fef3c7; color: #92400e; border: 1px solid #fcd34d;";
 
-    let bucketText = "";
-    let styleBucket = "";
-    const bucketRaw = String(mitra.bucket);
-    const bucketLower = bucketRaw.toLowerCase();
-    const bucketNum = parseInt(bucketRaw);
-
-    if (bucketLower.includes("current") || bucketLower.includes("lancar") || (!isNaN(bucketNum) && bucketNum <= 1)) {
-        bucketText = "Lancar";
-        styleBucket = "background-color: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe;"; 
-    } else {
-        bucketText = `DPD: ${mitra.bucket}`; 
-        if (mitra.bucket > 7) {
-             styleBucket = "background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5;"; 
-        } else {
-             styleBucket = "background-color: #fef3c7; color: #92400e; border: 1px solid #fcd34d;"; 
-        }
-    }
-
-    let specialUI = "";
-    if (!isLunas && isTerkirim) {
-        specialUI = `
-            <div class="alert-modern">
-                <div class="d-flex align-items-start gap-2">
-                    <i class="fa-solid fa-triangle-exclamation mt-1"></i>
-                    <div>
-                        <strong>Cek Kembali:</strong> Status Telat tapi sudah dikirim.
-                        <div class="small mt-1 fst-italic text-muted">"${mitra.alasan || '-'}"</div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    // --- UI INPUT: JIKA JB MUNCULKAN PILIHAN HARI, JIKA TIDAK MUNCULKAN ALASAN ---
+    // UI Input (JB = Dropdown Hari, PAR/Partial = Wajib Input, Normal = Optional)
     let inputHtml = "";
+    
     if (isJB) {
-        // Tampilkan Dropdown Hari (Wajib dipilih)
+        // --- DROPDOWN HARI (JB) ---
         inputHtml = `
             <div class="mt-2">
                 <label class="small fw-bold text-warning mb-1"><i class="fa-solid fa-calendar-days me-1"></i>Pilih Hari Baru (Wajib):</label>
-                <select class="form-select form-select-sm input-modern"
+                <select class="form-select form-select-sm input-modern required"
                         id="day-${mitra.id}"
                         style="background-color: #fffaf0; border-color: #fcd34d; color: #92400e;"
                         onchange="window.saveReasonInput('${mitra.id}', '', this.value)">
@@ -502,19 +463,34 @@ function createMitraCard(mitra) {
             </div>
         `;
     } else {
-        // Tampilkan Input Alasan Biasa
+        // --- TEXT INPUT (PAR/NORMAL) ---
+        const placeholder = isNonNormal ? "Wajib isi alasan..." : "Keterangan (Opsional)...";
+        const requiredClass = isNonNormal ? "required" : ""; // Class penanda visual
+        const requiredAttr = isNonNormal ? 'data-wajib="true"' : 'data-wajib="false"'; // Penanda Logic
+
         inputHtml = `
             <div>
-                <input type="text" class="input-modern" 
-                       placeholder="Keterangan (Opsional)..." 
+                <input type="text" class="input-modern ${requiredClass}" 
+                       placeholder="${placeholder}" 
                        id="validasi-${mitra.id}" 
+                       ${requiredAttr}
                        value="${savedReason}"
                        oninput="window.saveReasonInput('${mitra.id}', this.value, '')">
             </div>
         `;
     }
 
-    const checkBtnClass = isChecked ? "checked" : "";
+    let specialUI = "";
+    if (!isLunas && isTerkirim && !isJB) {
+        specialUI = `
+            <div class="alert-modern">
+                <div class="d-flex align-items-start gap-2">
+                    <i class="fa-solid fa-triangle-exclamation mt-1"></i>
+                    <div><small>Status Telat tapi sudah dikirim.</small></div>
+                </div>
+            </div>
+        `;
+    }
 
     return `
         <div class="mitra-card">
@@ -548,17 +524,12 @@ function createMitraCard(mitra) {
 
 // --- 7. EXPORTS & EVENTS ---
 
-// UPDATE: Menyimpan reason ATAU day
 window.saveReasonInput = function(id, reason, day) {
     if (isPageLocked) return;
-
     const btn = document.querySelector(`.btn-check-modern[onclick*="'${id}'"]`);
-    
-    // Ambil data lama agar tidak tertimpa null jika salah satu kosong
     const existing = draftData[id] || {};
     const currentReason = reason !== undefined ? reason : (existing.reason || "");
     const currentDay = day !== undefined ? day : (existing.day || "");
-
     const isChecked = btn && btn.classList.contains('checked');
     saveToStorage(id, isChecked, currentReason, currentDay);
 };
@@ -566,8 +537,11 @@ window.saveReasonInput = function(id, reason, day) {
 window.toggleValidation = function(element, id) {
     if (isPageLocked || element.classList.contains('disabled')) return;
 
-    // Cek apakah JB dan Hari belum dipilih
+    // --- CEK VALIDASI SEBELUM CENTANG ---
     const daySelect = document.getElementById(`day-${id}`);
+    const inputReason = document.getElementById(`validasi-${id}`);
+
+    // 1. Jika JB -> Cek Dropdown Hari
     if (daySelect) {
         if (daySelect.value === "") {
             alert("Harap pilih HARI BARU terlebih dahulu untuk mitra JB!");
@@ -576,6 +550,22 @@ window.toggleValidation = function(element, id) {
             return; 
         } else {
             daySelect.style.borderColor = "#fcd34d";
+        }
+    }
+
+    // 2. Jika PAR/Partial -> Cek Text Input
+    if (inputReason) {
+        const isWajib = inputReason.getAttribute('data-wajib') === 'true';
+        if (isWajib && inputReason.value.trim() === "") {
+            alert("Wajib mengisi alasan/keterangan untuk status ini!");
+            inputReason.focus();
+            inputReason.style.borderColor = "red";
+            inputReason.style.backgroundColor = "#fff0f0";
+            setTimeout(() => { 
+                inputReason.style.borderColor = "#f87171"; 
+                inputReason.style.backgroundColor = "#fef2f2"; 
+            }, 2000);
+            return;
         }
     }
 
@@ -594,50 +584,38 @@ window.toggleValidation = function(element, id) {
         element.classList.remove('checked');
     }
 
-    // Ambil nilai input saat ini
-    const inputReason = document.getElementById(`validasi-${id}`);
+    // Simpan
     const valReason = inputReason ? inputReason.value : "";
     const valDay = daySelect ? daySelect.value : "";
-
     saveToStorage(id, element.classList.contains('checked'), valReason, valDay);
     updateMajelisStats(element);
 };
 
 // --- FUNGSI UPDATE DATA SPREADSHEET (JB) ---
 async function updateJBDaysToServer() {
-    // Cari semua data JB yang dicentang dan punya hari baru
     const updates = [];
-    
     globalMitraList.forEach(m => {
         const stored = draftData[m.id];
         const isJB = String(m.jenis_bayar).toUpperCase() === "JB";
-        
-        // Syarat: JB, Dicentang, dan ada Hari Baru
         if (isJB && stored && stored.checked && stored.day) {
-            updates.push({
-                custNo: m.id,
-                namaBP: m.bp,
-                hariBaru: stored.day
-            });
+            updates.push({ custNo: m.id, namaBP: m.bp, hariBaru: stored.day });
         }
     });
 
-    if (updates.length === 0) return; // Tidak ada yang perlu diupdate
+    if (updates.length === 0) return; 
 
     const btn = document.getElementById('btnValidateAll');
     if(btn) btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-1"></i> Mengupdate Hari...`;
 
-    // Kita gunakan Promise.all agar paralel dan lebih cepat
     const promises = updates.map(item => {
         const payload = {
             jenisLaporan: "ClosingModal",
             idKaryawan: userProfile.idKaryawan || "Admin",
             namaBP: item.namaBP,
             customerNumber: item.custNo,
-            jenisPembayaran: "JB", // Penanda untuk trigger update di backend
+            jenisPembayaran: "JB",
             hariBaru: item.hariBaru
         };
-
         return fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify(payload),
@@ -703,18 +681,6 @@ function updateGlobalValidationStatus() {
     }
 }
 
-function updateMajelisStats(btnElement) {
-    const collapseDiv = btnElement.closest('.accordion-collapse');
-    if (!collapseDiv) return;
-    const headerId = collapseDiv.getAttribute('aria-labelledby') || collapseDiv.id.replace('collapse', 'heading');
-    const countDiv = document.querySelector(`#${headerId} .small.text-muted`); 
-    if (countDiv) {
-        const allInMajelis = collapseDiv.querySelectorAll('.btn-check-modern').length;
-        const checkedInMajelis = collapseDiv.querySelectorAll('.btn-check-modern.checked').length;
-        countDiv.innerText = `${checkedInMajelis} / ${allInMajelis} Validasi`;
-    }
-}
-
 function downloadCSV() {
     if (globalMitraList.length === 0) {
         alert("Tidak ada data untuk diunduh.");
@@ -760,20 +726,12 @@ document.addEventListener("DOMContentLoaded", () => {
     if(btnValAll) {
         btnValAll.disabled = true;
         
-        // UPDATE EVENT LISTENER: PANGGIL UPDATE SERVER DULU BARU DOWNLOAD
         btnValAll.addEventListener('click', async () => {
             if(confirm("Apakah Anda yakin ingin melakukan VALIDASI dan MENGUNDUH laporan?\n\nPERINGATAN:\n1. Data Hari untuk mitra 'JB' akan diupdate di server.\n2. Laporan ini akan TERKUNCI.")) {
                
-               // 1. Kunci Halaman dulu visualnya agar user tidak klik lagi
                btnValAll.disabled = true;
-               
-               // 2. Kirim update ke Server (Spreadsheet) untuk mitra JB
                await updateJBDaysToServer();
-
-               // 3. Download CSV
                downloadCSV();
-               
-               // 4. Set Lock di LocalStorage
                setPageLocked(); 
             }
         });
