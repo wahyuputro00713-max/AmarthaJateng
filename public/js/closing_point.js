@@ -41,7 +41,6 @@ let draftData = {};
 let readStatusData = {}; 
 let isPageLocked = false; 
 
-// --- HELPER ---
 const clean = (str) => {
     if (!str) return "";
     return String(str).toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -129,7 +128,6 @@ function injectModernStyles() {
             .input-modern { width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px; font-size: 0.85rem; margin-top: 8px; transition: border-color 0.2s; background: #fafafa; }
             .input-modern:focus { outline: none; border-color: var(--primary-color); background: #fff; }
             .input-modern.required { border-color: #f87171; background-color: #fef2f2; }
-            .input-modern.required:focus { border-color: #ef4444; }
             .input-modern:disabled { background: #e9ecef; color: #6c757d; border-color: #ced4da; }
             .notif-dot { width: 10px; height: 10px; background-color: #ef4444; border-radius: 50%; display: inline-block; margin-left: 8px; box-shadow: 0 0 0 2px white; animation: pulse-dot 2s infinite; }
             @keyframes pulse-dot { 0% { transform: scale(0.95); } 70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); } 100% { transform: scale(0.95); } }
@@ -416,28 +414,25 @@ function createMitraCard(mitra) {
     const savedReason = savedData.reason || ""; 
     const savedDay = savedData.day || ""; 
 
-    // --- LOGIKA UTAMA (UPDATE) ---
-    // 1. Tentukan Jenis Bayar
+    // --- LOGIKA "JB" & "PAR" ---
     const jenisBayar = String(mitra.jenis_bayar).toUpperCase().trim();
     const isJB = jenisBayar === "JB";
     const isNonNormal = ["PAR", "PARTIAL", "PAR PAYMENT"].includes(jenisBayar);
 
-    // 2. Status Dasar
+    // --- STATUS ---
     const isLunas = stBayar.includes('lunas') || stBayar.includes('bayar') || stBayar.includes('sudah');
-    // Jika JB, otomatis dianggap "siap validasi" (mirip terkirim)
+    // Jika JB, otomatis dianggap terkirim agar validasi terbuka
     const isTerkirim = stKirim.includes('terkirim') || stKirim.includes('sudah') || stKirim.includes('kirim') || isJB;
 
-    // 3. Logika Kunci Validasi
+    // --- LOGIKA KUNCI TOMBOL VALIDASI ---
     const isValidationLocked = !isTerkirim;
     const lockedClass = isValidationLocked ? "disabled" : "";
     const lockedAttr = isValidationLocked ? "" : `onclick="toggleValidation(this, '${mitra.id}')"`;
     const checkBtnClass = isChecked ? "checked" : "";
 
-    // 4. Styles
+    // --- STYLES ---
     let styleBayar = isLunas ? "background-color: #d1e7dd; color: #0f5132; border: 1px solid #badbcc;" : "background-color: #f8d7da; color: #842029; border: 1px solid #f5c2c7;";
     let styleKirim = isTerkirim ? "background-color: #198754; color: white; box-shadow: 0 2px 4px rgba(25, 135, 84, 0.3);" : "background-color: #dc3545; color: white; box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);";
-    const styleJenis = "background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;";
-    
     let bucketText = (mitra.bucket == "0" || String(mitra.bucket).toLowerCase().includes("current")) ? "Lancar" : `DPD: ${mitra.bucket}`;
     let styleBucket = (mitra.bucket == "0" || String(mitra.bucket).toLowerCase().includes("current")) ? "background-color: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe;" : "background-color: #fef3c7; color: #92400e; border: 1px solid #fcd34d;";
 
@@ -466,7 +461,8 @@ function createMitraCard(mitra) {
         // --- TEXT INPUT (PAR/NORMAL) ---
         const placeholder = isNonNormal ? "Wajib isi alasan..." : "Keterangan (Opsional)...";
         const requiredClass = isNonNormal ? "required" : ""; // Class penanda visual
-        const requiredAttr = isNonNormal ? 'data-wajib="true"' : 'data-wajib="false"'; // Penanda Logic
+        // Gunakan atribut data-wajib agar bisa dibaca di JS
+        const requiredAttr = isNonNormal ? 'data-wajib="true"' : 'data-wajib="false"';
 
         inputHtml = `
             <div>
@@ -503,7 +499,7 @@ function createMitraCard(mitra) {
                 <div class="d-flex flex-wrap gap-2 mb-2">
                     <span class="badge-status" style="${styleBayar}">${mitra.status_bayar}</span>
                     <span class="badge-status" style="${styleKirim}">${mitra.status_kirim}</span>
-                    <span class="badge-status" style="${styleJenis}">${mitra.jenis_bayar}</span>
+                    <span class="badge-status" style="background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;">${mitra.jenis_bayar}</span>
                     <span class="badge-status" style="${styleBucket}">${bucketText}</span>
                 </div>
 
@@ -537,23 +533,10 @@ window.saveReasonInput = function(id, reason, day) {
 window.toggleValidation = function(element, id) {
     if (isPageLocked || element.classList.contains('disabled')) return;
 
-    // --- CEK VALIDASI SEBELUM CENTANG ---
     const daySelect = document.getElementById(`day-${id}`);
     const inputReason = document.getElementById(`validasi-${id}`);
 
-    // 1. Jika JB -> Cek Dropdown Hari
-    if (daySelect) {
-        if (daySelect.value === "") {
-            alert("Harap pilih HARI BARU terlebih dahulu untuk mitra JB!");
-            daySelect.focus();
-            daySelect.style.borderColor = "red";
-            return; 
-        } else {
-            daySelect.style.borderColor = "#fcd34d";
-        }
-    }
-
-    // 2. Jika PAR/Partial -> Cek Text Input
+    // 1. VALIDASI WAJIB ISI (PAR/PARTIAL)
     if (inputReason) {
         const isWajib = inputReason.getAttribute('data-wajib') === 'true';
         if (isWajib && inputReason.value.trim() === "") {
@@ -566,6 +549,18 @@ window.toggleValidation = function(element, id) {
                 inputReason.style.backgroundColor = "#fef2f2"; 
             }, 2000);
             return;
+        }
+    }
+
+    // 2. VALIDASI WAJIB PILIH HARI (JB)
+    if (daySelect) {
+        if (daySelect.value === "") {
+            alert("Harap pilih HARI BARU terlebih dahulu untuk mitra JB!");
+            daySelect.focus();
+            daySelect.style.borderColor = "red";
+            return; 
+        } else {
+            daySelect.style.borderColor = "#fcd34d";
         }
     }
 
@@ -584,14 +579,12 @@ window.toggleValidation = function(element, id) {
         element.classList.remove('checked');
     }
 
-    // Simpan
     const valReason = inputReason ? inputReason.value : "";
     const valDay = daySelect ? daySelect.value : "";
     saveToStorage(id, element.classList.contains('checked'), valReason, valDay);
     updateMajelisStats(element);
 };
 
-// --- FUNGSI UPDATE DATA SPREADSHEET (JB) ---
 async function updateJBDaysToServer() {
     const updates = [];
     globalMitraList.forEach(m => {
@@ -678,6 +671,18 @@ function updateGlobalValidationStatus() {
             btnValAll.classList.remove('btn-success');
             btnValAll.classList.add('btn-secondary');
         }
+    }
+}
+
+function updateMajelisStats(btnElement) {
+    const collapseDiv = btnElement.closest('.accordion-collapse');
+    if (!collapseDiv) return;
+    const headerId = collapseDiv.getAttribute('aria-labelledby') || collapseDiv.id.replace('collapse', 'heading');
+    const countDiv = document.querySelector(`#${headerId} .small.text-muted`); 
+    if (countDiv) {
+        const allInMajelis = collapseDiv.querySelectorAll('.btn-check-modern').length;
+        const checkedInMajelis = collapseDiv.querySelectorAll('.btn-check-modern.checked').length;
+        countDiv.innerText = `${checkedInMajelis} / ${allInMajelis} Validasi`;
     }
 }
 
