@@ -454,6 +454,29 @@ function createMitraCard(mitra) {
         bllBadgeHtml = `<span class="badge-status" style="${styleBLL}">${bllText}</span>`;
     }
 
+    // --- FORMAT TANGGAL DATA O ---
+    let labelTgl = "";
+    if (mitra.data_o && mitra.data_o !== "-" && mitra.data_o !== "null") {
+        try {
+            const dateObj = new Date(mitra.data_o);
+            if (!isNaN(dateObj)) {
+                // Format DD/MM/YYYY
+                const dd = String(dateObj.getDate()).padStart(2, '0');
+                const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+                const yyyy = dateObj.getFullYear();
+                labelTgl = `${dd}/${mm}/${yyyy}`;
+            } else {
+                // Jika format string non-standard, ambil 10 karakter pertama saja (misal YYYY-MM-DD)
+                labelTgl = String(mitra.data_o).substring(0, 10);
+            }
+        } catch (e) {
+            labelTgl = mitra.data_o;
+        }
+    }
+
+    // HTML Badge Data O
+    const badgeDataO = labelTgl ? `<span class="mitra-id" style="background-color: #fffbeb; color: #92400e; border: 1px solid #fcd34d;">Tgl Bayar Billing: ${labelTgl}</span>` : "";
+
     let inputHtml = "";
     if (isJB) {
         inputHtml = `
@@ -507,7 +530,7 @@ function createMitraCard(mitra) {
                 <div class="d-flex align-items-center gap-2 mb-2">
                     <span class="mitra-name mb-0">${mitra.nama}</span>
                     <span class="mitra-id">${mitra.id}</span>
-                    ${mitra.data_o && mitra.data_o !== '-' ? `<span class="mitra-id" style="background-color: #fffbeb; color: #92400e; border: 1px solid #fcd34d;">${mitra.data_o}</span>` : ''}
+                    ${badgeDataO}
                 </div>
                 
                 <div class="d-flex flex-wrap gap-2 mb-2">
