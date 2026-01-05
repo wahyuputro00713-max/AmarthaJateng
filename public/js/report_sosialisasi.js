@@ -258,111 +258,137 @@ if (fileInput) {
     });
 }
 
-// 8. SUBMIT FORM (VALIDASI SUPER KETAT)
-document.getElementById('sosialisasiForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    // --- STEP VALIDASI NO HP ---
-    let rawHp = document.getElementById('noHpInput').value.replace(/[^0-9]/g, '');
+// 8. SUBMIT FORM (VALIDASI SUPER KETAT & FIX DOUBLE INPUT)
+const sosialisasiForm = document.getElementById('sosialisasiForm');
+if (sosialisasiForm) {
+    sosialisasiForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        // AMBIL TOMBOL SUBMIT UNTUK DISABLE
+        // (Pastikan tombol type="submit" ada di dalam form)
+        const submitBtn = sosialisasiForm.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn ? submitBtn.innerHTML : "Kirim Data";
 
-    // A. Cek Panjang Digit
-    if (rawHp.length < 10 || rawHp.length > 13) {
-        alert(`❌ Nomor HP Tidak Valid!\n\nPanjang nomor: ${rawHp.length} digit.\nHarus antara 10 - 13 digit.`);
-        return;
-    }
+        // --- STEP VALIDASI NO HP ---
+        let rawHp = document.getElementById('noHpInput').value.replace(/[^0-9]/g, '');
 
-    // B. Cek Awalan (Prefix) Wajib Indonesia
-    let isValidPrefix = false;
-    if (rawHp.startsWith('08')) isValidPrefix = true;
-    else if (rawHp.startsWith('628')) isValidPrefix = true;
-    else if (rawHp.startsWith('8')) isValidPrefix = true;
-
-    if (!isValidPrefix) {
-        alert("❌ Nomor HP Tidak Valid!\n\nNomor HP Indonesia harus diawali dengan:\n- 08xx\n- 628xx\n- atau 8xx");
-        return;
-    }
-
-    // C. Cek Angka Kembar (Anti Spam)
-    if (/(\d)\1{7,}/.test(rawHp)) {
-        alert("❌ Nomor HP Tidak Valid!\n\nTerdeteksi angka kembar berulang yang tidak wajar.");
-        return;
-    }
-
-    // D. Format ke 62
-    let finalHp = rawHp;
-    if (finalHp.startsWith('0')) {
-        finalHp = '62' + finalHp.substring(1);
-    } else if (finalHp.startsWith('8')) {
-        finalHp = '62' + finalHp;
-    }
-
-    // --- E. CEK DOUBLE TERAKHIR (SAFETY) ---
-    // Cek lagi sebelum submit beneran, untuk jaga-jaga
-    const isDouble = await cekNomorDiServer(finalHp);
-    if (isDouble) {
-        alert("❌ GAGAL KIRIM: Nomor HP sudah terdaftar di sistem!");
-        return; // Batalkan kirim
-    }
-
-    // --- VALIDASI FORM LAINNYA ---
-    if (!areaSelect.value) { alert("❌ Area belum terpilih!"); return; }
-    if (!pointSelect.value) { alert("❌ Point belum terpilih!"); return; }
-    if (fileInput.files.length === 0) { alert("❌ Wajib upload foto!"); return; }
-    if (!document.getElementById('geotagInput').value) { alert("❌ Geotag belum muncul. Pastikan GPS aktif!"); return; }
-
-    const loadingOverlay = document.getElementById('loadingOverlay');
-    loadingOverlay.style.display = 'flex';
-
-    try {
-        const files = Array.from(fileInput.files);
-        const file = files[0];
-        const base64 = await toBase64(file);
-
-        const formData = {
-            jenisLaporan: "Sosialisasi",
-            
-            tanggal: document.getElementById('tanggalInput').value,
-            idKaryawan: document.getElementById('idKaryawan').value,
-            namaBP: document.getElementById('namaKaryawan').value,
-            area: areaSelect.value,
-            point: pointSelect.value,
-            
-            namaMitra: document.getElementById('namaMitra').value,
-            noHp: finalHp, // Kirim Nomor yg sudah diformat 62
-            
-            desa: document.getElementById('desaInput').value,
-            kecamatan: document.getElementById('kecamatanInput').value,
-            kabupaten: document.getElementById('kabupatenInput').value,
-            geotag: document.getElementById('geotagInput').value,
-            
-            foto: base64.replace(/^data:image\/(png|jpeg|jpg);base64,/, ""),
-            namaFoto: "Sos_" + file.name,
-            mimeType: file.type
-        };
-
-        const response = await fetch(SCRIPT_URL, {
-            method: 'POST',
-            redirect: 'follow', 
-            body: JSON.stringify(formData)
-        });
-
-        const result = await response.json();
-
-        // Handle error dari server juga (double check)
-        if (result.result === 'success') {
-            alert("✅ Laporan Sosialisasi Terkirim!");
-            window.location.href = "home.html";
-        } else {
-            throw new Error(result.error);
+        // A. Cek Panjang Digit
+        if (rawHp.length < 10 || rawHp.length > 13) {
+            alert(`❌ Nomor HP Tidak Valid!\n\nPanjang nomor: ${rawHp.length} digit.\nHarus antara 10 - 13 digit.`);
+            return;
         }
 
-    } catch (error) {
-        console.error("Error:", error);
-        alert("❌ Gagal: " + error.message);
-    } finally {
-        loadingOverlay.style.display = 'none';
-    }
-});
+        // B. Cek Awalan (Prefix) Wajib Indonesia
+        let isValidPrefix = false;
+        if (rawHp.startsWith('08')) isValidPrefix = true;
+        else if (rawHp.startsWith('628')) isValidPrefix = true;
+        else if (rawHp.startsWith('8')) isValidPrefix = true;
+
+        if (!isValidPrefix) {
+            alert("❌ Nomor HP Tidak Valid!\n\nNomor HP Indonesia harus diawali dengan:\n- 08xx\n- 628xx\n- atau 8xx");
+            return;
+        }
+
+        // C. Cek Angka Kembar (Anti Spam)
+        if (/(\d)\1{7,}/.test(rawHp)) {
+            alert("❌ Nomor HP Tidak Valid!\n\nTerdeteksi angka kembar berulang yang tidak wajar.");
+            return;
+        }
+
+        // D. Format ke 62
+        let finalHp = rawHp;
+        if (finalHp.startsWith('0')) {
+            finalHp = '62' + finalHp.substring(1);
+        } else if (finalHp.startsWith('8')) {
+            finalHp = '62' + finalHp;
+        }
+
+        // --- VALIDASI FORM LAINNYA ---
+        if (!areaSelect.value) { alert("❌ Area belum terpilih!"); return; }
+        if (!pointSelect.value) { alert("❌ Point belum terpilih!"); return; }
+        if (fileInput.files.length === 0) { alert("❌ Wajib upload foto!"); return; }
+        if (!document.getElementById('geotagInput').value) { alert("❌ Geotag belum muncul. Pastikan GPS aktif!"); return; }
+
+        // --- E. CEK DOUBLE TERAKHIR (SAFETY) ---
+        // Disable tombol sebentar saat cek server
+        if (submitBtn) submitBtn.disabled = true;
+        
+        const isDouble = await cekNomorDiServer(finalHp);
+        if (isDouble) {
+            alert("❌ GAGAL KIRIM: Nomor HP sudah terdaftar di sistem!");
+            if (submitBtn) submitBtn.disabled = false; // Aktifkan lagi jika gagal
+            return; 
+        }
+
+        // --- MULAI PROSES KIRIM ---
+        // 1. Tampilkan Loading
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        if (loadingOverlay) loadingOverlay.style.display = 'flex';
+        
+        // 2. Kunci Tombol Submit (Agar tidak double klik)
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> Mengirim...';
+        }
+
+        try {
+            const files = Array.from(fileInput.files);
+            const file = files[0];
+            const base64 = await toBase64(file);
+
+            const formData = {
+                jenisLaporan: "Sosialisasi",
+                
+                tanggal: document.getElementById('tanggalInput').value,
+                idKaryawan: document.getElementById('idKaryawan').value,
+                namaBP: document.getElementById('namaKaryawan').value,
+                area: areaSelect.value,
+                point: pointSelect.value,
+                
+                namaMitra: document.getElementById('namaMitra').value,
+                noHp: finalHp, // Kirim Nomor yg sudah diformat 62
+                
+                desa: document.getElementById('desaInput').value,
+                kecamatan: document.getElementById('kecamatanInput').value,
+                kabupaten: document.getElementById('kabupatenInput').value,
+                geotag: document.getElementById('geotagInput').value,
+                
+                foto: base64.replace(/^data:image\/(png|jpeg|jpg);base64,/, ""),
+                namaFoto: "Sos_" + file.name,
+                mimeType: file.type
+            };
+
+            const response = await fetch(SCRIPT_URL, {
+                method: 'POST',
+                redirect: 'follow', 
+                body: JSON.stringify(formData)
+            });
+
+            const result = await response.json();
+
+            // Handle error dari server juga (double check)
+            if (result.result === 'success') {
+                alert("✅ Laporan Sosialisasi Terkirim!");
+                window.location.href = "home.html";
+            } else {
+                throw new Error(result.error);
+            }
+
+        } catch (error) {
+            console.error("Error:", error);
+            alert("❌ Gagal: " + error.message);
+            
+            // JIKA GAGAL, AKTIFKAN LAGI TOMBOL AGAR BISA COBA LAGI
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnText;
+            }
+        } finally {
+            // Sembunyikan loading overlay jika error terjadi
+            if (loadingOverlay) loadingOverlay.style.display = 'none';
+        }
+    });
+}
 
 const toBase64 = file => new Promise((resolve, reject) => {
     const reader = new FileReader();
