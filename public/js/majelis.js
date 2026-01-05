@@ -157,7 +157,7 @@ function fillSelect(el, items) {
     else el.value = "";
 }
 
-// 5. RENDER DATA (UPDATE: Tambah Badge BLL & Angsuran Sudah Dibayar)
+// 5. RENDER DATA (UPDATE: Perbaikan Format Angka Biasa)
 function renderGroupedData(data) {
     majelisContainer.innerHTML = "";
     
@@ -217,6 +217,7 @@ function renderGroupedData(data) {
                 badgeClass = "text-danger";
             }
             
+            // Fungsi Format Rupiah (Hanya untuk Angsuran & Partial)
             const formatRupiah = (val) => {
                 if(!val || val === "0" || val === "-") return "-";
                 const cleanVal = String(val).replace(/[^0-9]/g, '');
@@ -226,8 +227,17 @@ function renderGroupedData(data) {
 
             const valAngsuran = formatRupiah(m.angsuran);
             const valPartial = formatRupiah(m.partial);
-            // --- DATA BARU: ANGSURAN SUDAH DIBAYAR (KOLOM P) ---
-            const valSudahBayar = formatRupiah(m.data_p);
+            
+            // --- FIX: ANGSURAN SUDAH DIBAYAR (HANYA ANGKA) ---
+            let valSudahBayar = "-";
+            if (m.data_p && m.data_p !== "-" && m.data_p !== "0") {
+                // Hapus "Rp", spasi, atau karakter non-digit lainnya agar murni angka
+                // Contoh: "Rp 5" -> "5"
+                valSudahBayar = String(m.data_p).replace(/[^0-9]/g, '');
+                
+                // Jika hasil replace kosong (misal datanya huruf semua), kembalikan "-"
+                if (valSudahBayar === "") valSudahBayar = "-";
+            }
 
             const selectId = `payment-${m.cust_no}`;
             let actionHtml = "";
@@ -268,7 +278,7 @@ function renderGroupedData(data) {
                         <div class="nominal-text mt-1 text-danger">${valPartial}</div>
                         <span class="nominal-label">Partial</span>
                         
-                        <div class="nominal-text mt-1 text-primary">${valSudahBayar}</div>
+                        <div class="nominal-text mt-1 text-primary fw-bold">${valSudahBayar}</div>
                         <span class="nominal-label">Angsuran Sudah dibayar</span>
                     </td>
                     <td class="text-center">
