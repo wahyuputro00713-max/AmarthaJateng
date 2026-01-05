@@ -1,6 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+// --- UPDATE: Menambahkan 'set' dan 'onValue' untuk fitur Global Lock ---
+import { getDatabase, ref, get, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // --- KONFIGURASI FIREBASE ---
 const firebaseConfig = {
@@ -41,12 +42,13 @@ let draftData = {};
 let readStatusData = {}; 
 let isPageLocked = false; 
 
+// Helper membersihkan string untuk Key Firebase
 const clean = (str) => {
     if (!str) return "";
     return String(str).toLowerCase().replace(/[^a-z0-9]/g, "");
 };
 
-// --- STORAGE ---
+// --- STORAGE LOKAL (Hanya untuk Draft Checklist) ---
 function getStorageKey() {
     const dateStr = new Date().toISOString().split('T')[0];
     return `closing_draft_${dateStr}`; 
@@ -55,10 +57,6 @@ function getReadStatusKey() {
     const dateStr = new Date().toISOString().split('T')[0];
     return `closing_read_${dateStr}`; 
 }
-function getLockStatusKey() {
-    const dateStr = new Date().toISOString().split('T')[0];
-    return `closing_lock_${dateStr}`; 
-}
 
 function loadFromStorage() {
     try {
@@ -66,8 +64,8 @@ function loadFromStorage() {
         draftData = rawDraft ? JSON.parse(rawDraft) : {};
         const rawRead = localStorage.getItem(getReadStatusKey());
         readStatusData = rawRead ? JSON.parse(rawRead) : {};
-        const rawLock = localStorage.getItem(getLockStatusKey());
-        isPageLocked = rawLock === "true"; 
+        // Reset lock lokal, status lock akan diambil dari Firebase (Server)
+        isPageLocked = false; 
     } catch (e) {
         draftData = {}; readStatusData = {}; isPageLocked = false;
     }
@@ -84,10 +82,64 @@ function saveToStorage(id, isChecked, reason, day = "") {
     updateGlobalValidationStatus();
 }
 
-function setPageLocked() {
-    isPageLocked = true;
-    localStorage.setItem(getLockStatusKey(), "true");
-    applyLockMode();
+// --- FUNGSI PENGUCIAN GLOBAL (SERVER SIDE) ---
+// Fungsi ini memastikan kuncian berlaku untuk semua user di Point & Tanggal yang sama
+function setGlobalLock(status) {
+    if(!userProfile || !userProfile.point) return;
+    
+    // Tentukan tanggal
+    const dateInput = document.getElementById('dateInput');
+    let dateStr = "";
+    if (dateInput && !dateInput.classList.contains('d-none')) {
+        dateStr = dateInput.value; 
+    } else {
+        dateStr = new Date().toLocaleDateString('en-CA'); // Format YYYY-MM-DD
+    }
+
+    // KUNCI: Gunakan Nama Point sebagai folder utama
+    // Ini menjamin Point A tidak mengunci Point B
+    const pointKey = clean(userProfile.point); 
+    const lockPath = `closing_locks/${pointKey}/${dateStr}`;
+
+    if (status === true) {
+        set(ref(db, lockPath), {
+            isLocked: true,
+            lockedBy: userProfile.nama || "User",
+            lockedAt: new Date().toISOString()
+        }).then(() => {
+            console.log(`Halaman dikunci untuk ${userProfile.point} pada tanggal ${dateStr}`);
+        }).catch((err) => {
+            console.error("Gagal mengunci halaman:", err);
+        });
+    }
+}
+
+function checkGlobalLock() {
+    if(!userProfile || !userProfile.point) return;
+
+    const dateInput = document.getElementById('dateInput');
+    let dateStr = "";
+    if (dateInput && !dateInput.classList.contains('d-none')) {
+        dateStr = dateInput.value;
+    } else {
+        dateStr = new Date().toLocaleDateString('en-CA');
+    }
+
+    // Cek folder kunci spesifik untuk Point user ini
+    const pointKey = clean(userProfile.point);
+    const lockPath = `closing_locks/${pointKey}/${dateStr}`;
+
+    // Listener Realtime: Jika ada perubahan di server, UI langsung update
+    onValue(ref(db, lockPath), (snapshot) => {
+        const data = snapshot.val();
+        if (data && data.isLocked === true) {
+            isPageLocked = true;
+            applyLockMode(data.lockedBy); // Kunci UI
+        } else {
+            isPageLocked = false;
+            releaseLockMode(); // Buka UI
+        }
+    });
 }
 
 window.markMajelisAsRead = function(uniqueKey, elementId) {
@@ -198,6 +250,11 @@ function initPage() {
                 currentDayName = days[selectedDate.getDay()]; 
                 const container = document.getElementById('accordionBP');
                 if(container) container.innerHTML = `<div class="text-center py-5"><div class="spinner-border text-primary"></div><p class="mt-2">Memuat data hari ${currentDayName}...</p></div>`;
+                
+                // Reset dan cek lock saat ganti tanggal
+                isPageLocked = false; 
+                checkGlobalLock(); 
+
                 setTimeout(() => { filterAndRenderData(); }, 500);
             }
         });
@@ -206,6 +263,10 @@ function initPage() {
     }
 
     let targetPoint = (["RM", "AM", "ADMIN"].includes(currentRole)) ? "ALL" : userProfile.point;
+    
+    // Cek status Lock dari server saat pertama kali load
+    setTimeout(() => { checkGlobalLock(); }, 1000); 
+    
     fetchRepaymentData(targetPoint);
 }
 
@@ -331,9 +392,7 @@ function filterAndRenderData() {
         const alasan_db = getValue(row, ["keterangan", "alasan"]) || "";
         const p_jenis = getValue(row, ["jenis_pembayaran", "jenis", "type"]) || "-";
         
-        // --- AMBIL STATUS BLL ---
         const st_bll = getValue(row, ["status_bll", "bll", "ket_bll"]) || "-";
-        // --- AMBIL DATA O (Tanggal) ---
         const val_data_o = getValue(row, ["data_o"]) || "-";
 
         const isLunas = st_bayar.toLowerCase().includes("lunas") || st_bayar.toLowerCase().includes("bayar");
@@ -365,7 +424,13 @@ function filterAndRenderData() {
     } else {
         renderAccordion(hierarchy);
         updateGlobalValidationStatus();
-        if (isPageLocked) applyLockMode();
+        
+        // Cek lock status ulang setelah render selesai
+        if (isPageLocked) {
+            applyLockMode("System/Admin");
+        } else {
+            checkGlobalLock();
+        }
     }
 }
 
@@ -657,7 +722,8 @@ async function updateJBDaysToServer() {
     await Promise.all(promises);
 }
 
-function applyLockMode() {
+// --- FUNGSI APPLY LOCK MODE ---
+function applyLockMode(lockedBy = "Admin") {
     const allInputs = document.querySelectorAll('.input-modern, select.input-modern');
     allInputs.forEach(input => {
         input.disabled = true;
@@ -676,10 +742,32 @@ function applyLockMode() {
     const btnValAll = document.getElementById('btnValidateAll');
     if(btnValAll) {
         btnValAll.disabled = true;
-        btnValAll.innerHTML = `<i class="fa-solid fa-lock me-1"></i> Laporan Terkirim & Terkunci`;
+        btnValAll.innerHTML = `<i class="fa-solid fa-lock me-1"></i> Laporan Terkunci (oleh ${lockedBy})`;
         btnValAll.classList.remove('btn-success', 'btn-primary');
         btnValAll.classList.add('btn-secondary');
         btnValAll.style.cursor = "not-allowed";
+    }
+}
+
+// --- FUNGSI RELEASE LOCK MODE (Untuk Admin jika ada fitur unlock) ---
+function releaseLockMode() {
+    if(!isPageLocked) {
+        // Karena DOM sudah dirender disabled, cara terbaik adalah reload data
+        // atau kita bisa enable manual elemen-elemennya.
+        // Untuk amannya, kita panggil filterAndRenderData ulang jika diperlukan, 
+        // tapi di sini cukup update tombol utama saja sebagai indikator.
+        const btnValAll = document.getElementById('btnValidateAll');
+        if(btnValAll) {
+            btnValAll.disabled = false; 
+            btnValAll.classList.remove('btn-secondary');
+            btnValAll.classList.add('btn-primary');
+            btnValAll.innerHTML = `<i class="fa-solid fa-calendar-check me-1"></i> Validasi Hari Ini`;
+        }
+        
+        // Reload data agar checkbox bisa diklik lagi
+        if(allRawData.length > 0) {
+             filterAndRenderData();
+        }
     }
 }
 
@@ -729,7 +817,6 @@ function downloadCSV() {
         return;
     }
 
-    // --- CSV HEADER (Tetap Menyertakan Kolom BLL) ---
     let csvContent = "ID Mitra,Nama Mitra,BP,Majelis,Status Bayar,Status Kirim,Status BLL,Jenis Bayar,Hari Baru (JB),DPD Bucket,Keterangan\n";
 
     globalMitraList.forEach(m => {
@@ -771,12 +858,17 @@ document.addEventListener("DOMContentLoaded", () => {
         btnValAll.disabled = true;
         
         btnValAll.addEventListener('click', async () => {
-            if(confirm("Apakah Anda yakin ingin melakukan VALIDASI dan MENGUNDUH laporan?\n\nPERINGATAN:\n1. Data Hari untuk mitra 'JB' akan diupdate di server.\n2. Laporan ini akan TERKUNCI.")) {
+            if(confirm("Apakah Anda yakin ingin melakukan VALIDASI dan MENGUNDUH laporan?\n\nPERINGATAN:\n1. Data Hari untuk mitra 'JB' akan diupdate di server.\n2. Laporan ini akan TERKUNCI untuk SEMUA user di Point ini.")) {
                 
+               // Kunci tombol lokal agar tidak double click
                btnValAll.disabled = true;
+               btnValAll.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Memproses...`;
+               
                await updateJBDaysToServer();
                downloadCSV();
-               setPageLocked(); 
+               
+               // --- KIRIM LOCK GLOBAL KE FIREBASE ---
+               setGlobalLock(true);
             }
         });
     }
