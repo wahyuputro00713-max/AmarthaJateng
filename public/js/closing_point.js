@@ -331,7 +331,7 @@ function filterAndRenderData() {
         const alasan_db = getValue(row, ["keterangan", "alasan"]) || "";
         const p_jenis = getValue(row, ["jenis_pembayaran", "jenis", "type"]) || "-";
         
-        // --- NEW: AMBIL DATA BLL ---
+        // --- AMBIL DATA BLL ---
         const st_bll = getValue(row, ["status_bll", "bll", "ket_bll"]) || "-";
 
         const isLunas = st_bayar.toLowerCase().includes("lunas") || st_bayar.toLowerCase().includes("bayar");
@@ -348,7 +348,7 @@ function filterAndRenderData() {
             status_bayar: st_bayar, status_kirim: st_kirim, jenis_bayar: p_jenis,
             bucket: rawBucket, alasan: alasan_db, is_lunas: isLunas, is_terkirim: isTerkirim,
             bp: p_bp, majelis: p_majelis,
-            status_bll: st_bll // Masukkan ke object
+            status_bll: st_bll 
         };
         globalMitraList.push(mitraData);
         if (!hierarchy[p_bp]) hierarchy[p_bp] = {};
@@ -419,19 +419,14 @@ function createMitraCard(mitra) {
     const savedReason = savedData.reason || ""; 
     const savedDay = savedData.day || ""; 
 
-    // --- LOGIKA UTAMA (PERBAIKAN) ---
-    // 1. Tentukan Jenis Bayar (Bersihkan string agar tidak error)
+    // --- LOGIKA UTAMA ---
     const jenisBayar = String(mitra.jenis_bayar).toUpperCase().trim();
     const isJB = jenisBayar === "JB";
     const isNonNormal = ["PAR", "PARTIAL", "PAR PAYMENT"].includes(jenisBayar);
 
-    // 2. Status Dasar
     const isLunas = stBayar.includes('lunas') || stBayar.includes('bayar') || stBayar.includes('sudah');
-     
-    // 3. Logika Terkirim
     const isTerkirim = stKirim.includes('terkirim') || stKirim.includes('sudah') || stKirim.includes('kirim') || isJB;
 
-    // 4. Logika Kunci Validasi (Tombol Centang)
     const isValidationLocked = !isTerkirim;
     const lockedClass = isValidationLocked ? "disabled" : "";
     const lockedAttr = isValidationLocked ? "" : `onclick="toggleValidation(this, '${mitra.id}')"`;
@@ -439,26 +434,25 @@ function createMitraCard(mitra) {
 
     const checkBtnClass = isChecked ? "checked" : "";
 
-    // 5. Styles Badge
     let styleBayar = isLunas ? "background-color: #d1e7dd; color: #0f5132; border: 1px solid #badbcc;" : "background-color: #f8d7da; color: #842029; border: 1px solid #f5c2c7;";
     let styleKirim = isTerkirim ? "background-color: #198754; color: white; box-shadow: 0 2px 4px rgba(25, 135, 84, 0.3);" : "background-color: #dc3545; color: white; box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);";
-    const styleJenis = "background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;";
      
     let bucketText = (mitra.bucket == "0" || String(mitra.bucket).toLowerCase().includes("current")) ? "Lancar" : `DPD: ${mitra.bucket}`;
     let styleBucket = (mitra.bucket == "0" || String(mitra.bucket).toLowerCase().includes("current")) ? "background-color: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe;" : "background-color: #fef3c7; color: #92400e; border: 1px solid #fcd34d;";
 
-    // --- LOGIKA STYLE BADGE BLL ---
-    let bllText = mitra.status_bll || "-";
-    // Jika BLL ada isinya (bukan strip), beri warna ungu/mencolok
-    let styleBLL = (bllText === "-" || bllText === "") 
-        ? "background-color: #f3f4f6; color: #6b7280; border: 1px solid #e5e7eb;" // Abu-abu
-        : "background-color: #f3e8ff; color: #7e22ce; border: 1px solid #d8b4fe;"; // Ungu
+    // --- PERBAIKAN LOGIKA TAMPILAN BLL ---
+    let bllText = (mitra.status_bll || "").trim();
+    let bllBadgeHtml = "";
 
-    // UI Input (JB = Dropdown Hari, PAR/Partial = Wajib Input, Normal = Optional)
+    // Tampilkan hanya jika ada isinya dan bukan tanda strip
+    if (bllText && bllText !== "-" && bllText.toLowerCase() !== "null") {
+        const styleBLL = "background-color: #f3e8ff; color: #7e22ce; border: 1px solid #d8b4fe;";
+        // Hapus prefix "BLL:" agar tidak double
+        bllBadgeHtml = `<span class="badge-status" style="${styleBLL}">${bllText}</span>`;
+    }
+
     let inputHtml = "";
-     
     if (isJB) {
-        // --- DROPDOWN HARI (JB) ---
         inputHtml = `
             <div class="mt-2">
                 <label class="small fw-bold text-warning mb-1"><i class="fa-solid fa-calendar-days me-1"></i>Pilih Hari Baru (Wajib):</label>
@@ -476,9 +470,8 @@ function createMitraCard(mitra) {
             </div>
         `;
     } else {
-        // --- TEXT INPUT (PAR/NORMAL) ---
         const placeholder = isNonNormal ? "Wajib isi alasan..." : "Keterangan (Opsional)...";
-        const requiredClass = isNonNormal ? "required" : ""; // Class penanda visual
+        const requiredClass = isNonNormal ? "required" : ""; 
         const requiredAttr = isNonNormal ? 'data-wajib="true"' : 'data-wajib="false"';
 
         inputHtml = `
@@ -494,7 +487,6 @@ function createMitraCard(mitra) {
     }
 
     let specialUI = "";
-    // Alert jika telat tapi sudah dikirim (dan BUKAN JB, karena JB wajar telat)
     if (!isLunas && isTerkirim && !isJB) {
         specialUI = `
             <div class="alert-modern">
@@ -519,8 +511,7 @@ function createMitraCard(mitra) {
                     <span class="badge-status" style="${styleKirim}">${mitra.status_kirim}</span>
                     <span class="badge-status" style="background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;">${mitra.jenis_bayar}</span>
                     <span class="badge-status" style="${styleBucket}">${bucketText}</span>
-                    <span class="badge-status" style="${styleBLL}">BLL: ${bllText}</span>
-                </div>
+                    ${bllBadgeHtml} </div>
 
                 ${specialUI}
                 ${inputHtml}
@@ -543,7 +534,6 @@ window.saveReasonInput = function(id, reason, day) {
     if (isPageLocked) return;
     const btn = document.querySelector(`.btn-check-modern[onclick*="'${id}'"]`);
     const existing = draftData[id] || {};
-    // Pertahankan nilai lama jika parameter undefined/kosong
     const currentReason = reason !== undefined ? reason : (existing.reason || "");
     const currentDay = day !== undefined ? day : (existing.day || "");
     const isChecked = btn && btn.classList.contains('checked');
@@ -712,7 +702,7 @@ function downloadCSV() {
         return;
     }
 
-    // --- UPDATE HEADER CSV (Tambah Status BLL) ---
+    // --- CSV HEADER (Tetap Menyertakan Kolom BLL) ---
     let csvContent = "ID Mitra,Nama Mitra,BP,Majelis,Status Bayar,Status Kirim,Status BLL,Jenis Bayar,Hari Baru (JB),DPD Bucket,Keterangan\n";
 
     globalMitraList.forEach(m => {
@@ -727,7 +717,7 @@ function downloadCSV() {
             `"${m.majelis}"`,
             m.status_bayar,
             m.status_kirim,
-            m.status_bll, // --- Masukkan Status BLL ke Baris CSV ---
+            m.status_bll, 
             m.jenis_bayar,
             finalDay,
             m.bucket, 
