@@ -330,6 +330,9 @@ function filterAndRenderData() {
         const st_kirim = getValue(row, ["status_kirim", "kirim"]) || "Belum";
         const alasan_db = getValue(row, ["keterangan", "alasan"]) || "";
         const p_jenis = getValue(row, ["jenis_pembayaran", "jenis", "type"]) || "-";
+        
+        // --- NEW: AMBIL DATA BLL ---
+        const st_bll = getValue(row, ["status_bll", "bll", "ket_bll"]) || "-";
 
         const isLunas = st_bayar.toLowerCase().includes("lunas") || st_bayar.toLowerCase().includes("bayar");
         const isTerkirim = st_kirim.toLowerCase().includes("terkirim") || st_kirim.toLowerCase().includes("sudah");
@@ -344,7 +347,8 @@ function filterAndRenderData() {
             nama: getValue(row, ["nama_mitra", "nama", "client_name"]),
             status_bayar: st_bayar, status_kirim: st_kirim, jenis_bayar: p_jenis,
             bucket: rawBucket, alasan: alasan_db, is_lunas: isLunas, is_terkirim: isTerkirim,
-            bp: p_bp, majelis: p_majelis
+            bp: p_bp, majelis: p_majelis,
+            status_bll: st_bll // Masukkan ke object
         };
         globalMitraList.push(mitraData);
         if (!hierarchy[p_bp]) hierarchy[p_bp] = {};
@@ -423,16 +427,11 @@ function createMitraCard(mitra) {
 
     // 2. Status Dasar
     const isLunas = stBayar.includes('lunas') || stBayar.includes('bayar') || stBayar.includes('sudah');
-    
-    // 3. Logika Terkirim: 
-    // Data dianggap "SIAP VALIDASI" jika: 
-    // a. Statusnya sudah terkirim/sudah di spreadsheet
-    // b. ATAU Statusnya adalah JB (karena JB inputnya langsung di sini, dianggap sudah "dikirim" datanya)
+     
+    // 3. Logika Terkirim
     const isTerkirim = stKirim.includes('terkirim') || stKirim.includes('sudah') || stKirim.includes('kirim') || isJB;
 
     // 4. Logika Kunci Validasi (Tombol Centang)
-    // Jika belum terkirim DAN bukan JB, maka dikunci. 
-    // Jika JB, maka TIDAK dikunci (enabled).
     const isValidationLocked = !isTerkirim;
     const lockedClass = isValidationLocked ? "disabled" : "";
     const lockedAttr = isValidationLocked ? "" : `onclick="toggleValidation(this, '${mitra.id}')"`;
@@ -444,13 +443,20 @@ function createMitraCard(mitra) {
     let styleBayar = isLunas ? "background-color: #d1e7dd; color: #0f5132; border: 1px solid #badbcc;" : "background-color: #f8d7da; color: #842029; border: 1px solid #f5c2c7;";
     let styleKirim = isTerkirim ? "background-color: #198754; color: white; box-shadow: 0 2px 4px rgba(25, 135, 84, 0.3);" : "background-color: #dc3545; color: white; box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);";
     const styleJenis = "background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;";
-    
+     
     let bucketText = (mitra.bucket == "0" || String(mitra.bucket).toLowerCase().includes("current")) ? "Lancar" : `DPD: ${mitra.bucket}`;
     let styleBucket = (mitra.bucket == "0" || String(mitra.bucket).toLowerCase().includes("current")) ? "background-color: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe;" : "background-color: #fef3c7; color: #92400e; border: 1px solid #fcd34d;";
 
+    // --- LOGIKA STYLE BADGE BLL ---
+    let bllText = mitra.status_bll || "-";
+    // Jika BLL ada isinya (bukan strip), beri warna ungu/mencolok
+    let styleBLL = (bllText === "-" || bllText === "") 
+        ? "background-color: #f3f4f6; color: #6b7280; border: 1px solid #e5e7eb;" // Abu-abu
+        : "background-color: #f3e8ff; color: #7e22ce; border: 1px solid #d8b4fe;"; // Ungu
+
     // UI Input (JB = Dropdown Hari, PAR/Partial = Wajib Input, Normal = Optional)
     let inputHtml = "";
-    
+     
     if (isJB) {
         // --- DROPDOWN HARI (JB) ---
         inputHtml = `
@@ -513,6 +519,7 @@ function createMitraCard(mitra) {
                     <span class="badge-status" style="${styleKirim}">${mitra.status_kirim}</span>
                     <span class="badge-status" style="background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;">${mitra.jenis_bayar}</span>
                     <span class="badge-status" style="${styleBucket}">${bucketText}</span>
+                    <span class="badge-status" style="${styleBLL}">BLL: ${bllText}</span>
                 </div>
 
                 ${specialUI}
@@ -664,7 +671,7 @@ function updateGlobalValidationStatus() {
 
     const totalMitra = document.querySelectorAll('.btn-check-modern').length;
     const checkedMitra = document.querySelectorAll('.btn-check-modern.checked').length;
-    
+     
     const counterEl = document.getElementById('statusCounter');
     if(counterEl) {
         counterEl.textContent = `${checkedMitra} / ${totalMitra} Mitra`;
@@ -705,7 +712,8 @@ function downloadCSV() {
         return;
     }
 
-    let csvContent = "ID Mitra,Nama Mitra,BP,Majelis,Status Bayar,Status Kirim,Jenis Bayar,Hari Baru (JB),DPD Bucket,Keterangan\n";
+    // --- UPDATE HEADER CSV (Tambah Status BLL) ---
+    let csvContent = "ID Mitra,Nama Mitra,BP,Majelis,Status Bayar,Status Kirim,Status BLL,Jenis Bayar,Hari Baru (JB),DPD Bucket,Keterangan\n";
 
     globalMitraList.forEach(m => {
         const stored = draftData[m.id] || {};
@@ -719,6 +727,7 @@ function downloadCSV() {
             `"${m.majelis}"`,
             m.status_bayar,
             m.status_kirim,
+            m.status_bll, // --- Masukkan Status BLL ke Baris CSV ---
             m.jenis_bayar,
             finalDay,
             m.bucket, 
@@ -746,7 +755,7 @@ document.addEventListener("DOMContentLoaded", () => {
         
         btnValAll.addEventListener('click', async () => {
             if(confirm("Apakah Anda yakin ingin melakukan VALIDASI dan MENGUNDUH laporan?\n\nPERINGATAN:\n1. Data Hari untuk mitra 'JB' akan diupdate di server.\n2. Laporan ini akan TERKUNCI.")) {
-               
+                
                btnValAll.disabled = true;
                await updateJBDaysToServer();
                downloadCSV();
