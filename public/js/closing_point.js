@@ -331,8 +331,10 @@ function filterAndRenderData() {
         const alasan_db = getValue(row, ["keterangan", "alasan"]) || "";
         const p_jenis = getValue(row, ["jenis_pembayaran", "jenis", "type"]) || "-";
         
-        // --- AMBIL DATA BLL ---
+        // --- AMBIL STATUS BLL ---
         const st_bll = getValue(row, ["status_bll", "bll", "ket_bll"]) || "-";
+        // --- AMBIL DATA O (Tanggal) ---
+        const val_data_o = getValue(row, ["data_o"]) || "-";
 
         const isLunas = st_bayar.toLowerCase().includes("lunas") || st_bayar.toLowerCase().includes("bayar");
         const isTerkirim = st_kirim.toLowerCase().includes("terkirim") || st_kirim.toLowerCase().includes("sudah");
@@ -348,7 +350,8 @@ function filterAndRenderData() {
             status_bayar: st_bayar, status_kirim: st_kirim, jenis_bayar: p_jenis,
             bucket: rawBucket, alasan: alasan_db, is_lunas: isLunas, is_terkirim: isTerkirim,
             bp: p_bp, majelis: p_majelis,
-            status_bll: st_bll 
+            status_bll: st_bll,
+            data_o: val_data_o 
         };
         globalMitraList.push(mitraData);
         if (!hierarchy[p_bp]) hierarchy[p_bp] = {};
@@ -504,6 +507,7 @@ function createMitraCard(mitra) {
                 <div class="d-flex align-items-center gap-2 mb-2">
                     <span class="mitra-name mb-0">${mitra.nama}</span>
                     <span class="mitra-id">${mitra.id}</span>
+                    ${mitra.data_o && mitra.data_o !== '-' ? `<span class="mitra-id" style="background-color: #fffbeb; color: #92400e; border: 1px solid #fcd34d;">${mitra.data_o}</span>` : ''}
                 </div>
                 
                 <div class="d-flex flex-wrap gap-2 mb-2">
