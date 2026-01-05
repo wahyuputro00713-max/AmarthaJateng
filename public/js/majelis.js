@@ -157,7 +157,7 @@ function fillSelect(el, items) {
     else el.value = "";
 }
 
-// 5. RENDER DATA (UPDATE: Tambah Badge BLL)
+// 5. RENDER DATA (UPDATE: Tambah Badge BLL & Angsuran Sudah Dibayar)
 function renderGroupedData(data) {
     majelisContainer.innerHTML = "";
     
@@ -207,10 +207,10 @@ function renderGroupedData(data) {
             const statusKirim = String(m.status_kirim || "").toLowerCase();
             const isSent = statusKirim.includes("sudah");
             
-            // --- UPDATE: BADGE BLL ---
+            // --- BADGE BLL ---
             const isBll = (m.status_bll === "BLL");
             const bllBadge = isBll ? '<span class="badge-bll">BLL</span>' : '';
-            // -------------------------
+            // -----------------
 
             let badgeClass = "text-success"; 
             if (statusBayar === "telat") {
@@ -226,6 +226,8 @@ function renderGroupedData(data) {
 
             const valAngsuran = formatRupiah(m.angsuran);
             const valPartial = formatRupiah(m.partial);
+            // --- DATA BARU: ANGSURAN SUDAH DIBAYAR (KOLOM P) ---
+            const valSudahBayar = formatRupiah(m.data_p);
 
             const selectId = `payment-${m.cust_no}`;
             let actionHtml = "";
@@ -265,6 +267,9 @@ function renderGroupedData(data) {
                         <span class="nominal-label">Angsuran</span>
                         <div class="nominal-text mt-1 text-danger">${valPartial}</div>
                         <span class="nominal-label">Partial</span>
+                        
+                        <div class="nominal-text mt-1 text-primary">${valSudahBayar}</div>
+                        <span class="nominal-label">Angsuran Sudah dibayar</span>
                     </td>
                     <td class="text-center">
                         <span class="${badgeClass} fw-bold" style="font-size: 12px;">${m.status}</span>
