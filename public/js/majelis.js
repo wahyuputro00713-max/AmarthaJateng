@@ -5,6 +5,7 @@ import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.7.1
 const firebaseConfig = {
     apiKey: "AIzaSyC8wOUkyZTa4W2hHHGZq_YKnGFqYEGOuH8",
     authDomain: "amarthajatengwebapp.firebaseapp.com",
+    databaseURL: "https://amarthajatengwebapp-default-rtdb.firebaseio.com",
     projectId: "amarthajatengwebapp",
     storageBucket: "amarthajatengwebapp.firebasestorage.app",
     messagingSenderId: "22431520744",
@@ -56,7 +57,7 @@ async function getUserProfile(uid) {
     }
 }
 
-// 3. Fetch Data (Hanya ambil data & isi filter, JANGAN render list)
+// 3. Fetch Data
 async function fetchData() {
     try {
         if(loadingOverlay) loadingOverlay.classList.remove('d-none');
@@ -90,9 +91,6 @@ async function fetchData() {
                     updateBPDropdown(); 
                 }
             }
-
-            // PERUBAHAN: Tidak memanggil renderGroupedData() di sini.
-            // Biarkan tampilan kosong sampai user klik tombol.
             
         } else {
             console.error("Gagal data:", result);
@@ -159,7 +157,7 @@ function fillSelect(el, items) {
     else el.value = "";
 }
 
-// 5. RENDER DATA (Hanya dipanggil saat tombol diklik)
+// 5. RENDER DATA (UPDATE: Tambah Badge BLL)
 function renderGroupedData(data) {
     majelisContainer.innerHTML = "";
     
@@ -176,16 +174,13 @@ function renderGroupedData(data) {
         return matchArea && matchPoint && matchHari && matchBP;
     });
 
-    // Handle Empty State
     if (filtered.length === 0) {
         emptyState.classList.remove('d-none');
-        // Ubah pesan jika filter belum dipilih vs data memang kosong
         if (fArea === "" && fPoint === "" && fBP === "" && fHari === "") {
              emptyState.querySelector('p').innerHTML = "Silakan pilih filter dan klik <b>Tampilkan Data</b>";
         } else {
              emptyState.querySelector('p').textContent = "Data tidak ditemukan sesuai filter.";
         }
-        
         document.getElementById('totalMajelis').innerText = "Total: 0";
         document.getElementById('totalMitra').innerText = "0 Mitra";
         return;
@@ -212,9 +207,11 @@ function renderGroupedData(data) {
             const statusKirim = String(m.status_kirim || "").toLowerCase();
             const isSent = statusKirim.includes("sudah");
             
-            // --- UPDATE WARNA STATUS ---
-            // Jika "Telat" -> text-danger (Merah)
-            // Selain itu (Bayar, dll) -> text-success (Hijau)
+            // --- UPDATE: BADGE BLL ---
+            const isBll = (m.status_bll === "BLL");
+            const bllBadge = isBll ? '<span class="badge-bll">BLL</span>' : '';
+            // -------------------------
+
             let badgeClass = "text-success"; 
             if (statusBayar === "telat") {
                 badgeClass = "text-danger";
@@ -246,7 +243,7 @@ function renderGroupedData(data) {
                             <option value="PAR">PAR</option>
                             <option value="Partial">Partial</option>
                             <option value="Par Payment">Par Payment</option>
-                            <option value="JB">JB</option>
+                            <option value="JB">JB</option> 
                         </select>
                         <button class="btn btn-primary btn-kirim" 
                             onclick="window.kirimData(this, '${safeName}', '${m.cust_no}', '${safeMitra}', '${selectId}')"
@@ -260,7 +257,7 @@ function renderGroupedData(data) {
             return `
                 <tr>
                     <td>
-                        <span class="mitra-name">${m.mitra}</span>
+                        <span class="mitra-name">${m.mitra} ${bllBadge}</span>
                         <span class="mitra-id"><i class="fa-regular fa-id-card me-1"></i>${m.cust_no}</span>
                     </td>
                     <td>
@@ -314,7 +311,7 @@ function renderGroupedData(data) {
     majelisContainer.innerHTML = htmlContent;
 }
 
-// 6. Tombol Tampilkan -> Baru Render Data
+// 6. Tombol Tampilkan
 btnTampilkan.addEventListener('click', () => {
     if(loadingOverlay) {
         loadingOverlay.querySelector('p').textContent = "Menampilkan data...";
