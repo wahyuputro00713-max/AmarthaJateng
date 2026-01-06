@@ -98,6 +98,40 @@ function getLocalTodayDate() {
     return `${year}-${month}-${day}`; 
 }
 
+// --- NEW: FUNGSI KOMPRESI GAMBAR ---
+// Mengubah ukuran gambar max 800px dan kualitas 60% agar ringan (< 300KB)
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+
+                // Hitung rasio aspek untuk resize
+                if (width > maxWidth) {
+                    height *= maxWidth / width;
+                    width = maxWidth;
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                // Convert canvas ke Base64 JPEG dengan kualitas yang diturunkan
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+            img.onerror = (err) => reject(err);
+        };
+        reader.onerror = (err) => reject(err);
+    });
+}
+
 if (ui.pointSelect) {
     ui.pointSelect.addEventListener('change', function() {
         const selectedPoint = this.value;
@@ -256,37 +290,6 @@ function updateTombol() {
     }
 }
 
-// --- NEW: FUNGSI KOMPRESI GAMBAR ---
-// Ini akan mengubah ukuran gambar max 800px dan kualitas 60%
-// Membuat upload jauh lebih cepat.
-async function compressImage(file, maxWidth = 800, quality = 0.6) {
-    return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = (event) => {
-            const img = new Image();
-            img.src = event.target.result;
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                let width = img.width;
-                let height = img.height;
-
-                if (width > maxWidth) {
-                    height *= maxWidth / width;
-                    width = maxWidth;
-                }
-
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
-
-                resolve(canvas.toDataURL('image/jpeg', quality));
-            };
-        };
-    });
-}
-
 // Preview Gambar
 ui.fotoInput.addEventListener('change', function() {
     const file = this.files[0];
@@ -299,7 +302,7 @@ ui.fotoInput.addEventListener('change', function() {
     }
 });
 
-// SUBMIT FORM
+// SUBMIT FORM (Updated dengan Kompresi)
 document.getElementById('absensiForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!ui.fotoInput.files[0]) { alert("Wajib Foto Selfie!"); return; }
@@ -310,7 +313,7 @@ document.getElementById('absensiForm').addEventListener('submit', async (e) => {
     try {
         const file = ui.fotoInput.files[0];
         
-        // --- UPDATE: GUNAKAN KOMPRESI ---
+        // --- 1. GUNAKAN KOMPRESI DI SINI ---
         const base64 = await compressImage(file); 
         const today = getLocalTodayDate(); 
 
@@ -323,10 +326,10 @@ document.getElementById('absensiForm').addEventListener('submit', async (e) => {
             tanggal: today,
             jamAbsen: ui.jam.textContent,
             geotag: document.getElementById('geotagInput').value,
-            // Hapus prefix data:image/... sebelum kirim
+            // Hapus prefix data:image/... karena Canvas sudah memberikan format yang bersih
             foto: base64.replace(/^data:image\/(png|jpeg|jpg);base64,/, ""),
             namaFoto: `Absen_${ui.nama.value}.jpg`,
-            mimeType: "image/jpeg" // Selalu jpeg karena hasil kompresi
+            mimeType: "image/jpeg"
         };
 
         const response = await fetch(SCRIPT_URL, { 
