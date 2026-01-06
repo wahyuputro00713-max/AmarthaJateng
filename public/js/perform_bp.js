@@ -18,7 +18,7 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 // URL Apps Script Anda
-const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx40G5B9WVienIPwcGrsFcjDI69ahZNq3eJ7oENYPiweHC-oxFNeCGNihcRn8KVum9cIA/exec";
 
 document.addEventListener("DOMContentLoaded", () => {
     onAuthStateChanged(auth, (user) => {
