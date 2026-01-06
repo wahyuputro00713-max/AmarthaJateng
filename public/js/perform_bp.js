@@ -16,10 +16,10 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// URL APPS SCRIPT (Pastikan Code.gs sudah di-Deploy New Version)
+// URL APPS SCRIPT (Pastikan sudah Deploy New Version)
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzDMA8WmDpIEn0nx5-iHCXSYIc0pxCwPmPXRLASIyUmR4qAJzEzNONSt4mM-iL3HUt2NA/exec";
 
-// --- DATA MASTER HARDCODED (Sama dengan Closing Point) ---
+// Data Master Area & Point (Hardcoded agar rapi)
 const dataPoints = {
     "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucuk"],
     "Magelang": ["Grabag", "Mungkid", "Pakis", "Salam"],
@@ -53,7 +53,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Binding Tombol Tampilkan ke Window agar bisa di-klik di HTML
+    // Tombol Tampilkan
     window.applyFilter = applyFilterTrigger; 
 
     // Cek Login
@@ -74,7 +74,7 @@ async function checkUserAndRole(uid) {
         if (snapshot.exists()) {
             const userData = snapshot.val();
             
-            // Ambil Jabatan, Area, Point (Normalisasi ke UpperCase)
+            // Tentukan Role (Normalisasi ke UpperCase)
             const rawJabatan = userData.jabatan ? String(userData.jabatan).toUpperCase() : "";
             
             if (rawJabatan.includes("RM")) userRole = "RM";
@@ -98,6 +98,13 @@ async function checkUserAndRole(uid) {
 
 async function fetchDropdownData(myIdKaryawan) {
     try {
+        // Tampilkan indikator loading di dropdown BP
+        const selBP = document.getElementById('selBP');
+        if(selBP) {
+            selBP.innerHTML = '<option>Sedang memuat data...</option>';
+            selBP.disabled = true;
+        }
+
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify({ action: "get_dropdown_data" }),
@@ -108,7 +115,9 @@ async function fetchDropdownData(myIdKaryawan) {
         const result = await response.json();
 
         if (result.result === "success") {
-            allDataBP = result.data; 
+            allDataBP = result.data; // Simpan data BP
+            console.log("Data BP Loaded:", allDataBP.length, "baris");
+
             setupFilterUI();
 
             // Jika BP biasa, langsung load data dia sendiri
@@ -116,11 +125,12 @@ async function fetchDropdownData(myIdKaryawan) {
                 fetchPerformData(myIdKaryawan);
             }
         } else {
-            showError("Gagal mengambil data master. Pastikan Code.gs sudah di-Deploy New Version.");
+            showError("Gagal mengambil data master. Pastikan Code.gs sudah di-Deploy.");
+            if(selBP) selBP.innerHTML = '<option>Gagal memuat data</option>';
         }
     } catch (e) {
         console.error(e);
-        showError("Koneksi Error. Cek apakah script sudah di-deploy: " + e.message);
+        showError("Koneksi Error: " + e.message);
     }
 }
 
@@ -140,25 +150,32 @@ function setupFilterUI() {
         const areaList = Object.keys(dataPoints).sort();
 
         if (userRole === "RM") {
-            // RM: Bisa pilih semua Area
+            // RM: Bebas Pilih Area
             populateSelect(selArea, areaList, "Pilih Area...");
             selArea.disabled = false;
         
         } else {
-            // AM & BM: Area Terkunci (Sesuai Firebase)
+            // AM & BM: Area Terkunci (Auto Select)
             const cleanMyArea = clean(myArea);
-            const matchedArea = areaList.find(a => clean(a) === cleanMyArea || clean(a).includes(cleanMyArea) || cleanMyArea.includes(clean(a)));
+            
+            // Cari area di list yang cocok dengan area user
+            const matchedArea = areaList.find(a => {
+                const cleanA = clean(a);
+                return cleanA === cleanMyArea || cleanA.includes(cleanMyArea) || cleanMyArea.includes(cleanA);
+            });
 
             if (matchedArea) {
                 populateSelect(selArea, [matchedArea]); 
                 selArea.value = matchedArea;
             } else {
+                // Fallback jika tidak ada di list hardcoded
                 populateSelect(selArea, [myArea]); 
                 selArea.value = myArea;
             }
             selArea.disabled = true;
         }
 
+        // Trigger update Point
         updatePointOptions(selArea.value);
     }
 }
@@ -178,13 +195,17 @@ function updatePointOptions(selectedArea) {
     if (selectedArea) {
         let pointsToShow = [];
 
-        // Ambil list point dari dataPoints (Hardcoded)
+        // Ambil list point dari dataPoints (Hardcoded) jika ada
         if (dataPoints[selectedArea]) {
             pointsToShow = dataPoints[selectedArea].sort();
         } else {
-            // Fallback: ambil dari spreadsheet
+            // Fallback: ambil unik dari spreadsheet jika area tidak dikenal
+            const fArea = clean(selectedArea);
             pointsToShow = [...new Set(allDataBP
-                .filter(item => clean(item.area) === clean(selectedArea))
+                .filter(item => {
+                    const iArea = clean(item.area);
+                    return iArea.includes(fArea) || fArea.includes(iArea);
+                })
                 .map(item => item.point)
             )].sort();
         }
@@ -194,11 +215,17 @@ function updatePointOptions(selectedArea) {
         if (userRole === "BM") {
             // BM: Point Terkunci
             const cleanMyPoint = clean(myPoint);
-            const matchedPoint = pointsToShow.find(p => clean(p) === cleanMyPoint || clean(p).includes(cleanMyPoint) || cleanMyPoint.includes(clean(p)));
+            
+            // Cari point yang cocok
+            const matchedPoint = pointsToShow.find(p => {
+                const cleanP = clean(p);
+                return cleanP === cleanMyPoint || cleanP.includes(cleanMyPoint) || cleanMyPoint.includes(cleanP);
+            });
 
             if (matchedPoint) {
                 selPoint.value = matchedPoint;
             } else {
+                // Tambahkan opsi paksa jika tidak ketemu di list
                 let opt = document.createElement('option');
                 opt.value = myPoint;
                 opt.textContent = myPoint;
@@ -207,19 +234,24 @@ function updatePointOptions(selectedArea) {
             }
             selPoint.disabled = true;
             
+            // Auto Load BP untuk BM
             filterBPs(); 
         
         } else {
             // RM & AM: Bisa pilih point
             selPoint.disabled = false;
             
-            // Khusus AM: Auto-select point sendiri
+            // Khusus AM: Auto-select point sendiri jika ada di list
             if(userRole === "AM") {
                 const cleanMyPoint = clean(myPoint);
-                const matchedPoint = pointsToShow.find(p => clean(p) === cleanMyPoint || clean(p).includes(cleanMyPoint) || cleanMyPoint.includes(clean(p)));
+                const matchedPoint = pointsToShow.find(p => {
+                    const cleanP = clean(p);
+                    return cleanP === cleanMyPoint || cleanP.includes(cleanMyPoint) || cleanMyPoint.includes(cleanP);
+                });
+
                 if(matchedPoint) {
                     selPoint.value = matchedPoint;
-                    filterBPs(); 
+                    filterBPs(); // Auto Load BP untuk AM
                 }
             }
         }
@@ -243,32 +275,83 @@ function filterBPs() {
         const fArea = clean(selectedArea);
         const fPoint = clean(selectedPoint);
 
+        console.log("Filtering BP for:", selectedArea, selectedPoint);
+
         const filteredBPs = allDataBP
             .filter(item => {
                 const p_area_clean = clean(item.area);
                 const p_point_clean = clean(item.point);
-                return (p_area_clean.includes(fArea) || fArea.includes(p_area_clean)) &&
-                       (p_point_clean.includes(fPoint) || fPoint.includes(p_point_clean));
+                
+                // Logika pencocokan fleksibel (bolak-balik includes)
+                const matchArea = p_area_clean.includes(fArea) || fArea.includes(p_area_clean);
+                const matchPoint = p_point_clean.includes(fPoint) || fPoint.includes(p_point_clean);
+                
+                return matchArea && matchPoint;
             })
             .map(item => ({ id: item.id, nama: item.nama }))
             .sort((a, b) => a.nama.localeCompare(b.nama));
 
+        // Isi Dropdown
+        selBP.innerHTML = "";
+        
         if (filteredBPs.length > 0) {
+            let defaultOpt = document.createElement('option');
+            defaultOpt.value = "";
+            defaultOpt.textContent = `Pilih BP (${filteredBPs.length} ditemukan)`;
+            selBP.appendChild(defaultOpt);
+
             filteredBPs.forEach(bp => {
                 let opt = document.createElement('option');
                 opt.value = bp.id;
                 opt.textContent = bp.nama;
                 selBP.appendChild(opt);
             });
-            selBP.disabled = false;
+            selBP.disabled = false; // AKTIFKAN DROPDOWN
         } else {
-            selBP.innerHTML = '<option value="">-- Tidak ada BP --</option>';
-            selBP.disabled = true;
+            let opt = document.createElement('option');
+            opt.value = "";
+            opt.textContent = "-- Tidak ada BP ditemukan --";
+            selBP.appendChild(opt);
+            selBP.disabled = true; // Nonaktifkan jika kosong
+            
+            // Opsional: Cek console untuk debug
+            console.warn("Tidak ada BP yang cocok dengan Area/Point ini di Spreadsheet.");
         }
     }
 }
 
-// --- FUNGSI UTAMA LOAD DATA ---
+// --- HELPER FUNCTIONS ---
+
+// Fungsi Clean: Hapus spasi & simbol, lowercase
+function clean(str) {
+    if (!str) return "";
+    return String(str).toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function populateSelect(element, items, defaultText = "") {
+    element.innerHTML = ""; 
+    if (defaultText) {
+        element.innerHTML = `<option value="">${defaultText}</option>`;
+    }
+    items.forEach(item => {
+        let opt = document.createElement('option');
+        opt.value = item;
+        opt.textContent = item;
+        element.appendChild(opt);
+    });
+}
+
+function applyFilterTrigger() {
+    const selBP = document.getElementById('selBP');
+    const selectedId = selBP.value;
+
+    if (selectedId) {
+        fetchPerformData(selectedId);
+    } else {
+        alert("Silakan pilih Nama BP terlebih dahulu.");
+    }
+}
+
 async function fetchPerformData(targetId) {
     document.getElementById('loading').style.display = 'block';
     document.getElementById('dataContent').style.display = 'none';
@@ -299,15 +382,6 @@ async function fetchPerformData(targetId) {
     }
 }
 
-function applyFilterTrigger() {
-    const selBP = document.getElementById('selBP');
-    if (selBP && selBP.value) {
-        fetchPerformData(selBP.value);
-    } else {
-        alert("Silakan pilih Nama BP terlebih dahulu.");
-    }
-}
-
 function renderData(data) {
     document.getElementById('loading').style.display = 'none';
     document.getElementById('dataContent').style.display = 'block';
@@ -321,25 +395,6 @@ function renderData(data) {
     setText('bulananSos', data.bulanan.sosialisasi);
     setText('bulananColLoan', data.bulanan.col_loan);
     setText('bulananColAmt', formatRupiah(data.bulanan.col_amount));
-}
-
-// --- HELPER FUNCTIONS ---
-function clean(str) {
-    if (!str) return "";
-    return String(str).toLowerCase().replace(/[^a-z0-9]/g, "");
-}
-
-function populateSelect(element, items, defaultText = "") {
-    element.innerHTML = ""; 
-    if (defaultText) {
-        element.innerHTML = `<option value="">${defaultText}</option>`;
-    }
-    items.forEach(item => {
-        let opt = document.createElement('option');
-        opt.value = item;
-        opt.textContent = item;
-        element.appendChild(opt);
-    });
 }
 
 function setText(id, text) {
