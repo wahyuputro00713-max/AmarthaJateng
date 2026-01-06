@@ -16,25 +16,49 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// GANTI DENGAN URL DEPLOYMENT TERBARU ANDA
+// URL APPS SCRIPT (Pastikan sudah Deploy New Version)
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyUDAYfm4Z02DbO_PHUuaEMoiP6uTJoza5XytvB86h6Msq7rXIZ_0sYOUGYOPfz_i9GJA/exec";
 
+// --- DATA STRUKTUR AREA & POINT (Sesuai closing_point.js) ---
+const dataPoints = {
+    "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucuk"],
+    "Magelang": ["Grabag", "Mungkid", "Pakis", "Salam"],
+    "Solo": ["Banjarsari", "Gemolong", "Masaran", "Tangen"],
+    "Solo 2": ["Gatak", "Jumantono", "Karanganyar", "Nguter", "Pasar Kliwon"],
+    "Yogyakarta": ["01 Sleman", "Kalasan", "Ngaglik", "Umbulharjo"],
+    "Yogyakarta 2": ["01 Pandak", "01 Pengasih", "01 Pleret", "Kutoarjo", "Purworejo", "Saptosari"],
+    "Wonogiri": ["Jatisrono", "Ngadirojo", "Ngawen 2", "Pracimantoro", "Wonosari"]
+};
+
 // Global Variables
-let allDataBP = []; // Data master dari spreadsheet (utk isi dropdown)
-let userRole = "";  // Role dari Firebase
-let myArea = "";    // Area dari Firebase
-let myPoint = "";   // Point dari Firebase
+let allDataBP = []; // Data BP (Orang) dari Spreadsheet
+let userRole = "";  
+let myArea = "";    
+let myPoint = "";   
 
 document.addEventListener("DOMContentLoaded", () => {
-    // Event Listener Dropdown
+    // Event Listener Filter
     const selArea = document.getElementById('selArea');
     const selPoint = document.getElementById('selPoint');
     
-    if(selArea) selArea.addEventListener('change', filterPoints);
-    if(selPoint) selPoint.addEventListener('change', filterBPs);
+    // Cascading: Ganti Area -> Update Point
+    if(selArea) {
+        selArea.addEventListener('change', () => {
+            updatePointOptions(selArea.value);
+        });
+    }
 
+    // Cascading: Ganti Point -> Update BP
+    if(selPoint) {
+        selPoint.addEventListener('change', () => {
+            filterBPs();
+        });
+    }
+
+    // Tombol Tampilkan
     window.applyFilter = applyFilterTrigger; 
 
+    // Cek Login
     onAuthStateChanged(auth, (user) => {
         if (user) {
             checkUserAndRole(user.uid);
@@ -44,7 +68,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 });
 
-// 1. Cek Data User Langsung dari Firebase
+// 1. Cek User & Role dari Firebase
 async function checkUserAndRole(uid) {
     try {
         const userRef = ref(db, 'users/' + uid);
@@ -53,22 +77,20 @@ async function checkUserAndRole(uid) {
         if (snapshot.exists()) {
             const userData = snapshot.val();
             
-            // Baca data Jabatan, Area, dan Point DARI FIREBASE
+            // Ambil Jabatan, Area, Point
             const rawJabatan = userData.jabatan ? String(userData.jabatan).toUpperCase() : "";
             
-            // Tentukan Role
             if (rawJabatan.includes("RM")) userRole = "RM";
             else if (rawJabatan.includes("AM")) userRole = "AM";
             else if (rawJabatan.includes("BM")) userRole = "BM";
-            else userRole = "BP"; // Default
+            else userRole = "BP"; 
 
-            // Simpan Area & Point User (untuk locking filter nanti)
             myArea = userData.area || "";   
             myPoint = userData.point || ""; 
 
-            console.log(`Login sebagai: ${userRole} | Area: ${myArea} | Point: ${myPoint}`);
+            console.log(`Role: ${userRole} | Area: ${myArea} | Point: ${myPoint}`);
 
-            // Ambil Data Master (Semua BP) dari Spreadsheet untuk mengisi dropdown
+            // Ambil Data Master BP (Orang) dari Spreadsheet
             fetchDropdownData(userData.idKaryawan);
 
         } else {
@@ -79,7 +101,7 @@ async function checkUserAndRole(uid) {
     }
 }
 
-// 2. Ambil Opsi Dropdown dari Spreadsheet
+// 2. Ambil Data BP dari Spreadsheet
 async function fetchDropdownData(myIdKaryawan) {
     try {
         const response = await fetch(SCRIPT_URL, {
@@ -92,12 +114,12 @@ async function fetchDropdownData(myIdKaryawan) {
         const result = await response.json();
 
         if (result.result === "success") {
-            allDataBP = result.data;
+            allDataBP = result.data; // Simpan data BP
             
-            // Setup Tampilan
+            // Setup Tampilan Filter
             setupFilterUI();
 
-            // Jika dia BP biasa (Bukan Manager), langsung load datanya sendiri
+            // Jika BP biasa, langsung load data dia
             if (userRole === "BP") {
                 fetchPerformData(myIdKaryawan);
             }
@@ -110,90 +132,106 @@ async function fetchDropdownData(myIdKaryawan) {
     }
 }
 
-// 3. Atur Filter Logic Berdasarkan Role Firebase
+// 3. Setup Filter UI (Menggunakan dataPoints Hardcoded)
 function setupFilterUI() {
     const filterContainer = document.getElementById('filterContainer');
     const selArea = document.getElementById('selArea');
 
-    // Default: Sembunyikan Filter
     filterContainer.style.display = "none";
 
-    // Hanya Tampilkan Filter jika RM, AM, atau BM
+    // Hanya Manager (RM, AM, BM) yang lihat filter
     if (["RM", "AM", "BM"].includes(userRole)) {
         filterContainer.style.display = "block";
         
-        // Ambil list semua Area unik dari Spreadsheet untuk opsi select
-        const uniqueAreas = [...new Set(allDataBP.map(item => item.area))].sort();
+        // Ambil Daftar Area dari dataPoints (Hardcoded) agar rapi
+        const areaList = Object.keys(dataPoints).sort();
 
         // --- LOGIC AREA ---
         if (userRole === "RM") {
-            // RM: BISA PILIH SEMUA AREA
-            populateSelect(selArea, uniqueAreas);
+            // RM: Bisa pilih semua Area
+            populateSelect(selArea, areaList, "Pilih Area...");
             selArea.disabled = false;
         
         } else {
-            // AM & BM: AREA TERKUNCI sesuai data Firebase
-            // Tampilkan hanya area dia sendiri di dropdown
-            populateSelect(selArea, [myArea]); 
-            selArea.value = myArea;
-            selArea.disabled = true; // Disabled agar tidak bisa ganti
+            // AM & BM: Area Terkunci (Sesuai Firebase)
+            // Cek apakah area user ada di daftar dataPoints
+            if (areaList.includes(myArea)) {
+                populateSelect(selArea, [myArea]); 
+                selArea.value = myArea;
+            } else {
+                // Fallback jika nama area di firebase beda dikit, tampilkan apa adanya
+                populateSelect(selArea, [myArea]); 
+                selArea.value = myArea;
+            }
+            selArea.disabled = true;
         }
 
-        // Trigger logic selanjutnya (Point)
-        filterPoints(); 
+        // Trigger update Point
+        updatePointOptions(selArea.value);
     }
 }
 
-// 4. Logic Filter Point (Cascading)
-function filterPoints() {
-    const selArea = document.getElementById('selArea');
+// 4. Update Dropdown Point (Berdasarkan Area yang dipilih)
+function updatePointOptions(selectedArea) {
     const selPoint = document.getElementById('selPoint');
     
-    if(!selArea || !selPoint) return;
-    const selectedArea = selArea.value;
-
     // Reset Point
     selPoint.innerHTML = '<option value="">Pilih Point...</option>';
     selPoint.disabled = true;
+    
+    // Reset BP juga
+    const selBP = document.getElementById('selBP');
+    if(selBP) {
+        selBP.innerHTML = '<option value="">Pilih BP...</option>';
+        selBP.disabled = true;
+    }
 
     if (selectedArea) {
-        // Ambil Point yang ada di Area terpilih (dari data master)
-        const filteredPoints = [...new Set(allDataBP
-            .filter(item => item.area === selectedArea)
-            .map(item => item.point)
-        )].sort();
+        let pointsToShow = [];
 
-        populateSelect(selPoint, filteredPoints);
+        // Ambil list point dari dataPoints (Hardcoded)
+        if (dataPoints[selectedArea]) {
+            pointsToShow = dataPoints[selectedArea].sort();
+        } else {
+            // Jika area tidak ada di hardcoded (misal typo di firebase), 
+            // coba cari dari data spreadsheet (fallback)
+            pointsToShow = [...new Set(allDataBP
+                .filter(item => item.area === selectedArea)
+                .map(item => item.point)
+            )].sort();
+        }
+
+        populateSelect(selPoint, pointsToShow, "Pilih Point...");
 
         // --- LOGIC POINT ---
         if (userRole === "BM") {
-            // BM: POINT TERKUNCI sesuai data Firebase
+            // BM: Point Terkunci
             selPoint.value = myPoint;
             selPoint.disabled = true;
+            
+            // Langsung load BP
+            filterBPs(); 
         
         } else {
-            // RM & AM: BISA PILIH POINT
+            // RM & AM: Bisa pilih point
             selPoint.disabled = false;
             
-            // Khusus AM, jika ingin default terpilih pointnya sendiri (opsional):
-            if(userRole === "AM" && filteredPoints.includes(myPoint)) {
+            // Khusus AM: Auto-select point sendiri jika ada di list
+            if(userRole === "AM" && pointsToShow.includes(myPoint)) {
                 selPoint.value = myPoint;
+                // Langsung load BP
+                filterBPs();
             }
         }
-        
-        // Lanjut ke filter BP
-        filterBPs();
     }
 }
 
-// 5. Logic Filter BP (Cascading)
+// 5. Filter BP (Berdasarkan Area & Point yang dipilih)
 function filterBPs() {
     const selArea = document.getElementById('selArea');
     const selPoint = document.getElementById('selPoint');
     const selBP = document.getElementById('selBP');
     
-    if(!selArea || !selPoint || !selBP) return;
-
     const selectedArea = selArea.value;
     const selectedPoint = selPoint.value;
 
@@ -202,9 +240,21 @@ function filterBPs() {
     selBP.disabled = true;
 
     if (selectedArea && selectedPoint) {
-        // Cari BP di Area & Point tersebut
+        // Cari Nama BP dari data Spreadsheet (allDataBP)
+        // Kita cocokan Area & Point. 
+        // Note: Kita gunakan .includes() atau clean string agar lebih flexible 
+        // jika ada perbedaan spasi antara hardcoded vs spreadsheet.
+        
         const filteredBPs = allDataBP
-            .filter(item => item.area === selectedArea && item.point === selectedPoint)
+            .filter(item => {
+                // Normalisasi string (hapus spasi, lowercase) utk perbandingan aman
+                const dataArea = cleanStr(item.area);
+                const dataPoint = cleanStr(item.point);
+                const selAreaClean = cleanStr(selectedArea);
+                const selPointClean = cleanStr(selectedPoint);
+                
+                return dataArea === selAreaClean && dataPoint === selPointClean;
+            })
             .map(item => ({ id: item.id, nama: item.nama }))
             .sort((a, b) => a.nama.localeCompare(b.nama));
 
@@ -216,12 +266,23 @@ function filterBPs() {
             selBP.appendChild(opt);
         });
 
-        // Semua Manager (RM, AM, BM) bisa memilih nama BP
         selBP.disabled = false; 
     }
 }
 
-function populateSelect(element, items) {
+// Helper: Bersihkan string untuk perbandingan
+function cleanStr(str) {
+    return String(str || "").toLowerCase().replace(/\s+/g, '').trim();
+}
+
+function populateSelect(element, items, defaultText = "") {
+    // Simpan opsi default (indeks 0) jika ada
+    if (defaultText) {
+        element.innerHTML = `<option value="">${defaultText}</option>`;
+    } else {
+        element.innerHTML = "";
+    }
+
     items.forEach(item => {
         let opt = document.createElement('option');
         opt.value = item;
@@ -232,8 +293,6 @@ function populateSelect(element, items) {
 
 function applyFilterTrigger() {
     const selBP = document.getElementById('selBP');
-    if (!selBP) return;
-    
     const selectedId = selBP.value;
 
     if (selectedId) {
