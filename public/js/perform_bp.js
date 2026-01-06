@@ -16,21 +16,24 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// GANTI DENGAN URL APPS SCRIPT ANDA (PASTIKAN DIAKHIRI /exec)
+// URL APPS SCRIPT (PASTIKAN INI BENAR)
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyUDAYfm4Z02DbO_PHUuaEMoiP6uTJoza5XytvB86h6Msq7rXIZ_0sYOUGYOPfz_i9GJA/exec";
 
-// Global Variable untuk menyimpan data master
+// Global Variables
 let allDataBP = []; 
 let userRole = ""; 
 let myArea = "";
 let myPoint = "";
 
 document.addEventListener("DOMContentLoaded", () => {
-    // Event Listener untuk Dropdown Cascading
-    document.getElementById('selArea').addEventListener('change', filterPoints);
-    document.getElementById('selPoint').addEventListener('change', filterBPs);
+    // Event Listeners Filter
+    const areaSelect = document.getElementById('selArea');
+    const pointSelect = document.getElementById('selPoint');
+    
+    if(areaSelect) areaSelect.addEventListener('change', filterPoints);
+    if(pointSelect) pointSelect.addEventListener('change', filterBPs);
 
-    // Agar fungsi applyFilter bisa dipanggil dari HTML onclick
+    // Bind function ke window agar bisa dipanggil onclick di HTML
     window.applyFilter = applyFilterTrigger; 
 
     onAuthStateChanged(auth, (user) => {
@@ -52,16 +55,16 @@ async function checkUserAccess(uid) {
             const idKaryawan = userData.idKaryawan;
 
             if (idKaryawan) {
-                // Ambil Data Master Dropdown Sekaligus Profil User
+                // Ambil Data Master & Profil
                 fetchMasterData(idKaryawan);
             } else {
-                showError("ID Karyawan tidak terdaftar di Database User.");
+                showError("ID Karyawan tidak terdaftar di database Users Firebase.");
             }
         } else {
-            showError("User tidak ditemukan.");
+            showError("User tidak ditemukan di Firebase.");
         }
     } catch (err) {
-        showError("Error Auth: " + err.message);
+        showError("Gagal Auth: " + err.message);
     }
 }
 
@@ -74,12 +77,21 @@ async function fetchMasterData(myId) {
             headers: { "Content-Type": "text/plain;charset=utf-8" }
         });
 
-        const result = await response.json();
+        // Debugging: Cek jika response bukan JSON (biasanya error HTML dari Google)
+        const text = await response.text();
+        let result;
+        try {
+            result = JSON.parse(text);
+        } catch (e) {
+            console.error("Response bukan JSON:", text);
+            showError("Terjadi kesalahan server (Invalid JSON). Cek Deployment Apps Script.");
+            return;
+        }
 
         if (result.result === "success") {
             allDataBP = result.data;
             
-            // Cari Data Diri Sendiri di List
+            // Cari Profil User yang Login di Data Spreadsheet
             const myProfile = allDataBP.find(item => String(item.id) === String(myId));
 
             if (myProfile) {
@@ -87,52 +99,51 @@ async function fetchMasterData(myId) {
                 myArea = myProfile.area;
                 myPoint = myProfile.point;
 
-                // Set Logic Filter Berdasarkan Jabatan
-                setupFilterUI();
+                console.log("Role:", userRole, "Area:", myArea);
 
-                // Load Data Awal (Diri Sendiri)
-                fetchPerformData(myId); 
+                setupFilterUI();
+                fetchPerformData(myId); // Load data awal diri sendiri
 
             } else {
-                // Jika ID tidak ada di sheet BP, asumsi dia BP biasa yang datanya belum masuk sheet BP
-                showError("Data Anda tidak ditemukan di Sheet BP. Hubungi Admin.");
+                // Jika ID user tidak ada di spreadsheet BP, tampilkan error atau load data performa saja (jika ada)
+                showError("ID Anda (" + myId + ") tidak ditemukan di Sheet BP. Hubungi Admin.");
             }
         } else {
-            showError("Gagal mengambil data master filter.");
+            showError("Gagal mengambil data master: " + result.message);
         }
     } catch (e) {
         console.error(e);
-        showError("Koneksi bermasalah saat ambil data.");
+        showError("Koneksi Error saat ambil data master.");
     }
 }
 
 function setupFilterUI() {
     const filterContainer = document.getElementById('filterContainer');
     const selArea = document.getElementById('selArea');
-    const selPoint = document.getElementById('selPoint');
     
-    // Cek Role untuk Menampilkan Filter
+    // Default sembunyi
+    filterContainer.style.display = "none";
+
+    // Hanya munculkan filter untuk Role tertentu
     if (["RM", "AM", "BM"].includes(userRole)) {
-        filterContainer.style.display = "block"; // Munculkan Box Filter
+        filterContainer.style.display = "block";
         
-        // Ambil Unique Areas
+        // Ambil list area unik
         const uniqueAreas = [...new Set(allDataBP.map(item => item.area))].sort();
         
-        // 1. LOGIC AREA
         if (userRole === "RM") {
-            // RM: Bebas Pilih Area
+            // RM: Akses Semua Area
             populateSelect(selArea, uniqueAreas);
             selArea.value = myArea; // Default select area sendiri
             selArea.disabled = false;
-        
         } else {
             // AM & BM: Area Terkunci
-            populateSelect(selArea, [myArea]); // Isi cuma 1 opsi
+            populateSelect(selArea, [myArea]);
             selArea.value = myArea;
             selArea.disabled = true; 
         }
 
-        // Trigger update dropdown selanjutnya
+        // Jalankan rantai filter selanjutnya
         filterPoints(); 
     }
 }
@@ -140,6 +151,10 @@ function setupFilterUI() {
 function filterPoints() {
     const selArea = document.getElementById('selArea');
     const selPoint = document.getElementById('selPoint');
+    
+    // Safety check
+    if(!selArea || !selPoint) return;
+
     const selectedArea = selArea.value;
 
     // Reset Point
@@ -147,7 +162,7 @@ function filterPoints() {
     selPoint.disabled = true;
 
     if (selectedArea) {
-        // Ambil points di area terpilih
+        // Filter point sesuai area
         const filteredPoints = [...new Set(allDataBP
             .filter(item => item.area === selectedArea)
             .map(item => item.point)
@@ -155,20 +170,20 @@ function filterPoints() {
 
         populateSelect(selPoint, filteredPoints);
 
-        // 2. LOGIC POINT
         if (userRole === "BM") {
             // BM: Point Terkunci
             selPoint.value = myPoint;
             selPoint.disabled = true;
         } else {
-            // RM & AM: Bebas Pilih Point (di Area tsb)
+            // RM & AM: Bisa pilih point
             selPoint.disabled = false;
-            // Jika AM, default select point sendiri (opsional)
-            if(userRole === "AM" && filteredPoints.includes(myPoint)) {
-                selPoint.value = myPoint; 
+            // Auto select jika point sendiri ada di list
+            if(filteredPoints.includes(myPoint)) {
+               selPoint.value = myPoint; 
             }
         }
 
+        // Jalankan rantai filter selanjutnya
         filterBPs();
     }
 }
@@ -178,6 +193,8 @@ function filterBPs() {
     const selPoint = document.getElementById('selPoint');
     const selBP = document.getElementById('selBP');
     
+    if(!selArea || !selPoint || !selBP) return;
+
     const selectedArea = selArea.value;
     const selectedPoint = selPoint.value;
 
@@ -186,13 +203,13 @@ function filterBPs() {
     selBP.disabled = true;
 
     if (selectedArea && selectedPoint) {
-        // Ambil BP di Area & Point terpilih
+        // Filter BP sesuai Area & Point
         const filteredBPs = allDataBP
             .filter(item => item.area === selectedArea && item.point === selectedPoint)
             .map(item => ({ id: item.id, nama: item.nama }))
             .sort((a, b) => a.nama.localeCompare(b.nama));
 
-        // Isi Dropdown (Value=ID, Text=Nama)
+        // Isi Dropdown BP
         filteredBPs.forEach(bp => {
             let opt = document.createElement('option');
             opt.value = bp.id;
@@ -200,8 +217,7 @@ function filterBPs() {
             selBP.appendChild(opt);
         });
 
-        // 3. LOGIC BP: Semua role (RM, AM, BM) bisa pilih BP
-        selBP.disabled = false; 
+        selBP.disabled = false; // Enable agar bisa dipilih
     }
 }
 
@@ -216,6 +232,8 @@ function populateSelect(element, items) {
 
 function applyFilterTrigger() {
     const selBP = document.getElementById('selBP');
+    if (!selBP) return;
+
     const selectedId = selBP.value;
 
     if (selectedId) {
@@ -226,7 +244,6 @@ function applyFilterTrigger() {
 }
 
 async function fetchPerformData(targetId) {
-    // UI Loading
     document.getElementById('loading').style.display = 'block';
     document.getElementById('dataContent').style.display = 'none';
     document.getElementById('errorMsg').style.display = 'none';
@@ -247,7 +264,7 @@ async function fetchPerformData(targetId) {
         if (result.result === "success") {
             renderData(result.data);
         } else {
-            showError(result.message || "Data tidak ditemukan.");
+            showError(result.message || "Data performa tidak ditemukan.");
         }
 
     } catch (error) {
@@ -260,24 +277,33 @@ function renderData(data) {
     document.getElementById('loading').style.display = 'none';
     document.getElementById('dataContent').style.display = 'block';
 
-    document.getElementById('displayNama').innerText = data.nama || "-";
-    document.getElementById('displayJabatan').innerText = data.jabatan || "-";
-    document.getElementById('valPoint').innerText = data.point || "0";
+    setText('displayNama', data.nama);
+    setText('displayJabatan', data.jabatan);
+    setText('valPoint', data.point);
 
-    document.getElementById('harianSos').innerText = data.harian.sosialisasi || "0";
-    document.getElementById('harianColLoan').innerText = data.harian.col_loan || "0";
-    document.getElementById('harianColAmt').innerText = formatRupiah(data.harian.col_amount);
+    setText('harianSos', data.harian.sosialisasi);
+    setText('harianColLoan', data.harian.col_loan);
+    setText('harianColAmt', formatRupiah(data.harian.col_amount));
 
-    document.getElementById('bulananSos').innerText = data.bulanan.sosialisasi || "0";
-    document.getElementById('bulananColLoan').innerText = data.bulanan.col_loan || "0";
-    document.getElementById('bulananColAmt').innerText = formatRupiah(data.bulanan.col_amount);
+    setText('bulananSos', data.bulanan.sosialisasi);
+    setText('bulananColLoan', data.bulanan.col_loan);
+    setText('bulananColAmt', formatRupiah(data.bulanan.col_amount));
+}
+
+// Helper aman agar tidak error jika elemen tidak ada
+function setText(id, text) {
+    const el = document.getElementById(id);
+    if(el) el.innerText = (text === undefined || text === null || text === "") ? "-" : text;
 }
 
 function showError(msg) {
-    document.getElementById('loading').style.display = 'none';
+    const loading = document.getElementById('loading');
     const errDiv = document.getElementById('errorMsg');
-    errDiv.style.display = 'block';
-    errDiv.innerText = msg;
+    if(loading) loading.style.display = 'none';
+    if(errDiv) {
+        errDiv.style.display = 'block';
+        errDiv.innerText = msg;
+    }
 }
 
 function formatRupiah(angka) {
