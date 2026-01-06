@@ -97,7 +97,6 @@ function getLocalTodayDate() {
     const day = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`; 
 }
-// -----------------------------------
 
 if (ui.pointSelect) {
     ui.pointSelect.addEventListener('change', function() {
@@ -126,7 +125,7 @@ onAuthStateChanged(auth, (user) => {
 
 // FUNGSI CEK STATUS (Updated)
 async function checkIfAlreadyAbsent(uid) {
-    const today = getLocalTodayDate(); // Pakai Fungsi Tanggal Lokal
+    const today = getLocalTodayDate(); 
     const absensiRef = ref(db, `absensi/${today}/${uid}`);
     try {
         const snapshot = await get(absensiRef);
@@ -257,7 +256,38 @@ function updateTombol() {
     }
 }
 
-// Submit Logic
+// --- NEW: FUNGSI KOMPRESI GAMBAR ---
+// Ini akan mengubah ukuran gambar max 800px dan kualitas 60%
+// Membuat upload jauh lebih cepat.
+async function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+
+                if (width > maxWidth) {
+                    height *= maxWidth / width;
+                    width = maxWidth;
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
+// Preview Gambar
 ui.fotoInput.addEventListener('change', function() {
     const file = this.files[0];
     if(file) {
@@ -269,6 +299,7 @@ ui.fotoInput.addEventListener('change', function() {
     }
 });
 
+// SUBMIT FORM
 document.getElementById('absensiForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!ui.fotoInput.files[0]) { alert("Wajib Foto Selfie!"); return; }
@@ -278,8 +309,10 @@ document.getElementById('absensiForm').addEventListener('submit', async (e) => {
 
     try {
         const file = ui.fotoInput.files[0];
-        const base64 = await toBase64(file);
-        const today = getLocalTodayDate(); // Pakai Fungsi Tanggal Lokal
+        
+        // --- UPDATE: GUNAKAN KOMPRESI ---
+        const base64 = await compressImage(file); 
+        const today = getLocalTodayDate(); 
 
         const formData = {
             jenisLaporan: "Absensi",
@@ -290,9 +323,10 @@ document.getElementById('absensiForm').addEventListener('submit', async (e) => {
             tanggal: today,
             jamAbsen: ui.jam.textContent,
             geotag: document.getElementById('geotagInput').value,
+            // Hapus prefix data:image/... sebelum kirim
             foto: base64.replace(/^data:image\/(png|jpeg|jpg);base64,/, ""),
             namaFoto: `Absen_${ui.nama.value}.jpg`,
-            mimeType: file.type
+            mimeType: "image/jpeg" // Selalu jpeg karena hasil kompresi
         };
 
         const response = await fetch(SCRIPT_URL, { 
@@ -307,7 +341,7 @@ document.getElementById('absensiForm').addEventListener('submit', async (e) => {
         if (result.result === 'success') {
             const user = auth.currentUser;
             if (user) {
-                // SIMPAN KE FIREBASE DENGAN TANGGAL LOKAL
+                // SIMPAN KE FIREBASE
                 await set(ref(db, `absensi/${today}/${user.uid}`), {
                     timestamp: new Date().toISOString(),
                     nama: ui.nama.value,
@@ -325,11 +359,4 @@ document.getElementById('absensiForm').addEventListener('submit', async (e) => {
     } finally { 
         loadingOverlay.style.display = 'none'; 
     }
-});
-
-const toBase64 = file => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = error => reject(error);
 });
