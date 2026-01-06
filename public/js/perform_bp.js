@@ -17,7 +17,7 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 // URL APPS SCRIPT
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyUDAYfm4Z02DbO_PHUuaEMoiP6uTJoza5XytvB86h6Msq7rXIZ_0sYOUGYOPfz_i9GJA/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzDMA8WmDpIEn0nx5-iHCXSYIc0pxCwPmPXRLASIyUmR4qAJzEzNONSt4mM-iL3HUt2NA/exec";
 
 // --- DATA STRUKTUR AREA & POINT (Sama persis dengan closing_point.js) ---
 const dataPoints = {
