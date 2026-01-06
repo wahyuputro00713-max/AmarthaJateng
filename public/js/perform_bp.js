@@ -17,7 +17,7 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 // GANTI DENGAN URL APPS SCRIPT ANDA (PASTIKAN DIAKHIRI /exec)
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw0OVIz6dm8SRQCQ7eYoQsYPl-uRoeSDyPcWy_T0EvrFg0fxOhpwtZmYgl8Tc8_WRA1kg/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyUDAYfm4Z02DbO_PHUuaEMoiP6uTJoza5XytvB86h6Msq7rXIZ_0sYOUGYOPfz_i9GJA/exec";
 
 // Global Variable untuk menyimpan data master
 let allDataBP = []; 
