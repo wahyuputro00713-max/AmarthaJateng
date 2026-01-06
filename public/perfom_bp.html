@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Perform BP - Amartha</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="icon" type="image/png" href="assets/amarthalogo.png">
+    
+    <style>
+        body {
+            background-color: #f0f2f5;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding-bottom: 80px; /* Space for footer/content */
+        }
+        
+        /* Header Gradient ala Amartha */
+        .perform-header {
+            background: linear-gradient(135deg, #6a1b9a, #8e44ad);
+            padding: 25px 20px 40px;
+            color: white;
+            border-bottom-left-radius: 30px;
+            border-bottom-right-radius: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        
+        .header-top {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .back-btn {
+            color: white;
+            font-size: 20px;
+            text-decoration: none;
+            margin-right: 15px;
+            width: 40px; height: 40px;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            backdrop-filter: blur(5px);
+        }
+
+        .user-info h2 {
+            font-size: 20px; font-weight: bold; margin: 0;
+        }
+        .user-info p {
+            font-size: 12px; margin: 0; opacity: 0.9;
+        }
+
+        /* Container Kartu yang Overlap Header */
+        .content-container {
+            padding: 0 15px;
+            margin-top: -30px;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Kartu Summary Point */
+        .point-card {
+            background: white;
+            border-radius: 15px;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }
+        .point-label { font-size: 12px; color: #666; font-weight: 600; text-transform: uppercase; }
+        .point-value { font-size: 24px; font-weight: 800; color: #f39c12; }
+
+        /* Section Title */
+        .section-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #444;
+            margin: 15px 5px 10px;
+            border-left: 4px solid #8e44ad;
+            padding-left: 10px;
+        }
+
+        /* Kartu Data (Grid Layout) */
+        .metric-card {
+            background: white;
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+            border: 1px solid rgba(0,0,0,0.02);
+        }
+
+        .metric-header {
+            display: flex; align-items: center; margin-bottom: 15px;
+            border-bottom: 1px solid #eee; padding-bottom: 10px;
+        }
+        .metric-icon {
+            width: 35px; height: 35px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            color: white; margin-right: 10px; font-size: 16px;
+        }
+        .metric-title { font-weight: bold; color: #333; font-size: 14px; }
+
+        .data-row {
+            display: flex; justify-content: space-between; margin-bottom: 12px;
+        }
+        .data-row:last-child { margin-bottom: 0; }
+        
+        .data-label { font-size: 12px; color: #777; }
+        .data-val { font-size: 14px; font-weight: 600; color: #333; }
+        .data-val.money { color: #27ae60; } /* Hijau untuk uang */
+
+        /* Badge Harian/Bulanan */
+        .badge-period {
+            font-size: 10px; padding: 3px 8px; border-radius: 10px;
+            margin-left: auto; font-weight: bold;
+        }
+        .badge-harian { background: #e3f2fd; color: #1976d2; }
+        .badge-bulanan { background: #e8f5e9; color: #2e7d32; }
+
+        /* Loading & Error */
+        .loading-state { text-align: center; padding: 40px; color: #666; }
+        .error-state { text-align: center; padding: 20px; color: #e74c3c; background: #fce4ec; border-radius: 10px; display: none;}
+        
+        .refresh-btn {
+            display: block; width: 100%; border: none; background: #8e44ad; color: white;
+            padding: 12px; border-radius: 12px; font-weight: bold; margin-top: 20px;
+            box-shadow: 0 4px 10px rgba(142, 68, 173, 0.3);
+        }
+        .refresh-btn:active { transform: scale(0.98); }
+    </style>
+</head>
+<body>
+
+    <div class="perform-header">
+        <div class="header-top">
+            <a href="home.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
+            <div class="user-info">
+                <p>Performansi BP</p>
+                <h2 id="displayNama">Memuat...</h2>
+                <p id="displayJabatan" style="font-size: 11px; margin-top: 2px;">-</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-container">
+        
+        <div class="point-card">
+            <div>
+                <div class="point-label">Total Poin</div>
+                <div style="font-size:10px; color:#999;">Update Realtime</div>
+            </div>
+            <div class="point-value" id="valPoint">-</div>
+        </div>
+
+        <div id="loading" class="loading-state">
+            <i class="fa-solid fa-circle-notch fa-spin fa-2x" style="color: #8e44ad;"></i>
+            <p style="margin-top:10px;">Mengambil Data...</p>
+        </div>
+
+        <div id="errorMsg" class="error-state"></div>
+
+        <div id="dataContent" style="display: none;">
+            
+            <div class="section-title">CAPAIAN HARI INI</div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-icon" style="background: #3498db;"><i class="fa-solid fa-users"></i></div>
+                    <div class="metric-title">Sosialisasi</div>
+                    <span class="badge-period badge-harian">Harian</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Jumlah Sosialisasi</span>
+                    <span class="data-val" id="harianSos">-</span>
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-icon" style="background: #2ecc71;"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+                    <div class="metric-title">Collection</div>
+                    <span class="badge-period badge-harian">Harian</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Akun (Loan)</span>
+                    <span class="data-val" id="harianColLoan">-</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Nominal (Amount)</span>
+                    <span class="data-val money" id="harianColAmt">-</span>
+                </div>
+            </div>
+
+
+            <div class="section-title">CAPAIAN BULAN INI</div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-icon" style="background: #9b59b6;"><i class="fa-solid fa-bullhorn"></i></div>
+                    <div class="metric-title">Sosialisasi</div>
+                    <span class="badge-period badge-bulanan">Bulanan</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Total Sosialisasi</span>
+                    <span class="data-val" id="bulananSos">-</span>
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-icon" style="background: #e67e22;"><i class="fa-solid fa-sack-dollar"></i></div>
+                    <div class="metric-title">Collection</div>
+                    <span class="badge-period badge-bulanan">Bulanan</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Total Akun (Loan)</span>
+                    <span class="data-val" id="bulananColLoan">-</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Total Nominal</span>
+                    <span class="data-val money" id="bulananColAmt">-</span>
+                </div>
+            </div>
+
+            <button class="refresh-btn" onclick="location.reload()">
+                <i class="fa-solid fa-rotate-right me-2"></i> Refresh Data
+            </button>
+            
+            <div style="text-align: center; margin-top: 20px; color: #aaa; font-size: 10px;">
+                Data bersumber dari Spreadsheet BP
+            </div>
+
+        </div>
+    </div>
+
+    <script type="module" src="js/perform_bp.js"></script>
+
+</body>
+</html>
