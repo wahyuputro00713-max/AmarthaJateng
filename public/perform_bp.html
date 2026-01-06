@@ -12,10 +12,9 @@
         body {
             background-color: #f0f2f5;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            padding-bottom: 80px; /* Space for footer/content */
+            padding-bottom: 80px; 
         }
         
-        /* Header Gradient ala Amartha */
         .perform-header {
             background: linear-gradient(135deg, #6a1b9a, #8e44ad);
             padding: 25px 20px 40px;
@@ -26,105 +25,66 @@
             position: relative;
         }
         
-        .header-top {
-            display: flex;
-            align-items: center;
-            margin-bottom: 20px;
-        }
+        .header-top { display: flex; align-items: center; margin-bottom: 20px; }
         
         .back-btn {
-            color: white;
-            font-size: 20px;
-            text-decoration: none;
-            margin-right: 15px;
-            width: 40px; height: 40px;
-            display: flex; align-items: center; justify-content: center;
-            background: rgba(255,255,255,0.2);
-            border-radius: 50%;
-            backdrop-filter: blur(5px);
+            color: white; font-size: 20px; text-decoration: none; margin-right: 15px;
+            width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+            background: rgba(255,255,255,0.2); border-radius: 50%; backdrop-filter: blur(5px);
         }
 
-        .user-info h2 {
-            font-size: 20px; font-weight: bold; margin: 0;
-        }
-        .user-info p {
-            font-size: 12px; margin: 0; opacity: 0.9;
-        }
+        .user-info h2 { font-size: 20px; font-weight: bold; margin: 0; }
+        .user-info p { font-size: 12px; margin: 0; opacity: 0.9; }
 
-        /* Container Kartu yang Overlap Header */
-        .content-container {
-            padding: 0 15px;
-            margin-top: -30px;
-            position: relative;
-            z-index: 10;
-        }
+        .content-container { padding: 0 15px; margin-top: -30px; position: relative; z-index: 10; }
 
-        /* Kartu Summary Point */
+        /* --- CSS FILTER --- */
+        .card-filter {
+            background: white; border-radius: 12px; margin-bottom: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05); overflow: hidden;
+        }
+        .filter-header {
+            background: #f8f9fa; padding: 10px 15px; font-weight: bold; color: #555;
+            border-bottom: 1px solid #eee; font-size: 13px; display: flex; align-items: center;
+        }
+        .filter-body { padding: 15px; }
+        .filter-label { font-size: 11px; color: #888; margin-bottom: 4px; display: block; font-weight: 600;}
+
+        /* --- CSS KARTU DATA --- */
         .point-card {
-            background: white;
-            border-radius: 15px;
-            padding: 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-            margin-bottom: 20px;
+            background: white; border-radius: 15px; padding: 15px; display: flex;
+            justify-content: space-between; align-items: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 20px;
         }
         .point-label { font-size: 12px; color: #666; font-weight: 600; text-transform: uppercase; }
         .point-value { font-size: 24px; font-weight: 800; color: #f39c12; }
 
-        /* Section Title */
         .section-title {
-            font-size: 14px;
-            font-weight: 700;
-            color: #444;
-            margin: 15px 5px 10px;
-            border-left: 4px solid #8e44ad;
-            padding-left: 10px;
+            font-size: 14px; font-weight: 700; color: #444; margin: 15px 5px 10px;
+            border-left: 4px solid #8e44ad; padding-left: 10px;
         }
 
-        /* Kartu Data (Grid Layout) */
         .metric-card {
-            background: white;
-            border-radius: 15px;
-            padding: 15px;
-            margin-bottom: 15px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
-            border: 1px solid rgba(0,0,0,0.02);
+            background: white; border-radius: 15px; padding: 15px; margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03); border: 1px solid rgba(0,0,0,0.02);
         }
-
-        .metric-header {
-            display: flex; align-items: center; margin-bottom: 15px;
-            border-bottom: 1px solid #eee; padding-bottom: 10px;
-        }
+        .metric-header { display: flex; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
         .metric-icon {
-            width: 35px; height: 35px; border-radius: 8px;
-            display: flex; align-items: center; justify-content: center;
+            width: 35px; height: 35px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
             color: white; margin-right: 10px; font-size: 16px;
         }
         .metric-title { font-weight: bold; color: #333; font-size: 14px; }
-
-        .data-row {
-            display: flex; justify-content: space-between; margin-bottom: 12px;
-        }
+        .data-row { display: flex; justify-content: space-between; margin-bottom: 12px; }
         .data-row:last-child { margin-bottom: 0; }
-        
         .data-label { font-size: 12px; color: #777; }
         .data-val { font-size: 14px; font-weight: 600; color: #333; }
-        .data-val.money { color: #27ae60; } /* Hijau untuk uang */
-
-        /* Badge Harian/Bulanan */
-        .badge-period {
-            font-size: 10px; padding: 3px 8px; border-radius: 10px;
-            margin-left: auto; font-weight: bold;
-        }
+        .data-val.money { color: #27ae60; }
+        .badge-period { font-size: 10px; padding: 3px 8px; border-radius: 10px; margin-left: auto; font-weight: bold; }
         .badge-harian { background: #e3f2fd; color: #1976d2; }
         .badge-bulanan { background: #e8f5e9; color: #2e7d32; }
 
-        /* Loading & Error */
         .loading-state { text-align: center; padding: 40px; color: #666; }
         .error-state { text-align: center; padding: 20px; color: #e74c3c; background: #fce4ec; border-radius: 10px; display: none;}
-        
         .refresh-btn {
             display: block; width: 100%; border: none; background: #8e44ad; color: white;
             padding: 12px; border-radius: 12px; font-weight: bold; margin-top: 20px;
@@ -147,7 +107,37 @@
     </div>
 
     <div class="content-container">
-        
+
+        <div id="filterContainer" class="card-filter" style="display:none;">
+            <div class="filter-header">
+                <i class="fa-solid fa-filter me-2" style="color:#8e44ad;"></i> Filter Data
+            </div>
+            <div class="filter-body">
+                <div class="mb-2">
+                    <label class="filter-label">Area</label>
+                    <select id="selArea" class="form-select form-select-sm">
+                        <option value="">Pilih Area...</option>
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <label class="filter-label">Point</label>
+                    <select id="selPoint" class="form-select form-select-sm" disabled>
+                        <option value="">Pilih Point...</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="filter-label">Nama BP</label>
+                    <select id="selBP" class="form-select form-select-sm" disabled>
+                        <option value="">Pilih BP...</option>
+                    </select>
+                </div>
+
+                <button class="btn btn-sm btn-primary w-100" style="background:#8e44ad; border:none;" onclick="applyFilter()">
+                    Tampilkan Data
+                </button>
+            </div>
+        </div>
+
         <div class="point-card">
             <div>
                 <div class="point-label">Total Poin</div>
@@ -194,7 +184,6 @@
                     <span class="data-val money" id="harianColAmt">-</span>
                 </div>
             </div>
-
 
             <div class="section-title">CAPAIAN BULAN INI</div>
 
