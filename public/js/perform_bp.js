@@ -16,59 +16,71 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// URL APPS SCRIPT (PASTIKAN INI BENAR)
+// GANTI DENGAN URL DEPLOYMENT TERBARU ANDA
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyUDAYfm4Z02DbO_PHUuaEMoiP6uTJoza5XytvB86h6Msq7rXIZ_0sYOUGYOPfz_i9GJA/exec";
 
 // Global Variables
-let allDataBP = []; 
-let userRole = ""; 
-let myArea = "";
-let myPoint = "";
+let allDataBP = []; // Data master dari spreadsheet (utk isi dropdown)
+let userRole = "";  // Role dari Firebase
+let myArea = "";    // Area dari Firebase
+let myPoint = "";   // Point dari Firebase
 
 document.addEventListener("DOMContentLoaded", () => {
-    // Event Listeners Filter
-    const areaSelect = document.getElementById('selArea');
-    const pointSelect = document.getElementById('selPoint');
+    // Event Listener Dropdown
+    const selArea = document.getElementById('selArea');
+    const selPoint = document.getElementById('selPoint');
     
-    if(areaSelect) areaSelect.addEventListener('change', filterPoints);
-    if(pointSelect) pointSelect.addEventListener('change', filterBPs);
+    if(selArea) selArea.addEventListener('change', filterPoints);
+    if(selPoint) selPoint.addEventListener('change', filterBPs);
 
-    // Bind function ke window agar bisa dipanggil onclick di HTML
     window.applyFilter = applyFilterTrigger; 
 
     onAuthStateChanged(auth, (user) => {
         if (user) {
-            checkUserAccess(user.uid);
+            checkUserAndRole(user.uid);
         } else {
             window.location.replace("index.html");
         }
     });
 });
 
-async function checkUserAccess(uid) {
+// 1. Cek Data User Langsung dari Firebase
+async function checkUserAndRole(uid) {
     try {
         const userRef = ref(db, 'users/' + uid);
         const snapshot = await get(userRef);
 
         if (snapshot.exists()) {
             const userData = snapshot.val();
-            const idKaryawan = userData.idKaryawan;
+            
+            // Baca data Jabatan, Area, dan Point DARI FIREBASE
+            const rawJabatan = userData.jabatan ? String(userData.jabatan).toUpperCase() : "";
+            
+            // Tentukan Role
+            if (rawJabatan.includes("RM")) userRole = "RM";
+            else if (rawJabatan.includes("AM")) userRole = "AM";
+            else if (rawJabatan.includes("BM")) userRole = "BM";
+            else userRole = "BP"; // Default
 
-            if (idKaryawan) {
-                // Ambil Data Master & Profil
-                fetchMasterData(idKaryawan);
-            } else {
-                showError("ID Karyawan tidak terdaftar di database Users Firebase.");
-            }
+            // Simpan Area & Point User (untuk locking filter nanti)
+            myArea = userData.area || "";   
+            myPoint = userData.point || ""; 
+
+            console.log(`Login sebagai: ${userRole} | Area: ${myArea} | Point: ${myPoint}`);
+
+            // Ambil Data Master (Semua BP) dari Spreadsheet untuk mengisi dropdown
+            fetchDropdownData(userData.idKaryawan);
+
         } else {
-            showError("User tidak ditemukan di Firebase.");
+            showError("Data User tidak ditemukan di Firebase.");
         }
     } catch (err) {
         showError("Gagal Auth: " + err.message);
     }
 }
 
-async function fetchMasterData(myId) {
+// 2. Ambil Opsi Dropdown dari Spreadsheet
+async function fetchDropdownData(myIdKaryawan) {
     try {
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
@@ -77,84 +89,67 @@ async function fetchMasterData(myId) {
             headers: { "Content-Type": "text/plain;charset=utf-8" }
         });
 
-        // Debugging: Cek jika response bukan JSON (biasanya error HTML dari Google)
-        const text = await response.text();
-        let result;
-        try {
-            result = JSON.parse(text);
-        } catch (e) {
-            console.error("Response bukan JSON:", text);
-            showError("Terjadi kesalahan server (Invalid JSON). Cek Deployment Apps Script.");
-            return;
-        }
+        const result = await response.json();
 
         if (result.result === "success") {
             allDataBP = result.data;
             
-            // Cari Profil User yang Login di Data Spreadsheet
-            const myProfile = allDataBP.find(item => String(item.id) === String(myId));
+            // Setup Tampilan
+            setupFilterUI();
 
-            if (myProfile) {
-                userRole = String(myProfile.jabatan).toUpperCase().trim();
-                myArea = myProfile.area;
-                myPoint = myProfile.point;
-
-                console.log("Role:", userRole, "Area:", myArea);
-
-                setupFilterUI();
-                fetchPerformData(myId); // Load data awal diri sendiri
-
-            } else {
-                // Jika ID user tidak ada di spreadsheet BP, tampilkan error atau load data performa saja (jika ada)
-                showError("ID Anda (" + myId + ") tidak ditemukan di Sheet BP. Hubungi Admin.");
+            // Jika dia BP biasa (Bukan Manager), langsung load datanya sendiri
+            if (userRole === "BP") {
+                fetchPerformData(myIdKaryawan);
             }
         } else {
-            showError("Gagal mengambil data master: " + result.message);
+            showError("Gagal mengambil data master.");
         }
     } catch (e) {
         console.error(e);
-        showError("Koneksi Error saat ambil data master.");
+        showError("Koneksi Error: " + e.message);
     }
 }
 
+// 3. Atur Filter Logic Berdasarkan Role Firebase
 function setupFilterUI() {
     const filterContainer = document.getElementById('filterContainer');
     const selArea = document.getElementById('selArea');
-    
-    // Default sembunyi
+
+    // Default: Sembunyikan Filter
     filterContainer.style.display = "none";
 
-    // Hanya munculkan filter untuk Role tertentu
+    // Hanya Tampilkan Filter jika RM, AM, atau BM
     if (["RM", "AM", "BM"].includes(userRole)) {
         filterContainer.style.display = "block";
         
-        // Ambil list area unik
+        // Ambil list semua Area unik dari Spreadsheet untuk opsi select
         const uniqueAreas = [...new Set(allDataBP.map(item => item.area))].sort();
-        
+
+        // --- LOGIC AREA ---
         if (userRole === "RM") {
-            // RM: Akses Semua Area
+            // RM: BISA PILIH SEMUA AREA
             populateSelect(selArea, uniqueAreas);
-            selArea.value = myArea; // Default select area sendiri
             selArea.disabled = false;
+        
         } else {
-            // AM & BM: Area Terkunci
-            populateSelect(selArea, [myArea]);
+            // AM & BM: AREA TERKUNCI sesuai data Firebase
+            // Tampilkan hanya area dia sendiri di dropdown
+            populateSelect(selArea, [myArea]); 
             selArea.value = myArea;
-            selArea.disabled = true; 
+            selArea.disabled = true; // Disabled agar tidak bisa ganti
         }
 
-        // Jalankan rantai filter selanjutnya
+        // Trigger logic selanjutnya (Point)
         filterPoints(); 
     }
 }
 
+// 4. Logic Filter Point (Cascading)
 function filterPoints() {
     const selArea = document.getElementById('selArea');
     const selPoint = document.getElementById('selPoint');
     
-    // Safety check
     if(!selArea || !selPoint) return;
-
     const selectedArea = selArea.value;
 
     // Reset Point
@@ -162,7 +157,7 @@ function filterPoints() {
     selPoint.disabled = true;
 
     if (selectedArea) {
-        // Filter point sesuai area
+        // Ambil Point yang ada di Area terpilih (dari data master)
         const filteredPoints = [...new Set(allDataBP
             .filter(item => item.area === selectedArea)
             .map(item => item.point)
@@ -170,24 +165,28 @@ function filterPoints() {
 
         populateSelect(selPoint, filteredPoints);
 
+        // --- LOGIC POINT ---
         if (userRole === "BM") {
-            // BM: Point Terkunci
+            // BM: POINT TERKUNCI sesuai data Firebase
             selPoint.value = myPoint;
             selPoint.disabled = true;
+        
         } else {
-            // RM & AM: Bisa pilih point
+            // RM & AM: BISA PILIH POINT
             selPoint.disabled = false;
-            // Auto select jika point sendiri ada di list
-            if(filteredPoints.includes(myPoint)) {
-               selPoint.value = myPoint; 
+            
+            // Khusus AM, jika ingin default terpilih pointnya sendiri (opsional):
+            if(userRole === "AM" && filteredPoints.includes(myPoint)) {
+                selPoint.value = myPoint;
             }
         }
-
-        // Jalankan rantai filter selanjutnya
+        
+        // Lanjut ke filter BP
         filterBPs();
     }
 }
 
+// 5. Logic Filter BP (Cascading)
 function filterBPs() {
     const selArea = document.getElementById('selArea');
     const selPoint = document.getElementById('selPoint');
@@ -203,13 +202,13 @@ function filterBPs() {
     selBP.disabled = true;
 
     if (selectedArea && selectedPoint) {
-        // Filter BP sesuai Area & Point
+        // Cari BP di Area & Point tersebut
         const filteredBPs = allDataBP
             .filter(item => item.area === selectedArea && item.point === selectedPoint)
             .map(item => ({ id: item.id, nama: item.nama }))
             .sort((a, b) => a.nama.localeCompare(b.nama));
 
-        // Isi Dropdown BP
+        // Isi Dropdown
         filteredBPs.forEach(bp => {
             let opt = document.createElement('option');
             opt.value = bp.id;
@@ -217,7 +216,8 @@ function filterBPs() {
             selBP.appendChild(opt);
         });
 
-        selBP.disabled = false; // Enable agar bisa dipilih
+        // Semua Manager (RM, AM, BM) bisa memilih nama BP
+        selBP.disabled = false; 
     }
 }
 
@@ -233,7 +233,7 @@ function populateSelect(element, items) {
 function applyFilterTrigger() {
     const selBP = document.getElementById('selBP');
     if (!selBP) return;
-
+    
     const selectedId = selBP.value;
 
     if (selectedId) {
@@ -280,17 +280,14 @@ function renderData(data) {
     setText('displayNama', data.nama);
     setText('displayJabatan', data.jabatan);
     setText('valPoint', data.point);
-
     setText('harianSos', data.harian.sosialisasi);
     setText('harianColLoan', data.harian.col_loan);
     setText('harianColAmt', formatRupiah(data.harian.col_amount));
-
     setText('bulananSos', data.bulanan.sosialisasi);
     setText('bulananColLoan', data.bulanan.col_loan);
     setText('bulananColAmt', formatRupiah(data.bulanan.col_amount));
 }
 
-// Helper aman agar tidak error jika elemen tidak ada
 function setText(id, text) {
     const el = document.getElementById(id);
     if(el) el.innerText = (text === undefined || text === null || text === "") ? "-" : text;
