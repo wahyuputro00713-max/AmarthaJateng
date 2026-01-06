@@ -1,6 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-// --- UPDATE: Menambahkan 'set' dan 'onValue' untuk fitur Global Lock ---
 import { getDatabase, ref, get, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // --- KONFIGURASI FIREBASE ---
@@ -18,8 +17,13 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// --- KONFIGURASI APLIKASI ---
-const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; 
+// =========================================================================
+// KONFIGURASI APLIKASI
+// Ganti URL di bawah ini dengan URL Web App dari Deploy terbaru Anda
+// =========================================================================
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxSmjz4ybJmztePGYl1JGH_ih3mvBFW1nHcA8Qu8ShWzdgcLIDsMYvFcRgh0mKtyFf5/exec"; 
+// =========================================================================
+
 const ADMIN_ID = "17246";
 
 // --- DATA POINT ---
@@ -83,7 +87,6 @@ function saveToStorage(id, isChecked, reason, day = "") {
 }
 
 // --- FUNGSI PENGUCIAN GLOBAL (SERVER SIDE) ---
-// Fungsi ini memastikan kuncian berlaku untuk semua user di Point & Tanggal yang sama
 function setGlobalLock(status) {
     if(!userProfile || !userProfile.point) return;
     
@@ -97,7 +100,6 @@ function setGlobalLock(status) {
     }
 
     // KUNCI: Gunakan Nama Point sebagai folder utama
-    // Ini menjamin Point A tidak mengunci Point B
     const pointKey = clean(userProfile.point); 
     const lockPath = `closing_locks/${pointKey}/${dateStr}`;
 
@@ -188,9 +190,6 @@ function injectModernStyles() {
             .status-counter { color: #4f46e5; font-weight: bold; }
             .header-select { border: 1px solid #ced4da; border-radius: 6px; padding: 4px 8px; font-size: 1rem; font-weight: 700; color: #2c3e50; background-color: white; cursor: pointer; max-width: 250px; margin-bottom: 5px; display: block; }
             .header-select:focus { outline: none; border-color: var(--primary-color); }
-            .debug-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; margin-top:10px; color: #333; }
-            .debug-table th, .debug-table td { border: 1px solid #ccc; padding: 4px; text-align: left; }
-            .debug-table th { background: #f0f0f0; }
         `;
         document.head.appendChild(style);
     }
@@ -504,18 +503,15 @@ function createMitraCard(mitra) {
 
     let styleBayar = isLunas ? "background-color: #d1e7dd; color: #0f5132; border: 1px solid #badbcc;" : "background-color: #f8d7da; color: #842029; border: 1px solid #f5c2c7;";
     let styleKirim = isTerkirim ? "background-color: #198754; color: white; box-shadow: 0 2px 4px rgba(25, 135, 84, 0.3);" : "background-color: #dc3545; color: white; box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);";
-     
+      
     let bucketText = (mitra.bucket == "0" || String(mitra.bucket).toLowerCase().includes("current")) ? "Lancar" : `DPD: ${mitra.bucket}`;
     let styleBucket = (mitra.bucket == "0" || String(mitra.bucket).toLowerCase().includes("current")) ? "background-color: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe;" : "background-color: #fef3c7; color: #92400e; border: 1px solid #fcd34d;";
 
     // --- PERBAIKAN LOGIKA TAMPILAN BLL ---
     let bllText = (mitra.status_bll || "").trim();
     let bllBadgeHtml = "";
-
-    // Tampilkan hanya jika ada isinya dan bukan tanda strip
     if (bllText && bllText !== "-" && bllText.toLowerCase() !== "null") {
         const styleBLL = "background-color: #f3e8ff; color: #7e22ce; border: 1px solid #d8b4fe;";
-        // Hapus prefix "BLL:" agar tidak double
         bllBadgeHtml = `<span class="badge-status" style="${styleBLL}">${bllText}</span>`;
     }
 
@@ -525,13 +521,11 @@ function createMitraCard(mitra) {
         try {
             const dateObj = new Date(mitra.data_o);
             if (!isNaN(dateObj)) {
-                // Format DD/MM/YYYY
                 const dd = String(dateObj.getDate()).padStart(2, '0');
                 const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
                 const yyyy = dateObj.getFullYear();
                 labelTgl = `${dd}/${mm}/${yyyy}`;
             } else {
-                // Jika format string non-standard, ambil 10 karakter pertama saja (misal YYYY-MM-DD)
                 labelTgl = String(mitra.data_o).substring(0, 10);
             }
         } catch (e) {
@@ -687,39 +681,56 @@ window.toggleValidation = function(element, id) {
     updateMajelisStats(element);
 };
 
+// =================================================================
+// UPDATE JB (BATCHING) - DIOPTIMALKAN UNTUK KECEPATAN
+// =================================================================
 async function updateJBDaysToServer() {
+    // 1. Kumpulkan data perubahan JB dari draft lokal
     const updates = [];
     globalMitraList.forEach(m => {
         const stored = draftData[m.id];
         const isJB = String(m.jenis_bayar).toUpperCase() === "JB";
+        
+        // Syarat: Mitra JB, dicentang, dan sudah pilih hari
         if (isJB && stored && stored.checked && stored.day) {
-            updates.push({ custNo: m.id, namaBP: m.bp, hariBaru: stored.day });
+            updates.push({ 
+                customerNumber: m.id, 
+                hariBaru: stored.day 
+            });
         }
     });
 
     if (updates.length === 0) return; 
 
+    // 2. Ubah UI tombol
     const btn = document.getElementById('btnValidateAll');
     if(btn) btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-1"></i> Mengupdate Hari...`;
 
-    const promises = updates.map(item => {
-        const payload = {
-            jenisLaporan: "ClosingModal",
-            idKaryawan: userProfile.idKaryawan || "Admin",
-            namaBP: item.namaBP,
-            customerNumber: item.custNo,
-            jenisPembayaran: "JB",
-            hariBaru: item.hariBaru
-        };
-        return fetch(SCRIPT_URL, {
+    // 3. Kirim SATU request untuk semua data (Batch)
+    const payload = {
+        action: "batch_update_jb",
+        items: updates
+    };
+
+    try {
+        const response = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify(payload),
             redirect: "follow",
             headers: { "Content-Type": "text/plain;charset=utf-8" }
-        }).catch(err => console.error("Gagal update JB:", item.custNo, err));
-    });
+        });
+        
+        const res = await response.json();
+        console.log("Hasil Update Batch:", res);
+        
+        if(res.result !== "success") {
+            console.error("Gagal update sebagian data:", res.error);
+        }
 
-    await Promise.all(promises);
+    } catch (err) {
+        console.error("Gagal koneksi batch update:", err);
+        alert("Peringatan: Gagal mengupdate tanggal JB ke server. Cek koneksi Anda.");
+    }
 }
 
 // --- FUNGSI APPLY LOCK MODE ---
@@ -749,13 +760,9 @@ function applyLockMode(lockedBy = "Admin") {
     }
 }
 
-// --- FUNGSI RELEASE LOCK MODE (Untuk Admin jika ada fitur unlock) ---
+// --- FUNGSI RELEASE LOCK MODE ---
 function releaseLockMode() {
     if(!isPageLocked) {
-        // Karena DOM sudah dirender disabled, cara terbaik adalah reload data
-        // atau kita bisa enable manual elemen-elemennya.
-        // Untuk amannya, kita panggil filterAndRenderData ulang jika diperlukan, 
-        // tapi di sini cukup update tombol utama saja sebagai indikator.
         const btnValAll = document.getElementById('btnValidateAll');
         if(btnValAll) {
             btnValAll.disabled = false; 
@@ -763,8 +770,6 @@ function releaseLockMode() {
             btnValAll.classList.add('btn-primary');
             btnValAll.innerHTML = `<i class="fa-solid fa-calendar-check me-1"></i> Validasi Hari Ini`;
         }
-        
-        // Reload data agar checkbox bisa diklik lagi
         if(allRawData.length > 0) {
              filterAndRenderData();
         }
@@ -776,7 +781,7 @@ function updateGlobalValidationStatus() {
 
     const totalMitra = document.querySelectorAll('.btn-check-modern').length;
     const checkedMitra = document.querySelectorAll('.btn-check-modern.checked').length;
-     
+      
     const counterEl = document.getElementById('statusCounter');
     if(counterEl) {
         counterEl.textContent = `${checkedMitra} / ${totalMitra} Mitra`;
@@ -864,7 +869,9 @@ document.addEventListener("DOMContentLoaded", () => {
                btnValAll.disabled = true;
                btnValAll.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Memproses...`;
                
+               // --- UPDATE HARI JB (BATCHING) SEBELUM DOWNLOAD ---
                await updateJBDaysToServer();
+               
                downloadCSV();
                
                // --- KIRIM LOCK GLOBAL KE FIREBASE ---
