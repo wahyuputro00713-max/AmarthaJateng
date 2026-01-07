@@ -12,7 +12,7 @@ const firebaseConfig = {
     appId: "1:22431520744:web:711af76a5335d97179765d"
 };
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbybOiW4A25w5miPhw3mycYx9_4VHKyx5jzmOxYgmlqnQFbKoAEPHGAIUyltkfXj5Ibn/exec"; 
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxmn4f9983pD1p6hgQRUyIdCepf5SykYq70qlkM_q0gImgUSPxH-Xo3s91X_hpQ4rIV/exec"; 
 
 // --- DATA POINT & KOORDINAT ---
 const DATA_POINTS = {
