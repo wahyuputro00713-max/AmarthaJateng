@@ -207,7 +207,7 @@ function formatJuta(n) {
     else return "Rp " + num.toLocaleString('id-ID');
 }
 
-// --- FUNGSI CHART AREA PROGRESS (UPDATED) ---
+// --- FUNGSI CHART AREA PROGRESS (UPDATED: DENGAN LABEL ANGKA) ---
 async function loadAreaProgressChart() {
     const ctxCanvas = document.getElementById('areaProgressChart');
     if (!ctxCanvas) return;
@@ -233,23 +233,26 @@ async function loadAreaProgressChart() {
 
         if (window.myAreaChart) window.myAreaChart.destroy();
 
+        // Register Plugin
+        Chart.register(ChartDataLabels);
+
         window.myAreaChart = new Chart(ctxCanvas.getContext('2d'), {
             type: 'bar',
             data: {
                 labels: labels,
                 datasets: [
                     {
-                        label: '% Harian (Prog vs Plan)',
+                        label: 'Harian (Prog / Plan)',
                         data: dailyPrc,
-                        backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                        backgroundColor: 'rgba(54, 162, 235, 0.8)', // Biru
                         borderColor: 'rgba(54, 162, 235, 1)',
                         borderWidth: 1,
                         barPercentage: 0.7, categoryPercentage: 0.8
                     },
                     {
-                        label: '% Pencapaian (Ach vs Tgt)',
+                        label: 'Pencapaian (Ach / Tgt)',
                         data: achievePrc,
-                        backgroundColor: 'rgba(75, 192, 192, 0.7)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.8)', // Hijau Teal
                         borderColor: 'rgba(75, 192, 192, 1)',
                         borderWidth: 1,
                         barPercentage: 0.7, categoryPercentage: 0.8
@@ -260,11 +263,13 @@ async function loadAreaProgressChart() {
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
+                layout: { padding: { right: 30 } }, // Beri ruang kanan agar label tidak kepotong
                 plugins: {
                     legend: { position: 'top', labels: { font: { size: 10 }, boxWidth: 10 } },
                     tooltip: {
                         callbacks: {
                             label: function(ctx) {
+                                // Tooltip tetap detail
                                 let lbl = ctx.dataset.label || '';
                                 if (lbl.includes('(')) lbl = lbl.split('(')[0].trim() + ': ';
                                 lbl += ctx.parsed.x + '%';
@@ -274,6 +279,30 @@ async function loadAreaProgressChart() {
                                 else lbl += ` (${formatRibuan(item.achievement)}/${formatRibuan(item.target)})`;
                                 return lbl;
                             }
+                        }
+                    },
+                    // KONFIGURASI LABEL ANGKA DI BATANG
+                    datalabels: {
+                        color: 'white',
+                        anchor: 'end',
+                        align: 'start',
+                        offset: 4,
+                        font: { weight: 'bold', size: 10 },
+                        formatter: function(value, context) {
+                            const index = context.dataIndex;
+                            const item = areaData[index];
+                            
+                            // Jika Batang Pendek (< 15%), text geser keluar & warna hitam
+                            if (value < 15) {
+                                context.chart.options.plugins.datalabels.align = 'end';
+                                context.chart.options.plugins.datalabels.color = 'black';
+                            } else {
+                                context.chart.options.plugins.datalabels.align = 'start';
+                                context.chart.options.plugins.datalabels.color = 'white';
+                            }
+
+                            if (context.datasetIndex === 0) return `${item.progress} / ${item.plan}`;
+                            else return `${formatRibuan(item.achievement)} / ${formatRibuan(item.target)}`;
                         }
                     }
                 },
