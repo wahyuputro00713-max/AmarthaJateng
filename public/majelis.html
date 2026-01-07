@@ -2,83 +2,301 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Tugas Repayment - Amartha</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Majelis - Amartha Jateng</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link rel="icon" type="image/png" href="assets/amarthalogo.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <style>
-        body { background-color: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding-bottom: 80px; }
-        .header-bar { background: linear-gradient(135deg, #9b59b6, #8e44ad); padding: 20px 15px; color: white; border-radius: 0 0 20px 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .back-btn { color: white; font-size: 1.2rem; text-decoration: none; margin-right: 15px; }
-        
-        .filter-card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        .form-select-sm, .form-control-sm { border-radius: 8px; border: 1px solid #eee; background-color: #f9f9f9; font-size: 11px; margin-bottom: 10px; }
-        .form-label { font-size: 10px; font-weight: bold; color: #666; margin-bottom: 3px; }
-
-        .accordion-item { border: none; margin-bottom: 10px; border-radius: 10px !important; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .accordion-button { background-color: white; color: #333; font-weight: bold; font-size: 13px; padding: 15px; }
-        .accordion-button:not(.collapsed) { background-color: #f3e5f5; color: #8e44ad; box-shadow: none; }
-        .accordion-button:focus { box-shadow: none; }
-        
-        .majelis-badge { background: #9b59b6; color: white; padding: 2px 8px; border-radius: 10px; font-size: 10px; margin-left: 8px; }
-        
-        .table-mitra { font-size: 11px; margin-bottom: 0; }
-        .table-mitra td { vertical-align: middle; padding: 12px 10px; }
-        .btn-kirim { font-size: 10px; padding: 5px 12px; border-radius: 20px; font-weight: bold; }
-
-        .status-pill { font-size: 9px; padding: 3px 8px; border-radius: 10px; font-weight: bold; display: inline-block; }
-        .pill-bayar { background: #d4edda; color: #155724; }
-        .pill-belum { background: #f8d7da; color: #721c24; }
-        
-        .mitra-name { font-weight: 700; color: #2c3e50; display: block; }
-        .mitra-id { color: #7f8c8d; font-size: 10px; }
-        
-        /* New Style for Amount */
-        .nominal-text { font-weight: 600; color: #2c3e50; font-size: 10px; }
-        .nominal-label { font-size: 8px; color: #7f8c8d; display: block; }
-
-        /* Style untuk BLL Badge */
-        .badge-bll {
-            background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5;
-            padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; margin-left: 5px;
+        :root {
+            --primary-color: #6c5ce7; /* Warna Ungu Modern */
+            --secondary-color: #a29bfe;
+            --accent-color: #00b894; /* Hijau Mint */
+            --bg-color: #f4f6f9;
+            --text-dark: #2d3436;
+            --text-light: #636e72;
+            --card-radius: 16px;
         }
 
-        #loadingOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 9999; display: flex; justify-content: center; align-items: center; flex-direction: column; }
-        .d-none { display: none !important; }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-dark);
+            padding-bottom: 80px; /* Space for bottom nav if needed */
+        }
+
+        /* --- Navbar Modern --- */
+        .navbar-custom {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            padding: 15px 0;
+            border-bottom-left-radius: 20px;
+            border-bottom-right-radius: 20px;
+            box-shadow: 0 4px 15px rgba(108, 92, 231, 0.2);
+            margin-bottom: -40px; /* Overlap effect */
+            padding-bottom: 50px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .navbar-title {
+            color: white;
+            font-weight: 600;
+            font-size: 1.2rem;
+            margin: 0;
+        }
+
+        .btn-back {
+            color: white;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 12px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+        .btn-back:hover {
+            background: rgba(255, 255, 255, 0.4);
+            color: white;
+            transform: scale(1.05);
+        }
+
+        /* --- Main Container Overlap --- */
+        .main-content {
+            position: relative;
+            z-index: 2;
+            padding: 0 15px;
+        }
+
+        /* --- Filter Card --- */
+        .filter-card {
+            background: white;
+            border-radius: var(--card-radius);
+            border: none;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            font-size: 0.85rem;
+            color: var(--text-light);
+            font-weight: 500;
+            margin-bottom: 5px;
+        }
+
+        .form-select {
+            border-radius: 10px;
+            border: 1px solid #dfe6e9;
+            padding: 10px 12px;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            background-color: #fdfdfd;
+        }
+        .form-select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.1);
+        }
+
+        .btn-tampilkan {
+            background: var(--primary-color);
+            border: none;
+            border-radius: 10px;
+            padding: 12px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 10px rgba(108, 92, 231, 0.3);
+            width: 100%;
+            color: white;
+            transition: transform 0.2s;
+        }
+        .btn-tampilkan:active {
+            transform: scale(0.98);
+        }
+
+        /* --- Stats Badge --- */
+        .stats-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            overflow-x: auto;
+            padding-bottom: 5px;
+        }
+        .stat-badge {
+            background: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            white-space: nowrap;
+            border: 1px solid rgba(108, 92, 231, 0.1);
+        }
+
+        /* --- Accordion Styling (List Majelis) --- */
+        .accordion-item {
+            border: none;
+            margin-bottom: 12px;
+            background: transparent;
+        }
+
+        .accordion-button {
+            background: white !important;
+            border-radius: 12px !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+            padding: 15px;
+            color: var(--text-dark);
+            font-weight: 500;
+            border: 1px solid transparent;
+        }
+
+        .accordion-button:not(.collapsed) {
+            color: var(--primary-color);
+            background: #f8f7ff !important;
+            border: 1px solid var(--secondary-color);
+            box-shadow: 0 4px 12px rgba(108, 92, 231, 0.1);
+        }
+
+        .accordion-button::after {
+            background-size: 1rem;
+            opacity: 0.5;
+        }
+        .accordion-button:not(.collapsed)::after {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%236c5ce7'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e");
+        }
+
+        .accordion-body {
+            background: white;
+            border-bottom-left-radius: 12px;
+            border-bottom-right-radius: 12px;
+            padding: 0;
+            margin-top: -5px; /* Merge with header */
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+
+        .majelis-badge {
+            background: #ffeaa7;
+            color: #d63031;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-left: 8px;
+        }
+
+        /* --- Table Styling --- */
+        .table-mitra thead th {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-light);
+            background: #f8f9fa;
+            border-bottom: 1px solid #eee;
+            padding: 10px 8px;
+        }
+
+        .table-mitra td {
+            vertical-align: middle;
+            font-size: 0.85rem;
+            padding: 12px 8px;
+            border-bottom: 1px solid #f1f2f6;
+        }
+
+        .mitra-name {
+            display: block;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 2px;
+        }
+        .mitra-id {
+            display: block;
+            font-size: 0.7rem;
+            color: #b2bec3;
+        }
+
+        .nominal-text {
+            font-family: 'Consolas', monospace;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        .nominal-label {
+            font-size: 0.65rem;
+            color: #b2bec3;
+            display: block;
+            margin-top: -2px;
+        }
+
+        /* Badge Status */
+        .badge-bll {
+            background-color: #ff7675;
+            color: white;
+            font-size: 0.6rem;
+            padding: 1px 4px;
+            border-radius: 4px;
+            vertical-align: middle;
+            margin-left: 4px;
+        }
+
+        /* --- Loading Overlay (Glassmorphism) --- */
+        #loadingOverlay {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(5px);
+            z-index: 9999;
+        }
+        .spinner-custom {
+            width: 3rem;
+            height: 3rem;
+            border-width: 0.25em;
+            color: var(--primary-color);
+        }
+
+        /* --- Empty State --- */
+        .empty-state-icon {
+            font-size: 4rem;
+            color: #dfe6e9;
+            margin-bottom: 15px;
+        }
     </style>
 </head>
 <body>
 
-    <div class="header-bar d-flex align-items-center">
-        <a href="home.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
-        <div>
-            <h5 class="m-0 fw-bold">Tugas Repayment</h5>
-            <small style="opacity: 0.9;">Monitoring & Laporan Cepat</small>
-        </div>
+    <div id="loadingOverlay" class="d-none position-fixed top-0 start-0 w-100 h-100 d-flex flex-column justify-content-center align-items-center">
+        <div class="spinner-border spinner-custom mb-3" role="status"></div>
+        <p class="text-muted fw-bold">Memuat data...</p>
     </div>
 
-    <div class="container">
-        <div class="filter-card">
-            <div class="row g-2">
-                <div class="col-6">
-                    <label class="form-label">Area</label>
-                    <select id="filterArea" class="form-select form-select-sm"><option value="">Semua Area</option></select>
-                </div>
-                <div class="col-6">
-                    <label class="form-label">Point</label>
-                    <select id="filterPoint" class="form-select form-select-sm"><option value="">Semua Point</option></select>
-                </div>
-                
-                <div class="col-6">
-                    <label class="form-label">Nama BP</label>
-                    <select id="filterBP" class="form-select form-select-sm"><option value="">Semua BP</option></select>
-                </div>
+    <nav class="navbar-custom">
+        <div class="container d-flex align-items-center justify-content-between px-3">
+            <div class="d-flex align-items-center gap-3">
+                <a href="home.html" class="btn-back">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </a>
+                <h1 class="navbar-title">Data Majelis</h1>
+            </div>
+            <div>
+                <i class="fa-solid fa-circle-user text-white opacity-50 fs-4"></i>
+            </div>
+        </div>
+    </nav>
 
-                <div class="col-6">
+    <div class="main-content container">
+        
+        <div class="filter-card mt-n4"> <div class="row g-3">
+                <div class="col-6 col-md-3">
+                    <label class="form-label">Area</label>
+                    <select id="filterArea" class="form-select">
+                        <option value="">Semua Area</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-3">
                     <label class="form-label">Hari</label>
-                    <select id="filterHari" class="form-select form-select-sm">
-                        <option value="">Semua</option>
+                    <select id="filterHari" class="form-select">
+                        <option value="">Semua Hari</option>
                         <option value="Senin">Senin</option>
                         <option value="Selasa">Selasa</option>
                         <option value="Rabu">Rabu</option>
@@ -86,34 +304,50 @@
                         <option value="Jumat">Jumat</option>
                     </select>
                 </div>
-            </div>
-            
-            <div class="d-grid mt-2">
-                <button id="btnTampilkan" class="btn btn-sm btn-primary fw-bold" style="background-color: #9b59b6; border-color: #9b59b6;">
-                    <i class="fa-solid fa-filter me-1"></i> Tampilkan Data
-                </button>
+                <div class="col-6 col-md-3">
+                    <label class="form-label">Point</label>
+                    <select id="filterPoint" class="form-select">
+                        <option value="">Semua Point</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label">Nama BP</label>
+                    <select id="filterBP" class="form-select">
+                        <option value="">Semua BP</option>
+                    </select>
+                </div>
+                <div class="col-12 mt-4">
+                    <button id="btnTampilkan" class="btn-tampilkan">
+                        <i class="fa-solid fa-filter me-2"></i>Tampilkan Data
+                    </button>
+                </div>
             </div>
         </div>
 
-        <div class="d-flex justify-content-between align-items-center mb-2 px-1">
-            <span class="text-muted small fw-bold" id="totalMajelis">Total: 0 Majelis</span>
-            <span class="text-muted small fw-bold" id="totalMitra">0 Mitra</span>
+        <div class="stats-container">
+            <div class="stat-badge">
+                <i class="fa-solid fa-users-rectangle me-2"></i>
+                <span id="totalMajelis">Total: 0 Majelis</span>
+            </div>
+            <div class="stat-badge">
+                <i class="fa-solid fa-user-group me-2"></i>
+                <span id="totalMitra">0 Mitra</span>
+            </div>
         </div>
 
-        <div class="accordion" id="majelisContainer"></div>
-        
+        <div id="majelisContainer" class="accordion accordion-flush">
+            </div>
+
         <div id="emptyState" class="text-center py-5 d-none">
-            <img src="https://cdn-icons-png.flaticon.com/512/7486/7486777.png" width="60" style="opacity: 0.5;">
-            <p class="text-muted mt-2 small">Data tidak ditemukan<br>Silakan atur filter dan klik Tampilkan</p>
+            <i class="fa-solid fa-folder-open empty-state-icon"></i>
+            <h5 class="fw-bold text-secondary">Data Tidak Ditemukan</h5>
+            <p class="text-muted small">Silakan pilih filter area dan klik tombol Tampilkan Data.</p>
         </div>
+
     </div>
 
-    <div id="loadingOverlay">
-        <div class="spinner-border text-primary" role="status"></div>
-        <p class="mt-2 small text-muted">Menyiapkan Data...</p>
-    </div>
-
+    <script type="module" src="js/majelis.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script type="module" src="./js/majelis.js"></script>
+
 </body>
 </html>
