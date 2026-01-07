@@ -16,282 +16,244 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// URL APPS SCRIPT LANGSUNG
+// URL APPS SCRIPT
 const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev";
 
+// State Management
 let globalData = [];
 let userProfile = { idKaryawan: "", area: "", point: "" };
 
-const filterArea = document.getElementById('filterArea');
-const filterPoint = document.getElementById('filterPoint');
-const filterBP = document.getElementById('filterBP');
-const filterHari = document.getElementById('filterHari');
-const btnTampilkan = document.getElementById('btnTampilkan');
-const majelisContainer = document.getElementById('majelisContainer');
-const loadingOverlay = document.getElementById('loadingOverlay');
-const emptyState = document.getElementById('emptyState');
+// DOM Elements
+const els = {
+    filterArea: document.getElementById('filterArea'),
+    filterPoint: document.getElementById('filterPoint'),
+    filterBP: document.getElementById('filterBP'),
+    filterHari: document.getElementById('filterHari'),
+    btnTampilkan: document.getElementById('btnTampilkan'),
+    majelisContainer: document.getElementById('majelisContainer'),
+    loadingOverlay: document.getElementById('loadingOverlay'),
+    emptyState: document.getElementById('emptyState'),
+    lblTotalMajelis: document.getElementById('totalMajelis'),
+    lblTotalMitra: document.getElementById('totalMitra')
+};
 
-// 1. Cek Login
-onAuthStateChanged(auth, (user) => {
+// 1. ENTRY POINT: Cek Login & Load Parallel
+onAuthStateChanged(auth, async (user) => {
     if (user) {
-        getUserProfile(user.uid).then(() => {
-            fetchData();
-        });
+        showLoading(true);
+        try {
+            // OPTIMASI: Jalankan request Profil dan Data secara BERSAMAAN (Parallel)
+            // Tidak perlu menunggu profil selesai baru ambil data
+            const [profile, data] = await Promise.all([
+                fetchUserProfile(user.uid),
+                fetchMainData()
+            ]);
+
+            // Set Data
+            userProfile = profile;
+            globalData = data;
+
+            // Setup UI
+            initializeFilters();
+            
+            // Auto render jika user punya default area
+            if (userProfile.area) {
+                renderGroupedData(globalData);
+            }
+
+        } catch (error) {
+            console.error("Error init:", error);
+            alert("Gagal memuat data. Silakan refresh.");
+        } finally {
+            showLoading(false);
+        }
     } else {
         window.location.replace("index.html");
     }
 });
 
-// 2. Load Profil
-async function getUserProfile(uid) {
+// 2. Fetch User Profile
+async function fetchUserProfile(uid) {
     try {
         const snapshot = await get(ref(db, 'users/' + uid));
         if (snapshot.exists()) {
-            const val = snapshot.val();
-            userProfile.idKaryawan = val.idKaryawan || "Unknown";
-            userProfile.area = val.area || "";
-            userProfile.point = val.point || "";
+            return snapshot.val();
         }
+        return { idKaryawan: "Unknown", area: "", point: "" };
     } catch (err) {
         console.error("Gagal load profil:", err);
+        return { idKaryawan: "Unknown", area: "", point: "" };
     }
 }
 
-// 3. Fetch Data
-async function fetchData() {
+// 3. Fetch Data Utama (Dengan Client Cache)
+async function fetchMainData() {
+    // Cek Session Storage dulu (Agar refresh halaman tidak loading ulang server)
+    const cachedData = sessionStorage.getItem('majelisData');
+    if (cachedData) {
+        console.log("Load data from local cache");
+        return JSON.parse(cachedData);
+    }
+
     try {
-        if(loadingOverlay) loadingOverlay.classList.remove('d-none');
-        
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify({ action: "get_data_modal" }),
-            redirect: "follow",
+            // redirect: "follow", // Seringkali tidak perlu untuk fetch GAS jika via worker/proxy
             headers: { "Content-Type": "text/plain;charset=utf-8" }
         });
 
         const result = await response.json();
         
         if (result.result === "success" && Array.isArray(result.data)) {
-            globalData = result.data;
-            
-            // Populasi Filter saja
-            populateFilters(globalData);
-            
-            // Set Default Filter dari Profil User
-            if(userProfile.area) {
-                filterArea.value = userProfile.area;
-                updatePointDropdown(userProfile.area);
-                updateBPDropdown(); 
-            }
-            
-            if(userProfile.point && filterPoint) {
-                const options = Array.from(filterPoint.options).map(o => o.value);
-                if(options.includes(userProfile.point)) {
-                    filterPoint.value = userProfile.point;
-                    updateBPDropdown(); 
-                }
-            }
-            
+            // Simpan ke Session Storage (Hilang saat tab ditutup)
+            sessionStorage.setItem('majelisData', JSON.stringify(result.data));
+            return result.data;
         } else {
-            console.error("Gagal data:", result);
-            alert("Gagal mengambil data dari server.");
+            throw new Error("Format data salah dari server");
         }
     } catch (error) {
-        console.error(error);
-        alert("Terjadi kesalahan koneksi.");
-    } finally {
-        if(loadingOverlay) loadingOverlay.classList.add('d-none');
+        throw error;
     }
 }
 
-// 4. Logika Cascading Dropdown
+// 4. Logika Filter & Dropdown
+function initializeFilters() {
+    populateFilters(globalData);
+
+    // Set Default Filter dari Profil
+    if (userProfile.area && els.filterArea) {
+        els.filterArea.value = userProfile.area;
+        updatePointDropdown(userProfile.area);
+        
+        if (userProfile.point && els.filterPoint) {
+            // Cek apakah point user ada di opsi
+            const pointExists = [...els.filterPoint.options].some(o => o.value === userProfile.point);
+            if(pointExists) {
+                els.filterPoint.value = userProfile.point;
+            }
+        }
+        updateBPDropdown();
+    }
+}
+
 function populateFilters(data) {
+    if (!els.filterArea) return;
     const areas = [...new Set(data.map(i => i.area).filter(i => i && i !== "-"))].sort();
-    fillSelect(filterArea, areas);
+    fillSelect(els.filterArea, areas);
 }
 
 function updatePointDropdown(selectedArea) {
+    if (!els.filterPoint) return;
     const relevant = selectedArea ? globalData.filter(i => i.area === selectedArea) : globalData;
     const points = [...new Set(relevant.map(i => i.point).filter(i => i && i !== "-"))].sort();
-    fillSelect(filterPoint, points);
+    fillSelect(els.filterPoint, points);
 }
 
 function updateBPDropdown() {
-    const selectedArea = filterArea.value;
-    const selectedPoint = filterPoint.value;
+    if (!els.filterBP) return;
+    const selectedArea = els.filterArea.value;
+    const selectedPoint = els.filterPoint.value;
     
     let relevant = globalData;
-    if (selectedArea) {
-        relevant = relevant.filter(i => i.area === selectedArea);
-    }
-    if (selectedPoint) {
-        relevant = relevant.filter(i => i.point === selectedPoint);
-    }
+    if (selectedArea) relevant = relevant.filter(i => i.area === selectedArea);
+    if (selectedPoint) relevant = relevant.filter(i => i.point === selectedPoint);
 
     const bps = [...new Set(relevant.map(i => i.nama_bp).filter(i => i && i !== "-"))].sort();
-    fillSelect(filterBP, bps);
+    fillSelect(els.filterBP, bps);
 }
 
-if(filterArea) {
-    filterArea.addEventListener('change', () => {
-        filterPoint.value = ""; 
-        filterBP.value = "";    
-        updatePointDropdown(filterArea.value);
+// Event Listeners Filters
+if(els.filterArea) {
+    els.filterArea.addEventListener('change', () => {
+        if(els.filterPoint) els.filterPoint.value = ""; 
+        if(els.filterBP) els.filterBP.value = "";     
+        updatePointDropdown(els.filterArea.value);
         updateBPDropdown();
     });
 }
-
-if(filterPoint) {
-    filterPoint.addEventListener('change', () => {
-        filterBP.value = "";    
+if(els.filterPoint) {
+    els.filterPoint.addEventListener('change', () => {
+        if(els.filterBP) els.filterBP.value = "";     
         updateBPDropdown();
     });
 }
 
 function fillSelect(el, items) {
     const current = el.value;
-    let html = el.options[0].outerHTML; 
-    html += items.map(i => `<option value="${i}">${i}</option>`).join('');
-    el.innerHTML = html;
+    // Gunakan DocumentFragment untuk performa render option sedikit lebih cepat
+    const fragment = document.createDocumentFragment();
+    
+    // Option default
+    const defaultOpt = el.options[0].cloneNode(true);
+    fragment.appendChild(defaultOpt);
+
+    items.forEach(i => {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = i;
+        fragment.appendChild(opt);
+    });
+
+    el.innerHTML = "";
+    el.appendChild(fragment);
+    
     if(items.includes(current)) el.value = current;
-    else el.value = "";
 }
 
-// 5. RENDER DATA (UPDATE: Perbaikan Format Angka Biasa)
+// 5. RENDER DATA (Optimized)
 function renderGroupedData(data) {
-    majelisContainer.innerHTML = "";
-    
-    const fArea = filterArea.value.toLowerCase();
-    const fPoint = filterPoint.value.toLowerCase();
-    const fBP = filterBP.value; 
-    const fHari = filterHari.value.toLowerCase();
+    // Ambil value sekali saja di awal
+    const fArea = els.filterArea ? els.filterArea.value.toLowerCase() : "";
+    const fPoint = els.filterPoint ? els.filterPoint.value.toLowerCase() : "";
+    const fHari = els.filterHari ? els.filterHari.value.toLowerCase() : "";
+    const fBP = els.filterBP ? els.filterBP.value : ""; // Nama BP biasanya case sensitive/spesifik
 
+    // Filter
     const filtered = data.filter(item => {
-        const matchArea = fArea === "" || String(item.area).toLowerCase() === fArea;
-        const matchPoint = fPoint === "" || String(item.point).toLowerCase() === fPoint;
-        const matchHari = fHari === "" || String(item.hari).toLowerCase() === fHari;
-        const matchBP = fBP === "" || item.nama_bp === fBP;
-        return matchArea && matchPoint && matchHari && matchBP;
+        if (fArea && String(item.area).toLowerCase() !== fArea) return false;
+        if (fPoint && String(item.point).toLowerCase() !== fPoint) return false;
+        if (fHari && String(item.hari).toLowerCase() !== fHari) return false;
+        if (fBP && item.nama_bp !== fBP) return false;
+        return true;
     });
 
+    // Handle Empty
     if (filtered.length === 0) {
-        emptyState.classList.remove('d-none');
-        if (fArea === "" && fPoint === "" && fBP === "" && fHari === "") {
-             emptyState.querySelector('p').innerHTML = "Silakan pilih filter dan klik <b>Tampilkan Data</b>";
-        } else {
-             emptyState.querySelector('p').textContent = "Data tidak ditemukan sesuai filter.";
-        }
-        document.getElementById('totalMajelis').innerText = "Total: 0";
-        document.getElementById('totalMitra').innerText = "0 Mitra";
+        els.majelisContainer.innerHTML = "";
+        els.emptyState.classList.remove('d-none');
+        const msg = (fArea === "" && fPoint === "" && fBP === "" && fHari === "") 
+            ? "Silakan pilih filter dan klik <b>Tampilkan Data</b>"
+            : "Data tidak ditemukan sesuai filter.";
+        els.emptyState.querySelector('p').innerHTML = msg;
+        els.lblTotalMajelis.innerText = "Total: 0";
+        els.lblTotalMitra.innerText = "0 Mitra";
         return;
     }
-    emptyState.classList.add('d-none');
 
+    els.emptyState.classList.add('d-none');
+
+    // Grouping
     const grouped = {};
     filtered.forEach(item => {
-        const majelis = item.majelis || "Tanpa Majelis";
-        if (!grouped[majelis]) grouped[majelis] = [];
-        grouped[majelis].push(item);
+        const m = item.majelis || "Tanpa Majelis";
+        if (!grouped[m]) grouped[m] = [];
+        grouped[m].push(item);
     });
 
-    document.getElementById('totalMajelis').innerText = `Total: ${Object.keys(grouped).length} Majelis`;
-    document.getElementById('totalMitra').innerText = `${filtered.length} Mitra`;
+    // Update Label Header
+    const majelisKeys = Object.keys(grouped).sort();
+    els.lblTotalMajelis.innerText = `Total: ${majelisKeys.length} Majelis`;
+    els.lblTotalMitra.innerText = `${filtered.length} Mitra`;
 
-    let htmlContent = "";
-    Object.keys(grouped).sort().forEach((majelis, index) => {
+    // Render HTML String Builder (Cepat)
+    const htmlContent = majelisKeys.map((majelis, index) => {
         const mitras = grouped[majelis];
         const bpName = mitras[0].nama_bp || "-";
         
-        const rows = mitras.map(m => {
-            const statusBayar = String(m.status).toLowerCase();
-            const statusKirim = String(m.status_kirim || "").toLowerCase();
-            const isSent = statusKirim.includes("sudah");
-            
-            // --- BADGE BLL ---
-            const isBll = (m.status_bll === "BLL");
-            const bllBadge = isBll ? '<span class="badge-bll">BLL</span>' : '';
-            // -----------------
+        const rowsHtml = mitras.map(m => createRowHtml(m)).join('');
 
-            let badgeClass = "text-success"; 
-            if (statusBayar === "telat") {
-                badgeClass = "text-danger";
-            }
-            
-            // Fungsi Format Rupiah (Hanya untuk Angsuran & Partial)
-            const formatRupiah = (val) => {
-                if(!val || val === "0" || val === "-") return "-";
-                const cleanVal = String(val).replace(/[^0-9]/g, '');
-                if(!cleanVal) return "-";
-                return "Rp " + parseInt(cleanVal).toLocaleString('id-ID');
-            };
-
-            const valAngsuran = formatRupiah(m.angsuran);
-            const valPartial = formatRupiah(m.partial);
-            
-            // --- FIX: ANGSURAN SUDAH DIBAYAR (HANYA ANGKA) ---
-            let valSudahBayar = "-";
-            if (m.data_p && m.data_p !== "-" && m.data_p !== "0") {
-                // Hapus "Rp", spasi, atau karakter non-digit lainnya agar murni angka
-                // Contoh: "Rp 5" -> "5"
-                valSudahBayar = String(m.data_p).replace(/[^0-9]/g, '');
-                
-                // Jika hasil replace kosong (misal datanya huruf semua), kembalikan "-"
-                if (valSudahBayar === "") valSudahBayar = "-";
-            }
-
-            const selectId = `payment-${m.cust_no}`;
-            let actionHtml = "";
-            
-            if(isSent) {
-                actionHtml = `<button class="btn btn-secondary btn-kirim" disabled><i class="fa-solid fa-check"></i> Terkirim</button>`;
-            } else {
-                const safeName = m.nama_bp.replace(/'/g, "");
-                const safeMitra = m.mitra.replace(/'/g, "");
-
-                actionHtml = `
-                    <div class="d-flex justify-content-end align-items-center gap-1">
-                        <select id="${selectId}" class="form-select form-select-sm p-0 px-1" style="width: auto; height: 26px; font-size: 10px; border-radius: 6px;">
-                            <option value="Normal">Normal</option>
-                            <option value="PAR">PAR</option>
-                            <option value="Partial">Partial</option>
-                            <option value="Par Payment">Par Payment</option>
-                            <option value="JB">JB</option> 
-                        </select>
-                        <button class="btn btn-primary btn-kirim" 
-                            onclick="window.kirimData(this, '${safeName}', '${m.cust_no}', '${safeMitra}', '${selectId}')"
-                            style="background-color: #9b59b6; border:none; height: 26px; display: flex; align-items: center;">
-                            <i class="fa-solid fa-paper-plane"></i>
-                        </button>
-                    </div>
-                `;
-            }
-
-            return `
-                <tr>
-                    <td>
-                        <span class="mitra-name">${m.mitra} ${bllBadge}</span>
-                        <span class="mitra-id"><i class="fa-regular fa-id-card me-1"></i>${m.cust_no}</span>
-                    </td>
-                    <td>
-                        <div class="nominal-text">${valAngsuran}</div>
-                        <span class="nominal-label">Angsuran</span>
-                        <div class="nominal-text mt-1 text-danger">${valPartial}</div>
-                        <span class="nominal-label">Partial</span>
-                        
-                        <div class="nominal-text mt-1 text-primary fw-bold">${valSudahBayar}</div>
-                        <span class="nominal-label">Angsuran Sudah dibayar</span>
-                    </td>
-                    <td class="text-center">
-                        <span class="${badgeClass} fw-bold" style="font-size: 12px;">${m.status}</span>
-                    </td>
-                    <td class="text-end">
-                        ${actionHtml}
-                    </td>
-                </tr>
-            `;
-        }).join('');
-
-        htmlContent += `
+        return `
             <div class="accordion-item">
                 <h2 class="accordion-header" id="heading${index}">
                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse${index}">
@@ -315,32 +277,115 @@ function renderGroupedData(data) {
                                     <th class="text-end pe-3">Aksi</th>
                                 </tr>
                             </thead>
-                            <tbody>${rows}</tbody>
+                            <tbody>${rowsHtml}</tbody>
                         </table>
                     </div>
                 </div>
             </div>
         `;
-    });
+    }).join('');
 
-    majelisContainer.innerHTML = htmlContent;
+    els.majelisContainer.innerHTML = htmlContent;
+}
+
+// Helper: Create Row HTML (Dipisah agar rapi)
+function createRowHtml(m) {
+    const statusBayar = String(m.status).toLowerCase();
+    const statusKirim = String(m.status_kirim || "").toLowerCase();
+    const isSent = statusKirim.includes("sudah");
+    const isBll = (m.status_bll === "BLL");
+    
+    const bllBadge = isBll ? '<span class="badge-bll">BLL</span>' : '';
+    const badgeClass = statusBayar === "telat" ? "text-danger" : "text-success";
+    
+    const valAngsuran = formatRupiah(m.angsuran);
+    const valPartial = formatRupiah(m.partial);
+    const valSudahBayar = formatAngkaSaja(m.data_p);
+
+    const selectId = `payment-${m.cust_no}`;
+    let actionHtml;
+
+    if(isSent) {
+        actionHtml = `<button class="btn btn-secondary btn-kirim" disabled><i class="fa-solid fa-check"></i> Terkirim</button>`;
+    } else {
+        const safeName = m.nama_bp.replace(/'/g, "");
+        const safeMitra = m.mitra.replace(/'/g, "");
+        actionHtml = `
+            <div class="d-flex justify-content-end align-items-center gap-1">
+                <select id="${selectId}" class="form-select form-select-sm p-0 px-1" style="width: auto; height: 26px; font-size: 10px; border-radius: 6px;">
+                    <option value="Normal">Normal</option>
+                    <option value="PAR">PAR</option>
+                    <option value="Partial">Partial</option>
+                    <option value="Par Payment">Par Payment</option>
+                    <option value="JB">JB</option> 
+                </select>
+                <button class="btn btn-primary btn-kirim" 
+                    onclick="window.kirimData(this, '${safeName}', '${m.cust_no}', '${safeMitra}', '${selectId}')"
+                    style="background-color: #9b59b6; border:none; height: 26px; display: flex; align-items: center;">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </button>
+            </div>
+        `;
+    }
+
+    return `
+        <tr>
+            <td>
+                <span class="mitra-name">${m.mitra} ${bllBadge}</span>
+                <span class="mitra-id"><i class="fa-regular fa-id-card me-1"></i>${m.cust_no}</span>
+            </td>
+            <td>
+                <div class="nominal-text">${valAngsuran}</div>
+                <span class="nominal-label">Angsuran</span>
+                <div class="nominal-text mt-1 text-danger">${valPartial}</div>
+                <span class="nominal-label">Partial</span>
+                <div class="nominal-text mt-1 text-primary fw-bold">${valSudahBayar}</div>
+                <span class="nominal-label">Angsuran Sudah dibayar</span>
+            </td>
+            <td class="text-center">
+                <span class="${badgeClass} fw-bold" style="font-size: 12px;">${m.status}</span>
+            </td>
+            <td class="text-end">
+                ${actionHtml}
+            </td>
+        </tr>
+    `;
+}
+
+// Utilities
+const formatRupiah = (val) => {
+    if(!val || val === "0" || val === "-") return "-";
+    const cleanVal = String(val).replace(/[^0-9]/g, '');
+    if(!cleanVal) return "-";
+    return "Rp " + parseInt(cleanVal).toLocaleString('id-ID');
+};
+
+const formatAngkaSaja = (val) => {
+    if (!val || val === "-" || val === "0") return "-";
+    const clean = String(val).replace(/[^0-9]/g, '');
+    return clean === "" ? "-" : clean;
+};
+
+function showLoading(show) {
+    if(els.loadingOverlay) {
+        if(show) els.loadingOverlay.classList.remove('d-none');
+        else els.loadingOverlay.classList.add('d-none');
+    }
 }
 
 // 6. Tombol Tampilkan
-btnTampilkan.addEventListener('click', () => {
-    if(loadingOverlay) {
-        loadingOverlay.querySelector('p').textContent = "Menampilkan data...";
-        loadingOverlay.classList.remove('d-none');
+if(els.btnTampilkan) {
+    els.btnTampilkan.addEventListener('click', () => {
+        showLoading(true);
+        // setTimeout agar UI sempat render loading overlay sebelum proses berat (renderGroupedData) jalan
         setTimeout(() => {
             renderGroupedData(globalData);
-            loadingOverlay.classList.add('d-none');
-        }, 100);
-    } else {
-        renderGroupedData(globalData);
-    }
-});
+            showLoading(false);
+        }, 50);
+    });
+}
 
-// 7. FUNGSI KIRIM DATA
+// 7. FUNGSI KIRIM DATA (Global)
 window.kirimData = async function(btn, namaBP, custNo, namaMitra, selectId) {
     const selectEl = document.getElementById(selectId);
     const jenisBayar = selectEl ? selectEl.value : "Normal";
@@ -354,7 +399,7 @@ window.kirimData = async function(btn, namaBP, custNo, namaMitra, selectId) {
 
     try {
         const payload = {
-            jenisLaporan: "ClosingModal",
+            action: "ClosingModal", // Sesuai dengan Code.gs
             idKaryawan: userProfile.idKaryawan || "Unknown",
             namaBP: namaBP,
             customerNumber: custNo,
@@ -364,7 +409,6 @@ window.kirimData = async function(btn, namaBP, custNo, namaMitra, selectId) {
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify(payload),
-            redirect: "follow",
             headers: { "Content-Type": "text/plain;charset=utf-8" }
         });
 
