@@ -46,9 +46,12 @@ window.onload = function() {
     window.onmousemove = resetTimer;
     window.onmousedown = resetTimer;      
     window.ontouchstart = resetTimer; 
-    window.onclick = resetTimer;     
-    window.onkeypress = resetTimer;   
+    window.onclick = resetTimer;      
+    window.onkeypress = resetTimer;    
     window.addEventListener('scroll', resetTimer, true); 
+
+    // Initialize Chart
+    initAreaProgressChart();
 };
 
 // --- HELPER TIME ---
@@ -102,7 +105,7 @@ onAuthStateChanged(auth, (user) => {
         
         // --- LOAD DATA KHUSUS (Termasuk Update Repayment) ---
         loadLeaderboard();
-        loadRepaymentInfo(); // <--- FUNGSI BARU DIPANGGIL DISINI
+        loadRepaymentInfo();
 
         const userRef = ref(db, 'users/' + user.uid);
         get(userRef).then((snapshot) => {
@@ -188,6 +191,7 @@ function formatJamOnly(val) {
         return "";
     }
 }
+
 // --- LOGIKA LEADERBOARD ---
 async function loadLeaderboard() {
     try {
@@ -295,4 +299,102 @@ function formatJuta(angka) {
     else if (num >= 1000000) return "Rp " + (num / 1000000).toFixed(1) + "jt";
     else if (num >= 1000) return "Rp " + (num / 1000).toFixed(0) + "rb";
     else return "Rp " + num.toLocaleString('id-ID');
+}
+
+// --- FUNGSI CHART AREA PROGRESS ---
+function initAreaProgressChart() {
+    const ctx = document.getElementById('areaProgressChart');
+    if (!ctx) return;
+
+    // DATA DUMMY (Silahkan diganti dengan logic Fetch API jika sudah ada endpointnya)
+    // Structure: Area, Plan Hari Ini, Progres Hari Ini, Target Bulan Ini, Achievement Bulan Ini
+    const areaData = [
+        { area: "Semarang", plan: 50, progress: 45, target: 1000, achievement: 850 },
+        { area: "Solo", plan: 40, progress: 20, target: 800, achievement: 400 },
+        { area: "Jogja", plan: 60, progress: 60, target: 1200, achievement: 1100 },
+        { area: "Magelang", plan: 30, progress: 15, target: 600, achievement: 300 },
+        { area: "Pekalongan", plan: 45, progress: 40, target: 900, achievement: 880 }
+    ];
+
+    // Calculate Percentages
+    const labels = areaData.map(d => d.area);
+    const dailyPrc = areaData.map(d => d.plan > 0 ? ((d.progress / d.plan) * 100).toFixed(1) : 0);
+    const achievePrc = areaData.map(d => d.target > 0 ? ((d.achievement / d.target) * 100).toFixed(1) : 0);
+
+    new Chart(ctx.getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: '% Harian (Prog vs Plan)',
+                    data: dailyPrc,
+                    backgroundColor: 'rgba(54, 162, 235, 0.7)', // Biru
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1,
+                    barPercentage: 0.7,
+                    categoryPercentage: 0.8
+                },
+                {
+                    label: '% Pencapaian (Ach vs Tgt)',
+                    data: achievePrc,
+                    backgroundColor: 'rgba(75, 192, 192, 0.7)', // Hijau Teal
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1,
+                    barPercentage: 0.7,
+                    categoryPercentage: 0.8
+                }
+            ]
+        },
+        options: {
+            indexAxis: 'y', // Membuat grafik horizontal (Menurun ke bawah)
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        font: { size: 10 },
+                        boxWidth: 10
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label = label.split('(')[0].trim() + ': ';
+                            }
+                            label += context.parsed.x + '%';
+                            
+                            // Menambahkan detail angka asli
+                            const dataIndex = context.dataIndex;
+                            const item = areaData[dataIndex];
+                            if (context.datasetIndex === 0) {
+                                label += ` (${item.progress}/${item.plan})`;
+                            } else {
+                                label += ` (${item.achievement}/${item.target})`;
+                            }
+                            return label;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    max: 120, // Space lebih agar label angka muat
+                    ticks: {
+                        callback: function(value) { return value + "%" },
+                        font: { size: 9 }
+                    }
+                },
+                y: {
+                    ticks: {
+                        font: { size: 10, weight: 'bold' }
+                    }
+                }
+            }
+        }
+    });
 }
