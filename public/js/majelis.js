@@ -37,16 +37,15 @@ const els = {
     lblTotalMitra: document.getElementById('totalMitra')
 };
 
-// 1. ENTRY POINT: Login -> Profil -> Data Area (Berurutan agar cepat)
+// 1. ENTRY POINT: Login -> Profil -> Data Area
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         showLoading(true);
         try {
-            // STEP 1: Ambil Profil User Dulu
+            // STEP 1: Ambil Profil User
             userProfile = await fetchUserProfile(user.uid);
             
-            // STEP 2: Ambil Data KHUSUS Area User (Server-Side Filtering)
-            // Ini kunci agar tidak "QuotaExceeded" atau Loading Lama
+            // STEP 2: Ambil Data KHUSUS Area User
             globalData = await fetchMainData(userProfile.area);
 
             // Setup UI
@@ -80,10 +79,9 @@ async function fetchUserProfile(uid) {
     }
 }
 
-// 3. Fetch Data Utama (Dengan Parameter Area)
+// 3. Fetch Data Utama
 async function fetchMainData(reqArea) {
     try {
-        // Kita kirim reqArea ke Server Apps Script
         const payload = { 
             action: "get_data_modal",
             reqArea: reqArea || "" 
@@ -100,7 +98,7 @@ async function fetchMainData(reqArea) {
         if (result.result === "success" && Array.isArray(result.data)) {
             return result.data;
         } else {
-            return []; // Return kosong jika gagal/kosong, jangan error
+            return [];
         }
     } catch (error) {
         console.error("Fetch Error:", error);
@@ -112,13 +110,11 @@ async function fetchMainData(reqArea) {
 function initializeFilters() {
     populateFilters(globalData);
 
-    // Set Default Filter dari Profil UI
     if (userProfile.area && els.filterArea) {
         els.filterArea.value = userProfile.area; 
         updatePointDropdown(userProfile.area);
         
         if (userProfile.point && els.filterPoint) {
-            // Cek apakah point ada di opsi (safety check)
             const pointExists = [...els.filterPoint.options].some(o => o.value === userProfile.point);
             if(pointExists) els.filterPoint.value = userProfile.point;
         }
@@ -128,11 +124,8 @@ function initializeFilters() {
 
 function populateFilters(data) {
     if (!els.filterArea) return;
-    
-    // Ambil daftar area dari data yang ditarik
     let areas = [...new Set(data.map(i => i.area).filter(i => i && i !== "-"))];
     
-    // Pastikan Area user tetap ada di dropdown meskipun data kosong
     if (userProfile.area && !areas.includes(userProfile.area)) {
         areas.push(userProfile.area);
     }
@@ -163,7 +156,6 @@ function updateBPDropdown() {
 // Event Listeners Filters
 if(els.filterArea) {
     els.filterArea.addEventListener('change', async () => {
-        // FITUR: Jika Admin ganti area, tarik data baru dari server
         const newArea = els.filterArea.value;
         const hasData = globalData.some(i => i.area === newArea);
         
@@ -171,10 +163,9 @@ if(els.filterArea) {
             showLoading(true);
             try {
                 const newData = await fetchMainData(newArea);
-                globalData = newData; // Ganti data global
+                globalData = newData;
                 renderGroupedData(globalData);
                 
-                // Reset child dropdowns
                 if(els.filterPoint) els.filterPoint.value = ""; 
                 if(els.filterBP) els.filterBP.value = "";     
                 updatePointDropdown(newArea);
@@ -185,7 +176,6 @@ if(els.filterArea) {
                 showLoading(false);
             }
         } else {
-            // Filter biasa client-side
             if(els.filterPoint) els.filterPoint.value = ""; 
             if(els.filterBP) els.filterBP.value = "";     
             updatePointDropdown(els.filterArea.value);
@@ -232,7 +222,6 @@ function renderGroupedData(data) {
         return true;
     });
 
-    // Handle Empty State
     if (filtered.length === 0) {
         els.majelisContainer.innerHTML = "";
         els.emptyState.classList.remove('d-none');
@@ -382,7 +371,6 @@ function showLoading(show) {
     }
 }
 
-// 6. Tombol Tampilkan
 if(els.btnTampilkan) {
     els.btnTampilkan.addEventListener('click', () => {
         showLoading(true);
@@ -393,31 +381,40 @@ if(els.btnTampilkan) {
     });
 }
 
-// 7. FUNGSI KIRIM DATA (Global)
+// 7. FUNGSI KIRIM DATA (Global) - DIPERBAIKI SESUAI CODE.GS
 window.kirimData = async function(btn, namaBP, custNo, namaMitra, selectId) {
     const selectEl = document.getElementById(selectId);
     const jenisBayar = selectEl ? selectEl.value : "Normal";
+    
     if(!confirm(`Kirim laporan closing untuk mitra: ${namaMitra}\nJenis Pembayaran: ${jenisBayar}?`)) return;
 
+    // Simpan state tombol
     const originalContent = btn.innerHTML;
     btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
     btn.disabled = true;
     if(selectEl) selectEl.disabled = true;
 
     try {
+        // --- PERBAIKAN PENTING ---
+        // Backend mengharapkan 'jenisLaporan' untuk memproses input.
+        // 'action' digunakan agar script tidak masuk ke logika Getter (get_data_modal, dll).
         const payload = {
-            action: "ClosingModal",
+            action: "input_laporan",    // Action sembarang agar masuk ke blok input di code.gs
+            jenisLaporan: "ClosingModal", // WAJIB ADA: sesuai baris 133 di code.gs
             idKaryawan: userProfile.idKaryawan || "Unknown",
             namaBP: namaBP,
             customerNumber: custNo,
             jenisPembayaran: jenisBayar
         };
+
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify(payload),
             headers: { "Content-Type": "text/plain;charset=utf-8" }
         });
+
         const result = await response.json();
+        
         if (result.result === 'success') {
             btn.parentElement.innerHTML = `<button class="btn btn-secondary btn-kirim" disabled><i class="fa-solid fa-check"></i> Terkirim</button>`;
         } else {
@@ -425,6 +422,7 @@ window.kirimData = async function(btn, namaBP, custNo, namaMitra, selectId) {
         }
     } catch (error) {
         alert("Gagal Kirim: " + error.message);
+        // Kembalikan tombol jika gagal
         btn.innerHTML = originalContent;
         btn.disabled = false;
         if(selectEl) selectEl.disabled = false;
