@@ -144,22 +144,23 @@ async function loadRepaymentInfo() {
     if (!labelUpdate) return;
 
     try {
-        // Kita panggil get_majelis karena endpoint ini sudah kita update untuk baca kolom S
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify({ action: "get_majelis" }),
-            redirect: "follow",
+            // redirect: "follow", // Bisa dihapus jika tidak perlu redirect
             headers: { "Content-Type": "text/plain;charset=utf-8" }
         });
 
         const result = await response.json();
 
         if (result.result === "success" && result.data && result.data.length > 0) {
-            // Ambil jam_update dari baris pertama data (asumsi semua baris punya jam update sama/serupa)
-            // Field 'jam_update' diambil dari Kolom S sesuai script Apps Script
-            const jamUpdate = result.data[0].jam_update; 
+            // Ambil data mentah
+            const rawJam = result.data[0].jam_update; 
             
-            labelUpdate.textContent = jamUpdate !== "-" ? jamUpdate : "N/A";
+            // Format hanya jam (misal: "14:30")
+            const displayJam = formatJamOnly(rawJam);
+
+            labelUpdate.textContent = displayJam !== "" ? displayJam : "N/A";
         } else {
             labelUpdate.textContent = "-";
         }
@@ -169,6 +170,24 @@ async function loadRepaymentInfo() {
     }
 }
 
+// Helper Format Jam (Sama seperti di majelis.js)
+function formatJamOnly(val) {
+    if (!val || val === "-" || val === "0") return "";
+    try {
+        // Cek jika formatnya sudah jam "14:30" atau "14:30:00"
+        const timeMatch = String(val).match(/(\d{1,2}:\d{2})/);
+        if (timeMatch) return timeMatch[0];
+
+        // Jika format tanggal panjang, parse dulu
+        const date = new Date(val);
+        if (!isNaN(date.getTime())) {
+            return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false }).replace('.', ':');
+        }
+        return "";
+    } catch (e) {
+        return "";
+    }
+}
 // --- LOGIKA LEADERBOARD ---
 async function loadLeaderboard() {
     try {
