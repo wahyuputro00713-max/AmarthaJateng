@@ -86,33 +86,26 @@ async function fetchUserProfile(uid) {
     }
 }
 
-// 3. Fetch Data Utama (Dengan Client Cache)
+// 3. Fetch Data Utama (UPDATED: Tanpa Session Storage agar tidak Error Quota)
 async function fetchMainData() {
-    // Cek Session Storage dulu (Agar refresh halaman tidak loading ulang server)
-    const cachedData = sessionStorage.getItem('majelisData');
-    if (cachedData) {
-        console.log("Load data from local cache");
-        return JSON.parse(cachedData);
-    }
-
     try {
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify({ action: "get_data_modal" }),
-            // redirect: "follow", // Seringkali tidak perlu untuk fetch GAS jika via worker/proxy
             headers: { "Content-Type": "text/plain;charset=utf-8" }
         });
 
         const result = await response.json();
         
         if (result.result === "success" && Array.isArray(result.data)) {
-            // Simpan ke Session Storage (Hilang saat tab ditutup)
-            sessionStorage.setItem('majelisData', JSON.stringify(result.data));
+            // Langsung kembalikan data tanpa simpan ke sessionStorage
+            // karena ukuran data terlalu besar (>5MB)
             return result.data;
         } else {
             throw new Error("Format data salah dari server");
         }
     } catch (error) {
+        console.error("Fetch Error:", error);
         throw error;
     }
 }
