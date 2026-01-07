@@ -207,7 +207,7 @@ function formatJuta(n) {
     else return "Rp " + num.toLocaleString('id-ID');
 }
 
-// --- FUNGSI CHART AREA PROGRESS (UPDATED: DENGAN LABEL ANGKA) ---
+// --- FUNGSI CHART AREA PROGRESS (UPDATED: LABEL DI LUAR) ---
 async function loadAreaProgressChart() {
     const ctxCanvas = document.getElementById('areaProgressChart');
     if (!ctxCanvas) return;
@@ -263,7 +263,9 @@ async function loadAreaProgressChart() {
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
-                layout: { padding: { right: 30 } }, // Beri ruang kanan agar label tidak kepotong
+                layout: { 
+                    padding: { right: 80 } // Tambah padding kanan agar text panjang tidak terpotong
+                }, 
                 plugins: {
                     legend: { position: 'top', labels: { font: { size: 10 }, boxWidth: 10 } },
                     tooltip: {
@@ -281,25 +283,16 @@ async function loadAreaProgressChart() {
                             }
                         }
                     },
-                    // KONFIGURASI LABEL ANGKA DI BATANG
+                    // KONFIGURASI LABEL ANGKA DI LUAR BATANG
                     datalabels: {
-                        color: 'white',
-                        anchor: 'end',
-                        align: 'start',
-                        offset: 4,
-                        font: { weight: 'bold', size: 10 },
+                        color: 'black', // Text hitam karena background putih (di luar batang)
+                        anchor: 'end',  // Posisi di ujung batang
+                        align: 'end',   // Menjorok ke luar (ke kanan)
+                        offset: 4,      // Jarak dari batang
+                        font: { weight: 'bold', size: 9 },
                         formatter: function(value, context) {
                             const index = context.dataIndex;
                             const item = areaData[index];
-                            
-                            // Jika Batang Pendek (< 15%), text geser keluar & warna hitam
-                            if (value < 15) {
-                                context.chart.options.plugins.datalabels.align = 'end';
-                                context.chart.options.plugins.datalabels.color = 'black';
-                            } else {
-                                context.chart.options.plugins.datalabels.align = 'start';
-                                context.chart.options.plugins.datalabels.color = 'white';
-                            }
 
                             if (context.datasetIndex === 0) return `${item.progress} / ${item.plan}`;
                             else return `${formatRibuan(item.achievement)} / ${formatRibuan(item.target)}`;
@@ -307,7 +300,12 @@ async function loadAreaProgressChart() {
                     }
                 },
                 scales: {
-                    x: { beginAtZero: true, max: 125, ticks: { callback: v => v + "%", font: { size: 9 } } },
+                    x: { 
+                        beginAtZero: true, 
+                        // Tambah max value visual agar batang 100% tidak mentok kanan & nabrak text
+                        suggestedMax: 130, 
+                        ticks: { callback: v => v + "%", font: { size: 9 } } 
+                    },
                     y: { ticks: { font: { size: 10, weight: 'bold' } } }
                 }
             }
