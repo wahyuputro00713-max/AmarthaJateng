@@ -207,7 +207,7 @@ function formatJuta(n) {
     else return "Rp " + num.toLocaleString('id-ID');
 }
 
-// --- FUNGSI CHART AREA PROGRESS (UPDATED: LABEL DI LUAR) ---
+// --- FUNGSI CHART AREA PROGRESS (UPDATED: LABEL DI LUAR + FORMAT RIBUAN) ---
 async function loadAreaProgressChart() {
     const ctxCanvas = document.getElementById('areaProgressChart');
     if (!ctxCanvas) return;
@@ -271,13 +271,13 @@ async function loadAreaProgressChart() {
                     tooltip: {
                         callbacks: {
                             label: function(ctx) {
-                                // Tooltip tetap detail
+                                // Tooltip dengan format ribuan
                                 let lbl = ctx.dataset.label || '';
                                 if (lbl.includes('(')) lbl = lbl.split('(')[0].trim() + ': ';
                                 lbl += ctx.parsed.x + '%';
                                 
                                 const item = areaData[ctx.dataIndex];
-                                if (ctx.datasetIndex === 0) lbl += ` (${item.progress}/${item.plan})`;
+                                if (ctx.datasetIndex === 0) lbl += ` (${formatRibuan(item.progress)}/${formatRibuan(item.plan)})`;
                                 else lbl += ` (${formatRibuan(item.achievement)}/${formatRibuan(item.target)})`;
                                 return lbl;
                             }
@@ -294,8 +294,12 @@ async function loadAreaProgressChart() {
                             const index = context.dataIndex;
                             const item = areaData[index];
 
-                            if (context.datasetIndex === 0) return `${item.progress} / ${item.plan}`;
-                            else return `${formatRibuan(item.achievement)} / ${formatRibuan(item.target)}`;
+                            // FORMAT RIBUAN DITERAPKAN DI SINI (TITIK)
+                            if (context.datasetIndex === 0) {
+                                return `${formatRibuan(item.progress)} / ${formatRibuan(item.plan)}`;
+                            } else {
+                                return `${formatRibuan(item.achievement)} / ${formatRibuan(item.target)}`;
+                            }
                         }
                     }
                 },
