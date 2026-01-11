@@ -222,6 +222,7 @@ function renderGroupedData(data) {
         return true;
     });
 
+    // Handle Empty State
     if (filtered.length === 0) {
         els.majelisContainer.innerHTML = "";
         els.emptyState.classList.remove('d-none');
@@ -238,6 +239,7 @@ function renderGroupedData(data) {
 
     els.emptyState.classList.add('d-none');
 
+    // Grouping Data
     const grouped = {};
     filtered.forEach(item => {
         const m = item.majelis || "Tanpa Majelis";
@@ -249,9 +251,36 @@ function renderGroupedData(data) {
     els.lblTotalMajelis.innerText = `Total: ${majelisKeys.length} Majelis`;
     els.lblTotalMitra.innerText = `${filtered.length} Mitra`;
 
+    // Render HTML
     const htmlContent = majelisKeys.map((majelis, index) => {
         const mitras = grouped[majelis];
         const bpName = mitras[0].nama_bp || "-";
+        
+        // --- LOGIKA HITUNG STATISTIK ---
+        let countBayar = 0;
+        let countTelat = 0;
+        let countSudahKirim = 0;
+        let countBelumKirim = 0;
+
+        mitras.forEach(m => {
+            // Hitung Bayar vs Telat
+            const statusBayar = String(m.status || "").toLowerCase();
+            if(statusBayar === 'telat') {
+                countTelat++;
+            } else {
+                countBayar++; // Asumsi selain 'telat' dianggap bayar (lancar/sakit/izin dsb)
+            }
+
+            // Hitung Status Kirim
+            const statusKirim = String(m.status_kirim || "").toLowerCase();
+            if(statusKirim.includes('sudah')) {
+                countSudahKirim++;
+            } else {
+                countBelumKirim++;
+            }
+        });
+        // -------------------------------
+
         const rowsHtml = mitras.map(m => createRowHtml(m)).join('');
 
         return `
@@ -260,10 +289,27 @@ function renderGroupedData(data) {
                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse${index}">
                         <div class="d-flex flex-column w-100">
                             <div class="d-flex justify-content-between align-items-center w-100 pe-2">
-                                <span><i class="fa-solid fa-users me-2"></i>${majelis}</span>
-                                <span class="majelis-badge">${mitras.length}</span>
+                                <span class="fw-bold text-dark"><i class="fa-solid fa-users me-2 text-primary"></i>${majelis}</span>
+                                <span class="majelis-badge">${mitras.length} Org</span>
                             </div>
-                            <small class="text-muted fw-normal mt-1" style="font-size: 11px;">BP: ${bpName}</small>
+                            
+                            <small class="text-muted fw-normal mt-1 mb-1" style="font-size: 11px;">BP: ${bpName}</small>
+
+                            <div class="stats-row">
+                                <span class="mini-stat stat-bayar">
+                                    <i class="fa-solid fa-check-circle"></i> Bayar: ${countBayar}
+                                </span>
+                                <span class="mini-stat stat-telat">
+                                    <i class="fa-solid fa-circle-xmark"></i> Telat: ${countTelat}
+                                </span>
+                                <span class="mini-stat stat-sent">
+                                    <i class="fa-solid fa-paper-plane"></i> Terkirim: ${countSudahKirim}
+                                </span>
+                                ${(countBelumKirim > 0) ? `
+                                <span class="mini-stat stat-unsent">
+                                    <i class="fa-regular fa-clock"></i> Belum: ${countBelumKirim}
+                                </span>` : ''}
+                            </div>
                         </div>
                     </button>
                 </h2>
