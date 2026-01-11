@@ -666,35 +666,50 @@ async function updateJBDaysToServer() {
     }
 }
 
+// Pastikan fungsi ini ada di js/closing_point.js dan dipanggil
 async function sendClosingSummary() {
     const btn = document.getElementById('btnValidateAll');
+    // Update UI tombol agar terlihat sedang proses
     if(btn) btn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up fa-spin me-1"></i> Mengirim Rekap...`;
 
     const elArea = document.getElementById('selectArea');
     const elPoint = document.getElementById('selectPoint');
     
-    const areaName = (elArea && elArea.value !== "ALL") ? elArea.value : userProfile.area;
-    const pointName = (elPoint && elPoint.value !== "ALL") ? elPoint.value : userProfile.point;
+    // Ambil Nama Area & Point yang sedang aktif
+    // Jika dropdown ada value, pakai itu. Jika tidak, pakai data profile user.
+    const areaName = (elArea && elArea.value !== "ALL") ? elArea.value : (userProfile.area || "-");
+    const pointName = (elPoint && elPoint.value !== "ALL") ? elPoint.value : (userProfile.point || "-");
+
+    // Pastikan stats tidak kosong (default 0)
+    const statTotal = currentStats ? currentStats.total : 0;
+    const statTelat = currentStats ? currentStats.telat : 0;
+    const statBayar = currentStats ? currentStats.bayar : 0;
 
     const payload = {
         action: "closing_summary",
         area: areaName,
         point: pointName,
-        totalAkun: currentStats.total,
-        totalTelat: currentStats.telat,
-        totalBayar: currentStats.bayar
+        totalAkun: statTotal,
+        totalTelat: statTelat,
+        totalBayar: statBayar
     };
 
     try {
-        await fetch(SCRIPT_URL, {
+        console.log("Mengirim data:", payload); // Debugging: Cek di console apa yang dikirim
+        const response = await fetch(SCRIPT_URL, {
             method: 'POST', 
             body: JSON.stringify(payload),
             redirect: "follow", 
             headers: { "Content-Type": "text/plain;charset=utf-8" }
         });
-        console.log("Rekap terkirim");
+        const resJson = await response.json();
+        console.log("Respon Server:", resJson); // Debugging: Cek respon server
+        
+        if (resJson.result !== "success") {
+            alert("Gagal menyimpan rekap ke Spreadsheet: " + resJson.error);
+        }
     } catch (err) {
-        console.error("Gagal kirim rekap:", err);
+        console.error("Gagal kirim rekap (Network Error):", err);
     }
 }
 
