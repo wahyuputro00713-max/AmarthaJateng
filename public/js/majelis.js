@@ -444,7 +444,7 @@ if(els.btnTampilkan) {
     });
 }
 
-// 7. FUNGSI KIRIM DATA (Global)
+// 7. FUNGSI KIRIM DATA (Global) - DIPERBAIKI (AUTO UPDATE UI & STATS)
 window.kirimData = async function(btn, namaBP, custNo, namaMitra, selectId) {
     const selectEl = document.getElementById(selectId);
     const jenisBayar = selectEl ? selectEl.value : "Normal";
@@ -476,12 +476,42 @@ window.kirimData = async function(btn, namaBP, custNo, namaMitra, selectId) {
         const result = await response.json();
         
         if (result.result === 'success') {
-            btn.parentElement.innerHTML = `<button class="btn btn-secondary btn-kirim" disabled><i class="fa-solid fa-check"></i> Terkirim</button>`;
+            // === BAGIAN UTAMA PERBAIKAN ===
+            
+            // 1. Update Data di Memory (globalData)
+            const index = globalData.findIndex(item => String(item.cust_no) === String(custNo));
+            if (index !== -1) {
+                // Update status kirim agar statistik 'Terkirim' bertambah
+                globalData[index].status_kirim = "Sudah Terkirim"; 
+                
+                // Opsional: Update status bayar jika perlu (misal jika pilih PAR jadi Telat/Macet)
+                // globalData[index].status = (jenisBayar === 'Normal') ? 'Lancar' : 'Macet'; 
+            }
+
+            // 2. Simpan ID Accordion yang sedang terbuka (supaya tidak tertutup saat render ulang)
+            const openAccordion = document.querySelector('.accordion-collapse.show');
+            const openId = openAccordion ? openAccordion.id : null;
+
+            // 3. Render Ulang Data (Agar Statistik di Header Terupdate)
+            renderGroupedData(globalData);
+
+            // 4. Buka Kembali Accordion yang tadi terbuka
+            if (openId) {
+                const elContent = document.getElementById(openId);
+                const btnToggle = document.querySelector(`button[data-bs-target="#${openId}"]`);
+                
+                if (elContent) elContent.classList.add('show');
+                if (btnToggle) btnToggle.classList.remove('collapsed');
+            }
+
+            // ==============================
+
         } else {
             throw new Error(result.error || "Gagal menyimpan data.");
         }
     } catch (error) {
         alert("Gagal Kirim: " + error.message);
+        // Kembalikan tombol jika gagal
         btn.innerHTML = originalContent;
         btn.disabled = false;
         if(selectEl) selectEl.disabled = false;
