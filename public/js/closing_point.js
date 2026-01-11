@@ -349,8 +349,29 @@ function filterAndRenderData() {
         const bucketNum = parseInt(rawBucket);
         const isCurrent = rawBucket.toLowerCase().includes("current") || rawBucket.toLowerCase().includes("lancar") || (!isNaN(bucketNum) && bucketNum <= 1);
 
-        if (isCurrent) { stats.mm_total++; if (isLunas) stats.mm_bayar++; if (isTerkirim) stats.mm_kirim++; } 
-        else { stats.nc_total++; if (isLunas) stats.nc_bayar++; if (isTerkirim) stats.nc_kirim++; }
+        // --- PERBAIKAN LOGIKA HITUNG ---
+        if (isCurrent) { 
+            // Kategori: Mitra Modal (DPD 0/Current)
+            stats.mm_total++; 
+            if (isLunas) {
+                stats.mm_bayar++;
+            } else {
+                // Jika DPD Current tapi belum Lunas = Telat
+                stats.mm_telat++;
+            }
+            if (isTerkirim) stats.mm_kirim++; 
+
+        } else { 
+            // Kategori: Bermasalah (DPD > 0)
+            stats.nc_total++; 
+            if (isLunas) {
+                stats.nc_bayar++;
+            } else {
+                // Jika DPD Bermasalah dan belum Lunas = Telat
+                stats.nc_telat++;
+            }
+            if (isTerkirim) stats.nc_kirim++; 
+        }
 
         const mitraData = {
             id: getValue(row, ["id_mitra", "id", "account_id"]),
@@ -366,10 +387,6 @@ function filterAndRenderData() {
         if (!hierarchy[p_bp][p_majelis]) hierarchy[p_bp][p_majelis] = [];
         hierarchy[p_bp][p_majelis].push(mitraData);
     });
-
-    // Hitung Telat
-    stats.mm_telat = stats.mm_total - stats.mm_kirim;
-    stats.nc_telat = stats.nc_total - stats.nc_kirim;
 
     renderStats(stats);
     if (matchCount === 0) {
@@ -475,7 +492,7 @@ function createMitraCard(mitra) {
     const lockedClass = isValidationLocked ? "disabled" : "";
     const lockedAttr = isValidationLocked ? "" : `onclick="toggleValidation(this, '${mitra.id}')"`;
     
-    // --- LOGIKA WAJIB ALASAN BARU ---
+    // --- LOGIKA WAJIB ALASAN (REVISI) ---
     // Wajib jika: (PAR/PARTIAL) ATAU (Belum Lunas + Terkirim + Jenis Normal)
     const isNormalLateAndSent = (!isLunas && isTerkirim && jenisBayar === "NORMAL");
     const isMandatoryReason = isNonNormal || isNormalLateAndSent;
@@ -590,7 +607,7 @@ window.toggleValidation = function(element, id) {
     const daySelect = document.getElementById(`day-${id}`);
     const inputReason = document.getElementById(`validasi-${id}`);
 
-    // VALIDASI WAJIB (PAR/PARTIAL atau NORMAL tapi TELAT & TERKIRIM)
+    // VALIDASI WAJIB
     if (inputReason) {
         const isWajib = inputReason.getAttribute('data-wajib') === 'true';
         if (isWajib && inputReason.value.trim() === "") {
