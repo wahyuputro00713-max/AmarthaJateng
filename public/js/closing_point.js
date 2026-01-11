@@ -18,13 +18,9 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 // =========================================================================
-// KONFIGURASI APLIKASI
-// Ganti URL di bawah ini dengan URL Web App dari Deploy terbaru Anda
-// =========================================================================
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxSmjz4ybJmztePGYl1JGH_ih3mvBFW1nHcA8Qu8ShWzdgcLIDsMYvFcRgh0mKtyFf5/exec"; 
-// =========================================================================
-
 const ADMIN_ID = "17246";
+// =========================================================================
 
 // --- DATA POINT ---
 const dataPoints = {
@@ -46,13 +42,13 @@ let draftData = {};
 let readStatusData = {}; 
 let isPageLocked = false; 
 
-// Helper membersihkan string untuk Key Firebase
+// Helper string
 const clean = (str) => {
     if (!str) return "";
     return String(str).toLowerCase().replace(/[^a-z0-9]/g, "");
 };
 
-// --- STORAGE LOKAL (Hanya untuk Draft Checklist) ---
+// --- STORAGE LOKAL ---
 function getStorageKey() {
     const dateStr = new Date().toISOString().split('T')[0];
     return `closing_draft_${dateStr}`; 
@@ -68,7 +64,6 @@ function loadFromStorage() {
         draftData = rawDraft ? JSON.parse(rawDraft) : {};
         const rawRead = localStorage.getItem(getReadStatusKey());
         readStatusData = rawRead ? JSON.parse(rawRead) : {};
-        // Reset lock lokal, status lock akan diambil dari Firebase (Server)
         isPageLocked = false; 
     } catch (e) {
         draftData = {}; readStatusData = {}; isPageLocked = false;
@@ -86,20 +81,17 @@ function saveToStorage(id, isChecked, reason, day = "") {
     updateGlobalValidationStatus();
 }
 
-// --- FUNGSI PENGUCIAN GLOBAL (SERVER SIDE) ---
+// --- FUNGSI LOCKING (SERVER SIDE) ---
 function setGlobalLock(status) {
     if(!userProfile || !userProfile.point) return;
-    
-    // Tentukan tanggal
     const dateInput = document.getElementById('dateInput');
     let dateStr = "";
     if (dateInput && !dateInput.classList.contains('d-none')) {
         dateStr = dateInput.value; 
     } else {
-        dateStr = new Date().toLocaleDateString('en-CA'); // Format YYYY-MM-DD
+        dateStr = new Date().toLocaleDateString('en-CA');
     }
 
-    // KUNCI: Gunakan Nama Point sebagai folder utama
     const pointKey = clean(userProfile.point); 
     const lockPath = `closing_locks/${pointKey}/${dateStr}`;
 
@@ -109,10 +101,8 @@ function setGlobalLock(status) {
             lockedBy: userProfile.nama || "User",
             lockedAt: new Date().toISOString()
         }).then(() => {
-            console.log(`Halaman dikunci untuk ${userProfile.point} pada tanggal ${dateStr}`);
-        }).catch((err) => {
-            console.error("Gagal mengunci halaman:", err);
-        });
+            console.log(`Halaman dikunci untuk ${userProfile.point}`);
+        }).catch((err) => console.error("Gagal lock:", err));
     }
 }
 
@@ -127,19 +117,17 @@ function checkGlobalLock() {
         dateStr = new Date().toLocaleDateString('en-CA');
     }
 
-    // Cek folder kunci spesifik untuk Point user ini
     const pointKey = clean(userProfile.point);
     const lockPath = `closing_locks/${pointKey}/${dateStr}`;
 
-    // Listener Realtime: Jika ada perubahan di server, UI langsung update
     onValue(ref(db, lockPath), (snapshot) => {
         const data = snapshot.val();
         if (data && data.isLocked === true) {
             isPageLocked = true;
-            applyLockMode(data.lockedBy); // Kunci UI
+            applyLockMode(data.lockedBy);
         } else {
             isPageLocked = false;
-            releaseLockMode(); // Buka UI
+            releaseLockMode();
         }
     });
 }
@@ -153,52 +141,10 @@ window.markMajelisAsRead = function(uniqueKey, elementId) {
     }
 };
 
-// --- STYLES ---
-function injectModernStyles() {
-    const styleId = 'closing-point-modern-style';
-    if (!document.getElementById(styleId)) {
-        const style = document.createElement('style');
-        style.id = styleId;
-        style.innerHTML = `
-            :root { --primary-color: #6366f1; --success-bg: #dcfce7; --success-text: #166534; --danger-bg: #fee2e2; --danger-text: #991b1b; --info-bg: #e0f2fe; --info-text: #0369a1; --gray-bg: #f3f4f6; --gray-text: #374151; --bg-card: #ffffff; --bg-body: #f3f4f6; }
-            .mitra-card { background: var(--bg-card); border-radius: 12px; padding: 16px; margin-bottom: 12px; border: 1px solid #f0f0f0; box-shadow: 0 2px 4px rgba(0,0,0,0.02); transition: all 0.2s ease; display: flex; align-items: flex-start; justify-content: space-between; }
-            .mitra-card:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(0,0,0,0.06); border-color: var(--primary-color); }
-            .mitra-card.locked-card { opacity: 0.8; background-color: #fafafa; border-color: #e5e7eb; pointer-events: none; }
-            .mitra-name { font-weight: 700; color: #1f2937; font-size: 0.95rem; display: block; margin-bottom: 4px; }
-            .mitra-id { font-size: 0.75rem; color: #6b7280; background: #f3f4f6; padding: 2px 8px; border-radius: 6px; }
-            .badge-status { font-size: 0.7rem; padding: 4px 10px; border-radius: 20px; font-weight: 600; letter-spacing: 0.3px; text-transform: uppercase; display: inline-block; }
-            .btn-check-modern { width: 42px; height: 42px; border-radius: 50%; background: #f9fafb; border: 2px solid #e5e7eb; color: #d1d5db; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); margin-top: 10px; }
-            .btn-check-modern:hover { background: #f3f4f6; border-color: #d1d5db; }
-            .btn-check-modern.checked { background: #22c55e; border-color: #22c55e; color: white; transform: scale(1.1); box-shadow: 0 4px 10px rgba(34, 197, 94, 0.4); }
-            .btn-check-modern.disabled { background: #e5e7eb !important; border-color: #d1d5db !important; color: #9ca3af !important; cursor: not-allowed !important; pointer-events: none; opacity: 0.7; }
-            .accordion-button::after { display: none !important; }
-            .custom-arrow { transition: transform 0.3s ease; }
-            .accordion-button:not(.collapsed) .custom-arrow { transform: rotate(180deg); }
-            .accordion-button { font-weight: 600; border-radius: 12px !important; }
-            .accordion-button:not(.collapsed) { background-color: #eef2ff; color: #4f46e5; box-shadow: none; }
-            .accordion-item { border: none; margin-bottom: 10px; background: transparent; }
-            .accordion-button:focus { box-shadow: none; border-color: rgba(0,0,0,.125); }
-            .alert-modern { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; border-radius: 8px; padding: 8px 10px; font-size: 0.8rem; margin-top: 8px; }
-            .input-modern { width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px; font-size: 0.85rem; margin-top: 8px; transition: border-color 0.2s; background: #fafafa; }
-            .input-modern:focus { outline: none; border-color: var(--primary-color); background: #fff; }
-            .input-modern.required { border-color: #f87171; background-color: #fef2f2; }
-            .input-modern.required:focus { border-color: #ef4444; }
-            .input-modern:disabled { background: #e9ecef; color: #6c757d; border-color: #ced4da; }
-            .notif-dot { width: 10px; height: 10px; background-color: #ef4444; border-radius: 50%; display: inline-block; margin-left: 8px; box-shadow: 0 0 0 2px white; animation: pulse-dot 2s infinite; }
-            @keyframes pulse-dot { 0% { transform: scale(0.95); } 70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); } 100% { transform: scale(0.95); } }
-            .validation-status-bar { background: white; border-radius: 8px; padding: 10px 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); font-size: 0.9rem; font-weight: 600; color: #374151; }
-            .status-counter { color: #4f46e5; font-weight: bold; }
-            .header-select { border: 1px solid #ced4da; border-radius: 6px; padding: 4px 8px; font-size: 1rem; font-weight: 700; color: #2c3e50; background-color: white; cursor: pointer; max-width: 250px; margin-bottom: 5px; display: block; }
-            .header-select:focus { outline: none; border-color: var(--primary-color); }
-        `;
-        document.head.appendChild(style);
-    }
-}
-
-// --- 3. AUTH & INIT ---
+// --- AUTH & INIT ---
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        injectModernStyles(); loadFromStorage(); checkUserRole(user.uid);
+        loadFromStorage(); checkUserRole(user.uid);
     } else {
         window.location.replace("index.html");
     }
@@ -248,9 +194,8 @@ function initPage() {
                 const selectedDate = new Date(parts[0], parts[1] - 1, parts[2]); 
                 currentDayName = days[selectedDate.getDay()]; 
                 const container = document.getElementById('accordionBP');
-                if(container) container.innerHTML = `<div class="text-center py-5"><div class="spinner-border text-primary"></div><p class="mt-2">Memuat data hari ${currentDayName}...</p></div>`;
+                if(container) container.innerHTML = `<div class="empty-state"><div class="spinner-border text-primary"></div><p class="mt-2">Memuat data hari ${currentDayName}...</p></div>`;
                 
-                // Reset dan cek lock saat ganti tanggal
                 isPageLocked = false; 
                 checkGlobalLock(); 
 
@@ -262,18 +207,15 @@ function initPage() {
     }
 
     let targetPoint = (["RM", "AM", "ADMIN"].includes(currentRole)) ? "ALL" : userProfile.point;
-    
-    // Cek status Lock dari server saat pertama kali load
     setTimeout(() => { checkGlobalLock(); }, 1000); 
-    
     fetchRepaymentData(targetPoint);
 }
 
-// --- 4. FETCH DATA ---
+// --- FETCH DATA ---
 async function fetchRepaymentData(targetPoint) {
     const container = document.getElementById('accordionBP');
     try {
-        if(container) container.innerHTML = `<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div><p>Mengambil Data Server...</p></div>`;
+        if(container) container.innerHTML = `<div class="empty-state"><div class="spinner-border text-primary" role="status"></div><p>Sinkronisasi Database...</p></div>`;
         const response = await fetch(SCRIPT_URL, {
             method: 'POST', body: JSON.stringify({ action: "get_majelis" }), 
             redirect: "follow", headers: { "Content-Type": "text/plain;charset=utf-8" }
@@ -284,10 +226,10 @@ async function fetchRepaymentData(targetPoint) {
         setupHeaderFilters();
         if (currentRole === "BM") filterAndRenderData();
         else {
-            if(container) container.innerHTML = `<div class="text-center py-5 text-muted"><i class="fa-solid fa-filter fa-2x mb-3 text-info"></i><h6 class="text-dark fw-bold">Siap Menampilkan Data</h6><p class="small">Total Data Masuk: <b>${allRawData.length} Baris</b>.<br>Silakan pilih Area & Point, lalu klik tombol <b>Tampilkan Data</b>.</p></div>`;
+            if(container) container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-filter text-info"></i><h6>Siap Menampilkan Data</h6><p class="small">Silakan pilih Area & Point di atas, lalu klik <b>Tampilkan Data</b>.</p></div>`;
         }
     } catch (error) {
-        if(container) container.innerHTML = `<div class="text-center text-secondary py-5"><p>Gagal koneksi server.</p></div>`;
+        if(container) container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-wifi text-danger"></i><p>Gagal koneksi server.</p></div>`;
     }
 }
 
@@ -301,43 +243,54 @@ function getValue(row, keys) {
 }
 
 function setupHeaderFilters() {
-    const areaEl = document.getElementById('areaName');
-    const pointEl = document.getElementById('pointName');
-    if (!areaEl || !pointEl || (areaEl.tagName === 'SELECT' && pointEl.tagName === 'SELECT')) return;
+    // Logic khusus untuk RM/AM/Admin agar bisa filter data
+    const filterContainer = document.getElementById('filterContainer');
+    if (!filterContainer) return;
+
+    // Bersihkan filter lama jika ada
+    filterContainer.innerHTML = '';
 
     const createButton = () => {
-        if(document.getElementById('btnShowData')) return; 
         const btn = document.createElement('button');
         btn.id = 'btnShowData';
-        btn.className = 'btn btn-sm btn-primary mt-1 mb-1 shadow-sm d-block';
+        btn.className = 'btn btn-sm btn-outline-primary w-100 shadow-sm fw-bold';
         btn.innerHTML = '<i class="fa-solid fa-magnifying-glass me-1"></i> Tampilkan Data';
-        btn.style.fontSize = "0.8rem";
         btn.addEventListener('click', function() {
              const originalText = this.innerHTML; this.disabled = true; this.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin me-1"></i> Memuat...';
              setTimeout(() => { filterAndRenderData(); this.disabled = false; this.innerHTML = originalText; }, 300);
         });
-        const pointSelect = document.getElementById('selectPoint');
-        if(pointSelect && pointSelect.parentNode) pointSelect.parentNode.insertBefore(btn, pointSelect.nextSibling);
-        else pointEl.parentNode.appendChild(btn);
+        filterContainer.appendChild(btn);
     };
 
     if (currentRole === "RM" || currentRole === "ADMIN") {
-        if (areaEl.tagName !== 'SELECT') {
-            const selArea = document.createElement('select'); selArea.id = 'selectArea'; selArea.className = 'header-select text-secondary mb-1';
-            let areaOpts = `<option value="ALL">Semua Area</option>`;
-            Object.keys(dataPoints).forEach(area => { const selected = (area === userProfile.area) ? "selected" : ""; areaOpts += `<option value="${area}" ${selected}>${area}</option>`; });
-            selArea.innerHTML = areaOpts; areaEl.replaceWith(selArea);
-            selArea.addEventListener('change', () => updatePointDropdownOptions());
-        }
-        if (pointEl.tagName !== 'SELECT') {
-            const selPoint = document.createElement('select'); selPoint.id = 'selectPoint'; selPoint.className = 'header-select mb-1'; pointEl.replaceWith(selPoint);
-        }
-        updatePointDropdownOptions(); createButton();
+        const row = document.createElement('div');
+        row.className = 'd-flex gap-2 mb-2';
+        
+        const selArea = document.createElement('select'); 
+        selArea.id = 'selectArea'; 
+        selArea.className = 'header-select flex-fill';
+        let areaOpts = `<option value="ALL">Semua Area</option>`;
+        Object.keys(dataPoints).forEach(area => { const selected = (area === userProfile.area) ? "selected" : ""; areaOpts += `<option value="${area}" ${selected}>${area}</option>`; });
+        selArea.innerHTML = areaOpts; 
+        
+        const selPoint = document.createElement('select'); 
+        selPoint.id = 'selectPoint'; 
+        selPoint.className = 'header-select flex-fill';
+
+        row.appendChild(selArea);
+        row.appendChild(selPoint);
+        filterContainer.appendChild(row);
+
+        selArea.addEventListener('change', () => updatePointDropdownOptions());
+        updatePointDropdownOptions(); 
+        createButton();
+
     } else if (currentRole === "AM") {
-        if (pointEl.tagName !== 'SELECT') {
-            const selPoint = document.createElement('select'); selPoint.id = 'selectPoint'; selPoint.className = 'header-select mb-1'; pointEl.replaceWith(selPoint);
-            updatePointDropdownOptions(userProfile.area);
-        }
+        const selPoint = document.createElement('select'); 
+        selPoint.id = 'selectPoint'; 
+        selPoint.className = 'header-select w-100 mb-2';
+        filterContainer.appendChild(selPoint);
+        updatePointDropdownOptions(userProfile.area);
         createButton();
     }
 }
@@ -357,7 +310,7 @@ function updatePointDropdownOptions(fixedArea = null) {
     else selectPoint.value = "ALL";
 }
 
-// --- 5. RENDER DATA ---
+// --- RENDER DATA ---
 function filterAndRenderData() {
     let stats = { mm_total: 0, mm_bayar: 0, mm_kirim: 0, nc_total: 0, nc_bayar: 0, nc_kirim: 0 };
     let hierarchy = {}; 
@@ -369,7 +322,7 @@ function filterAndRenderData() {
     globalMitraList = [];
     const container = document.getElementById('accordionBP');
     if(!container) return;
-    if (!allRawData || allRawData.length === 0) { container.innerHTML = `<div class="text-center py-5">Data Kosong.</div>`; return; }
+    if (!allRawData || allRawData.length === 0) { container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-folder-open"></i><p>Data Kosong.</p></div>`; return; }
 
     let matchCount = 0;
     const todayClean = clean(currentDayName);
@@ -419,12 +372,11 @@ function filterAndRenderData() {
 
     renderStats(stats);
     if (matchCount === 0) {
-        container.innerHTML = `<div class="text-center text-muted py-5"><h6 class="text-dark">Data Tidak Ditemukan</h6><p>Cek filter: Hari=<b>${currentDayName}</b></p></div>`;
+        container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-magnifying-glass"></i><p>Tidak ada data di hari <b>${currentDayName}</b></p></div>`;
     } else {
         renderAccordion(hierarchy);
         updateGlobalValidationStatus();
         
-        // Cek lock status ulang setelah render selesai
         if (isPageLocked) {
             applyLockMode("System/Admin");
         } else {
@@ -445,7 +397,7 @@ function renderStats(stats) {
 
 function renderAccordion(hierarchy) {
     const container = document.getElementById('accordionBP'); if(!container) return; container.innerHTML = "";
-    const counterHtml = `<div class="validation-status-bar"><span><i class="fa-solid fa-list-check me-2"></i>Status Validasi</span><span class="status-counter" id="statusCounter">0 / 0 Mitra</span></div>`;
+    const counterHtml = `<div class="validation-bar"><div><i class="fa-solid fa-clipboard-check me-2 text-primary"></i><strong>Status Validasi</strong></div><span class="badge bg-primary rounded-pill p-2" id="statusCounter">0 / 0</span></div>`;
     container.insertAdjacentHTML('beforeend', counterHtml);
 
     Object.keys(hierarchy).sort().forEach((bpName, bpIndex) => {
@@ -457,30 +409,52 @@ function renderAccordion(hierarchy) {
             mitraList.forEach(m => { const saved = draftData[m.id] || {}; if (saved.checked) checkedCount++; if (m.is_terkirim) hasNewUpdate = true; });
             const uniqueKey = `${bpName}_${majName}`.replace(/\s+/g, '_');
             const showDot = (hasNewUpdate && !readStatusData[uniqueKey]);
-            const dotHtml = showDot ? `<span class="notif-dot" id="notif-maj-${bpIndex}-${majIndex}"></span>` : ``;
+            const dotHtml = showDot ? `<span class="badge bg-danger rounded-circle p-1 ms-2" id="notif-maj-${bpIndex}-${majIndex}" style="font-size: 5px;"> </span>` : ``;
             let mitraRows = mitraList.map(m => createMitraCard(m)).join('');
+            
             majelisHtml += `
-                <div class="accordion-item mt-2">
+                <div class="accordion-item">
                     <h2 class="accordion-header" id="headingMaj-${bpIndex}-${majIndex}">
-                        <button class="accordion-button collapsed py-2 px-3 bg-white border shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMaj-${bpIndex}-${majIndex}" onclick="markMajelisAsRead('${uniqueKey}', 'maj-${bpIndex}-${majIndex}')">
-                            <div class="d-flex align-items-center w-100 gap-3">
-                                <div class="bg-indigo-50 text-indigo p-2 rounded"><i class="fa-solid fa-users-rectangle text-primary"></i></div>
-                                <div class="flex-grow-1"><div class="d-flex align-items-center"><div class="fw-bold text-dark" style="font-size:0.9rem;">${majName}</div>${dotHtml}</div><div class="small text-muted" id="count-maj-${bpIndex}-${majIndex}">${checkedCount} / ${mitraList.length} Validasi</div></div>
-                                <i class="fa-solid fa-chevron-down text-muted small custom-arrow"></i>
+                        <button class="accordion-button collapsed py-3" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMaj-${bpIndex}-${majIndex}" onclick="markMajelisAsRead('${uniqueKey}', 'maj-${bpIndex}-${majIndex}')">
+                            <div class="d-flex align-items-center w-100 pe-3">
+                                <div class="bg-light text-primary rounded p-2 me-3"><i class="fa-solid fa-users-rectangle"></i></div>
+                                <div>
+                                    <div class="fw-bold text-dark d-flex align-items-center" style="font-size:0.9rem;">${majName} ${dotHtml}</div>
+                                    <div class="small text-muted mt-1" id="count-maj-${bpIndex}-${majIndex}">${checkedCount} / ${mitraList.length} Selesai</div>
+                                </div>
                             </div>
                         </button>
                     </h2>
-                    <div id="collapseMaj-${bpIndex}-${majIndex}" class="accordion-collapse collapse" data-bs-parent="#accordionMajelis-${bpIndex}"><div class="accordion-body p-2 bg-light rounded-bottom">${mitraRows}</div></div>
+                    <div id="collapseMaj-${bpIndex}-${majIndex}" class="accordion-collapse collapse" data-bs-parent="#accordionMajelis-${bpIndex}">
+                        <div class="accordion-body bg-light pt-3 pb-3">${mitraRows}</div>
+                    </div>
                 </div>`;
         });
-        const bpWrapper = `<div class="card border-0 shadow-sm mb-3" style="border-radius: 16px; overflow:hidden;"><div class="card-header bg-white border-0 py-3" id="headingBP-${bpIndex}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseBP-${bpIndex}"><div class="d-flex align-items-center justify-content-between"><div class="d-flex align-items-center gap-3"><div class="bg-primary text-white rounded-circle d-flex justify-content-center align-items-center shadow-sm" style="width: 48px; height: 48px;"><i class="fa-solid fa-user-tie fa-lg"></i></div><div><h6 class="mb-0 fw-bold text-dark">${bpName}</h6><small class="text-muted"><i class="fa-solid fa-layer-group me-1"></i>${Object.keys(majelisObj).length} Majelis Hari Ini</small></div></div><button class="btn btn-sm btn-light rounded-circle"><i class="fa-solid fa-chevron-down custom-arrow"></i></button></div></div><div id="collapseBP-${bpIndex}" class="accordion-collapse collapse" data-bs-parent="#accordionBP"><div class="card-body bg-light pt-0 pb-3 px-3" id="accordionMajelis-${bpIndex}">${majelisHtml}</div></div></div>`;
+        
+        const bpWrapper = `
+            <div class="card border-0 shadow-sm mb-3" style="border-radius: 16px; overflow:hidden;">
+                <div class="card-header bg-white border-0 py-3 d-flex align-items-center justify-content-between" role="button" data-bs-toggle="collapse" data-bs-target="#collapseBP-${bpIndex}">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="bg-primary text-white rounded-circle d-flex justify-content-center align-items-center shadow-sm" style="width: 42px; height: 42px;">
+                            <i class="fa-solid fa-user-tie"></i>
+                        </div>
+                        <div>
+                            <h6 class="mb-0 fw-bold text-dark">${bpName}</h6>
+                            <small class="text-muted"><i class="fa-solid fa-layer-group me-1"></i>${Object.keys(majelisObj).length} Majelis</small>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-down text-muted"></i>
+                </div>
+                <div id="collapseBP-${bpIndex}" class="accordion-collapse collapse" data-bs-parent="#accordionBP">
+                    <div class="card-body bg-light pt-0 pb-3 px-3" id="accordionMajelis-${bpIndex}">${majelisHtml}</div>
+                </div>
+            </div>`;
         container.insertAdjacentHTML('beforeend', bpWrapper);
     });
 }
 
+// --- CORE RENDER FUNCTION: MODERN CARD ---
 function createMitraCard(mitra) {
-    const stBayar = (mitra.status_bayar || "").toLowerCase();
-    const stKirim = (mitra.status_kirim || "").toLowerCase();
     const savedData = draftData[mitra.id] || {};
     const isChecked = savedData.checked ? "checked" : "";
     const savedReason = savedData.reason || ""; 
@@ -491,61 +465,51 @@ function createMitraCard(mitra) {
     const isJB = jenisBayar === "JB";
     const isNonNormal = ["PAR", "PARTIAL", "PAR PAYMENT"].includes(jenisBayar);
 
-    const isLunas = stBayar.includes('lunas') || stBayar.includes('bayar') || stBayar.includes('sudah');
-    const isTerkirim = stKirim.includes('terkirim') || stKirim.includes('sudah') || stKirim.includes('kirim') || isJB;
+    const isLunas = mitra.is_lunas;
+    const isTerkirim = mitra.is_terkirim;
 
     const isValidationLocked = !isTerkirim;
     const lockedClass = isValidationLocked ? "disabled" : "";
     const lockedAttr = isValidationLocked ? "" : `onclick="toggleValidation(this, '${mitra.id}')"`;
-    const lockedTitle = isValidationLocked ? "Status Kirim Belum Selesai (Terkunci)" : "Klik untuk Validasi";
+    
+    // Styling Classes
+    const cardStatusClass = isLunas ? "card-lunas" : (isTerkirim ? "card-normal" : "card-telat");
+    const badgeBayarClass = isLunas ? "badge-success" : "badge-danger";
+    const badgeKirimClass = isTerkirim ? "badge-success" : "badge-warning";
+    const badgeJenisClass = "badge-info";
 
-    const checkBtnClass = isChecked ? "checked" : "";
-
-    let styleBayar = isLunas ? "background-color: #d1e7dd; color: #0f5132; border: 1px solid #badbcc;" : "background-color: #f8d7da; color: #842029; border: 1px solid #f5c2c7;";
-    let styleKirim = isTerkirim ? "background-color: #198754; color: white; box-shadow: 0 2px 4px rgba(25, 135, 84, 0.3);" : "background-color: #dc3545; color: white; box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);";
-      
+    // Logic Bucket
     let bucketText = (mitra.bucket == "0" || String(mitra.bucket).toLowerCase().includes("current")) ? "Lancar" : `DPD: ${mitra.bucket}`;
-    let styleBucket = (mitra.bucket == "0" || String(mitra.bucket).toLowerCase().includes("current")) ? "background-color: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe;" : "background-color: #fef3c7; color: #92400e; border: 1px solid #fcd34d;";
+    let badgeBucketClass = (mitra.bucket == "0" || String(mitra.bucket).toLowerCase().includes("current")) ? "badge-info" : "badge-warning";
 
-    // --- PERBAIKAN LOGIKA TAMPILAN BLL ---
+    // Logic BLL
     let bllText = (mitra.status_bll || "").trim();
     let bllBadgeHtml = "";
     if (bllText && bllText !== "-" && bllText.toLowerCase() !== "null") {
-        const styleBLL = "background-color: #f3e8ff; color: #7e22ce; border: 1px solid #d8b4fe;";
-        bllBadgeHtml = `<span class="badge-status" style="${styleBLL}">${bllText}</span>`;
+        bllBadgeHtml = `<span class="badge-pill badge-purple">${bllText}</span>`;
     }
 
-    // --- FORMAT TANGGAL DATA O ---
-    let labelTgl = "";
+    // Logic Data O
+    let badgeDataO = "";
     if (mitra.data_o && mitra.data_o !== "-" && mitra.data_o !== "null") {
+        let labelTgl = mitra.data_o;
         try {
             const dateObj = new Date(mitra.data_o);
             if (!isNaN(dateObj)) {
-                const dd = String(dateObj.getDate()).padStart(2, '0');
-                const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
-                const yyyy = dateObj.getFullYear();
-                labelTgl = `${dd}/${mm}/${yyyy}`;
-            } else {
-                labelTgl = String(mitra.data_o).substring(0, 10);
+                labelTgl = `${String(dateObj.getDate()).padStart(2,'0')}/${String(dateObj.getMonth()+1).padStart(2,'0')}`;
             }
-        } catch (e) {
-            labelTgl = mitra.data_o;
-        }
+        } catch(e){}
+        badgeDataO = `<span class="badge-pill badge-warning"><i class="fa-regular fa-calendar me-1"></i>${labelTgl}</span>`;
     }
 
-    // HTML Badge Data O
-    const badgeDataO = labelTgl ? `<span class="mitra-id" style="background-color: #fffbeb; color: #92400e; border: 1px solid #fcd34d;">Tgl Bayar Billing: ${labelTgl}</span>` : "";
-
+    // Form Input
     let inputHtml = "";
     if (isJB) {
         inputHtml = `
-            <div class="mt-2">
-                <label class="small fw-bold text-warning mb-1"><i class="fa-solid fa-calendar-days me-1"></i>Pilih Hari Baru (Wajib):</label>
-                <select class="form-select form-select-sm input-modern required"
-                        id="day-${mitra.id}"
-                        style="background-color: #fffaf0; border-color: #fcd34d; color: #92400e;"
-                        onchange="window.saveReasonInput('${mitra.id}', '', this.value)">
-                    <option value="" disabled ${savedDay === "" ? "selected" : ""}>Pilih Hari...</option>
+            <div class="mt-2 p-2 bg-light rounded border border-warning">
+                <label class="small fw-bold text-warning mb-1"><i class="fa-solid fa-calendar-days me-1"></i>Pilih Hari Baru:</label>
+                <select class="form-select form-select-sm" id="day-${mitra.id}" onchange="window.saveReasonInput('${mitra.id}', '', this.value)" style="font-size:0.8rem;">
+                    <option value="" disabled ${savedDay === "" ? "selected" : ""}>- Pilih -</option>
                     <option value="Senin" ${savedDay === "Senin" ? "selected" : ""}>Senin</option>
                     <option value="Selasa" ${savedDay === "Selasa" ? "selected" : ""}>Selasa</option>
                     <option value="Rabu" ${savedDay === "Rabu" ? "selected" : ""}>Rabu</option>
@@ -555,70 +519,56 @@ function createMitraCard(mitra) {
             </div>
         `;
     } else {
-        const placeholder = isNonNormal ? "Wajib isi alasan..." : "Keterangan (Opsional)...";
+        const placeholder = isNonNormal ? "Wajib isi alasan..." : "Ket. (Opsional)...";
         const requiredClass = isNonNormal ? "required" : ""; 
         const requiredAttr = isNonNormal ? 'data-wajib="true"' : 'data-wajib="false"';
 
         inputHtml = `
-            <div>
-                <input type="text" class="input-modern ${requiredClass}" 
-                       placeholder="${placeholder}" 
-                       id="validasi-${mitra.id}" 
-                       ${requiredAttr}
-                       value="${savedReason}"
-                       oninput="window.saveReasonInput('${mitra.id}', this.value, '')">
-            </div>
-        `;
-    }
-
-    let specialUI = "";
-    if (!isLunas && isTerkirim && !isJB) {
-        specialUI = `
-            <div class="alert-modern">
-                <div class="d-flex align-items-start gap-2">
-                    <i class="fa-solid fa-triangle-exclamation mt-1"></i>
-                    <div><small>Status Telat tapi sudah dikirim.</small></div>
-                </div>
-            </div>
+            <input type="text" class="input-modern ${requiredClass}" 
+                   placeholder="${placeholder}" 
+                   id="validasi-${mitra.id}" 
+                   ${requiredAttr}
+                   value="${savedReason}"
+                   oninput="window.saveReasonInput('${mitra.id}', this.value, '')">
         `;
     }
 
     return `
-        <div class="mitra-card">
-            <div style="flex: 1;">
-                <div class="d-flex align-items-center gap-2 mb-2">
-                    <span class="mitra-name mb-0">${mitra.nama}</span>
+        <div class="mitra-card ${cardStatusClass}">
+            <div class="mitra-info">
+                <div class="d-flex align-items-center flex-wrap gap-1 mb-2">
+                    <span class="mitra-name me-2">${mitra.nama}</span>
                     <span class="mitra-id">${mitra.id}</span>
                     ${badgeDataO}
                 </div>
                 
-                <div class="d-flex flex-wrap gap-2 mb-2">
-                    <span class="badge-status" style="${styleBayar}">${mitra.status_bayar}</span>
-                    <span class="badge-status" style="${styleKirim}">${mitra.status_kirim}</span>
-                    <span class="badge-status" style="background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;">${mitra.jenis_bayar}</span>
-                    <span class="badge-status" style="${styleBucket}">${bucketText}</span>
-                    ${bllBadgeHtml} </div>
+                <div class="mb-2">
+                    <span class="badge-pill ${badgeBayarClass}">${mitra.status_bayar}</span>
+                    <span class="badge-pill ${badgeKirimClass}">${mitra.status_kirim}</span>
+                    <span class="badge-pill ${badgeJenisClass}">${mitra.jenis_bayar}</span>
+                    <span class="badge-pill ${badgeBucketClass}">${bucketText}</span>
+                    ${bllBadgeHtml}
+                </div>
 
-                ${specialUI}
                 ${inputHtml}
             </div>
             
-            <div class="ms-3 border-start ps-3 d-flex align-items-center">
-                <div class="btn-check-modern shadow-sm ${checkBtnClass} ${lockedClass}" 
-                     ${lockedAttr}
-                     title="${lockedTitle}">
+            <div class="d-flex align-items-center h-100 ps-2">
+                <button class="btn-check-action ${isChecked} ${lockedClass}" 
+                        ${lockedAttr} 
+                        id="btn-${mitra.id}">
                     <i class="fa-solid fa-check"></i>
-                </div>
+                </button>
             </div>
         </div>
     `;
 }
 
-// --- 7. EXPORTS & EVENTS ---
+// --- EVENTS ---
 
 window.saveReasonInput = function(id, reason, day) {
     if (isPageLocked) return;
-    const btn = document.querySelector(`.btn-check-modern[onclick*="'${id}'"]`);
+    const btn = document.querySelector(`#btn-${id}`);
     const existing = draftData[id] || {};
     const currentReason = reason !== undefined ? reason : (existing.reason || "");
     const currentDay = day !== undefined ? day : (existing.day || "");
@@ -632,43 +582,24 @@ window.toggleValidation = function(element, id) {
     const daySelect = document.getElementById(`day-${id}`);
     const inputReason = document.getElementById(`validasi-${id}`);
 
-    // 1. VALIDASI WAJIB ISI (PAR/PARTIAL)
+    // VALIDASI WAJIB
     if (inputReason) {
         const isWajib = inputReason.getAttribute('data-wajib') === 'true';
         if (isWajib && inputReason.value.trim() === "") {
-            alert("Wajib mengisi alasan/keterangan untuk status ini sebelum validasi!");
+            alert("Wajib mengisi alasan/keterangan untuk status ini!");
             inputReason.focus();
-            inputReason.style.borderColor = "red";
-            inputReason.style.backgroundColor = "#fff0f0";
-            setTimeout(() => { 
-                inputReason.style.borderColor = "#d1d5db"; 
-                inputReason.style.backgroundColor = "#fafafa"; 
-            }, 2000);
+            inputReason.classList.add('required');
             return;
         }
     }
 
-    // 2. VALIDASI WAJIB PILIH HARI (JB)
-    if (daySelect) {
-        if (daySelect.value === "") {
-            alert("Harap pilih HARI BARU terlebih dahulu untuk mitra JB!");
-            daySelect.focus();
-            daySelect.style.borderColor = "red";
-            return; 
-        } else {
-            daySelect.style.borderColor = "#fcd34d";
-        }
+    if (daySelect && daySelect.value === "") {
+        alert("Harap pilih HARI BARU untuk mitra JB!");
+        daySelect.focus();
+        return; 
     }
 
-    element.style.transform = "scale(0.9)";
-    setTimeout(() => {
-        if (element.classList.contains('checked')) {
-            element.style.transform = "scale(1)";
-        } else {
-            element.style.transform = "scale(1.1)";
-        }
-    }, 100);
-
+    // Toggle Check
     if (!element.classList.contains('checked')) {
         element.classList.add('checked');
     } else {
@@ -681,124 +612,78 @@ window.toggleValidation = function(element, id) {
     updateMajelisStats(element);
 };
 
-// =================================================================
-// UPDATE JB (BATCHING) - DIOPTIMALKAN UNTUK KECEPATAN
-// =================================================================
+// --- BATCH UPDATE JB ---
 async function updateJBDaysToServer() {
-    // 1. Kumpulkan data perubahan JB dari draft lokal
     const updates = [];
     globalMitraList.forEach(m => {
         const stored = draftData[m.id];
         const isJB = String(m.jenis_bayar).toUpperCase() === "JB";
-        
-        // Syarat: Mitra JB, dicentang, dan sudah pilih hari
         if (isJB && stored && stored.checked && stored.day) {
-            updates.push({ 
-                customerNumber: m.id, 
-                hariBaru: stored.day 
-            });
+            updates.push({ customerNumber: m.id, hariBaru: stored.day });
         }
     });
 
     if (updates.length === 0) return; 
 
-    // 2. Ubah UI tombol
     const btn = document.getElementById('btnValidateAll');
-    if(btn) btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-1"></i> Mengupdate Hari...`;
-
-    // 3. Kirim SATU request untuk semua data (Batch)
-    const payload = {
-        action: "batch_update_jb",
-        items: updates
-    };
+    if(btn) btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin me-1"></i> Update Hari JB...`;
 
     try {
         const response = await fetch(SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify(payload),
-            redirect: "follow",
-            headers: { "Content-Type": "text/plain;charset=utf-8" }
+            method: 'POST', body: JSON.stringify({ action: "batch_update_jb", items: updates }),
+            redirect: "follow", headers: { "Content-Type": "text/plain;charset=utf-8" }
         });
-        
         const res = await response.json();
-        console.log("Hasil Update Batch:", res);
-        
-        if(res.result !== "success") {
-            console.error("Gagal update sebagian data:", res.error);
-        }
-
+        console.log("Update JB:", res);
     } catch (err) {
-        console.error("Gagal koneksi batch update:", err);
-        alert("Peringatan: Gagal mengupdate tanggal JB ke server. Cek koneksi Anda.");
+        console.error("Gagal JB:", err);
+        alert("Peringatan: Gagal update tanggal JB.");
     }
 }
 
-// --- FUNGSI APPLY LOCK MODE ---
+// --- LOCK UI ---
 function applyLockMode(lockedBy = "Admin") {
-    const allInputs = document.querySelectorAll('.input-modern, select.input-modern');
-    allInputs.forEach(input => {
-        input.disabled = true;
-        input.style.backgroundColor = "#e9ecef";
-        input.style.color = "#6c757d";
-    });
-
-    const allChecks = document.querySelectorAll('.btn-check-modern');
-    allChecks.forEach(btn => {
-        btn.classList.add('disabled');
-        btn.removeAttribute('onclick');
-        btn.style.opacity = "0.6";
-        btn.style.cursor = "not-allowed";
-    });
-
     const btnValAll = document.getElementById('btnValidateAll');
     if(btnValAll) {
         btnValAll.disabled = true;
-        btnValAll.innerHTML = `<i class="fa-solid fa-lock me-1"></i> Laporan Terkunci (oleh ${lockedBy})`;
-        btnValAll.classList.remove('btn-success', 'btn-primary');
-        btnValAll.classList.add('btn-secondary');
-        btnValAll.style.cursor = "not-allowed";
+        btnValAll.innerHTML = `<i class="fa-solid fa-lock me-1"></i> Terkunci oleh ${lockedBy}`;
+        btnValAll.classList.replace('btn-primary', 'btn-secondary');
     }
+    document.querySelectorAll('.btn-check-action').forEach(b => b.classList.add('disabled'));
+    document.querySelectorAll('input, select').forEach(i => i.disabled = true);
 }
 
-// --- FUNGSI RELEASE LOCK MODE ---
 function releaseLockMode() {
     if(!isPageLocked) {
         const btnValAll = document.getElementById('btnValidateAll');
         if(btnValAll) {
             btnValAll.disabled = false; 
-            btnValAll.classList.remove('btn-secondary');
-            btnValAll.classList.add('btn-primary');
+            btnValAll.classList.replace('btn-secondary', 'btn-primary');
             btnValAll.innerHTML = `<i class="fa-solid fa-calendar-check me-1"></i> Validasi Hari Ini`;
         }
-        if(allRawData.length > 0) {
-             filterAndRenderData();
-        }
+        if(allRawData.length > 0) filterAndRenderData();
     }
 }
 
 function updateGlobalValidationStatus() {
     if (isPageLocked) return;
-
-    const totalMitra = document.querySelectorAll('.btn-check-modern').length;
-    const checkedMitra = document.querySelectorAll('.btn-check-modern.checked').length;
-      
+    const totalMitra = document.querySelectorAll('.btn-check-action').length;
+    const checkedMitra = document.querySelectorAll('.btn-check-action.checked').length;
+    
     const counterEl = document.getElementById('statusCounter');
-    if(counterEl) {
-        counterEl.textContent = `${checkedMitra} / ${totalMitra} Mitra`;
-        counterEl.style.color = (checkedMitra === totalMitra && totalMitra > 0) ? '#166534' : '#4f46e5';
-    }
+    if(counterEl) counterEl.textContent = `${checkedMitra} / ${totalMitra}`;
 
     const btnValAll = document.getElementById('btnValidateAll');
     if(btnValAll) {
         if (checkedMitra === totalMitra && totalMitra > 0) {
             btnValAll.disabled = false;
-            btnValAll.innerHTML = `<i class="fa-solid fa-file-csv me-1"></i> Validasi & Download`; 
-            btnValAll.classList.remove('btn-secondary');
+            btnValAll.innerHTML = `<i class="fa-solid fa-file-arrow-down me-1"></i> Selesai & Download`; 
+            btnValAll.classList.remove('btn-primary', 'btn-secondary');
             btnValAll.classList.add('btn-success'); 
         } else {
             btnValAll.disabled = true;
-            btnValAll.innerHTML = `<i class="fa-solid fa-lock me-1"></i> Selesaikan ${totalMitra - checkedMitra} Lagi`;
-            btnValAll.classList.remove('btn-success');
+            btnValAll.innerHTML = `<i class="fa-solid fa-hourglass-half me-1"></i> Selesaikan ${totalMitra - checkedMitra} Lagi`;
+            btnValAll.classList.remove('btn-success', 'btn-primary');
             btnValAll.classList.add('btn-secondary');
         }
     }
@@ -810,71 +695,39 @@ function updateMajelisStats(btnElement) {
     const headerId = collapseDiv.getAttribute('aria-labelledby') || collapseDiv.id.replace('collapse', 'heading');
     const countDiv = document.querySelector(`#${headerId} .small.text-muted`); 
     if (countDiv) {
-        const allInMajelis = collapseDiv.querySelectorAll('.btn-check-modern').length;
-        const checkedInMajelis = collapseDiv.querySelectorAll('.btn-check-modern.checked').length;
-        countDiv.innerText = `${checkedInMajelis} / ${allInMajelis} Validasi`;
+        const allInMajelis = collapseDiv.querySelectorAll('.btn-check-action').length;
+        const checkedInMajelis = collapseDiv.querySelectorAll('.btn-check-action.checked').length;
+        countDiv.innerText = `${checkedInMajelis} / ${allInMajelis} Selesai`;
     }
 }
 
 function downloadCSV() {
-    if (globalMitraList.length === 0) {
-        alert("Tidak ada data untuk diunduh.");
-        return;
-    }
-
+    if (globalMitraList.length === 0) return alert("Data kosong.");
     let csvContent = "ID Mitra,Nama Mitra,BP,Majelis,Status Bayar,Status Kirim,Status BLL,Jenis Bayar,Hari Baru (JB),DPD Bucket,Keterangan\n";
-
     globalMitraList.forEach(m => {
         const stored = draftData[m.id] || {};
         const finalReason = stored.reason || m.alasan || "-";
         const finalDay = stored.day || "-";
-
-        const row = [
-            `'${m.id}`, 
-            `"${m.nama}"`,
-            `"${m.bp}"`,
-            `"${m.majelis}"`,
-            m.status_bayar,
-            m.status_kirim,
-            m.status_bll, 
-            m.jenis_bayar,
-            finalDay,
-            m.bucket, 
-            `"${finalReason}"`
-        ].join(",");
-
+        const row = [`'${m.id}`, `"${m.nama}"`, `"${m.bp}"`, `"${m.majelis}"`, m.status_bayar, m.status_kirim, m.status_bll, m.jenis_bayar, finalDay, m.bucket, `"${finalReason}"`].join(",");
         csvContent += row + "\n";
     });
-
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.setAttribute("href", url);
-    const dateStr = new Date().toISOString().split('T')[0];
-    link.setAttribute("download", `Laporan_Closing_${dateStr}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    link.href = URL.createObjectURL(blob);
+    link.download = `Laporan_Closing_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
 }
 
 document.addEventListener("DOMContentLoaded", () => {
     const btnValAll = document.getElementById('btnValidateAll');
     if(btnValAll) {
         btnValAll.disabled = true;
-        
         btnValAll.addEventListener('click', async () => {
-            if(confirm("Apakah Anda yakin ingin melakukan VALIDASI dan MENGUNDUH laporan?\n\nPERINGATAN:\n1. Data Hari untuk mitra 'JB' akan diupdate di server.\n2. Laporan ini akan TERKUNCI untuk SEMUA user di Point ini.")) {
-                
-               // Kunci tombol lokal agar tidak double click
+            if(confirm("VALIDASI & DOWNLOAD?\n\nPERINGATAN:\n1. Update Hari JB ke Server.\n2. Laporan TERKUNCI untuk semua user.")) {
                btnValAll.disabled = true;
                btnValAll.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Memproses...`;
-               
-               // --- UPDATE HARI JB (BATCHING) SEBELUM DOWNLOAD ---
                await updateJBDaysToServer();
-               
                downloadCSV();
-               
-               // --- KIRIM LOCK GLOBAL KE FIREBASE ---
                setGlobalLock(true);
             }
         });
