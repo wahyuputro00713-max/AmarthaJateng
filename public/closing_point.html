@@ -99,19 +99,12 @@
             text-align: center;
             position: relative;
         }
-        .stat-item:not(:last-child)::after {
-            content: '';
-            position: absolute;
-            right: -15px;
-            top: 10%;
-            height: 80%;
-            width: 1px;
-            background-color: #e2e8f0;
-            display: none; /* Hidden on mobile, can enable on desktop */
+        /* Divider vertical antar kolom (opsional, bagus di layar lebar) */
+        @media (min-width: 768px) { 
+            .stat-item.border-end-desk { border-right: 1px solid #e2e8f0; } 
         }
-        @media (min-width: 768px) { .stat-item:not(:last-child)::after { display: block; } }
 
-        .stat-val { font-size: 1.5rem; font-weight: 700; line-height: 1.2; }
+        .stat-val { font-size: 1.4rem; font-weight: 700; line-height: 1.2; }
         .stat-lbl { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; }
 
         /* --- ACCORDION & LIST --- */
@@ -324,45 +317,53 @@
     <div class="container-fluid px-3 pt-3">
         
         <div class="row g-3 mb-4">
-            <div class="col-6 col-md-6">
+            <div class="col-md-6 col-12">
                 <div class="stat-card">
                     <div class="stat-header text-primary-custom">
-                        <i class="fa-solid fa-users"></i> Mitra Modal Lancar
+                        <i class="fa-solid fa-users"></i> Mitra Modal
                     </div>
                     <div class="row g-0">
                         <div class="col-12 stat-item mb-3">
                             <span class="stat-val" id="mmTotal">0</span>
-                            <div class="stat-lbl">Total Mitra</div>
+                            <div class="stat-lbl">Target</div>
                         </div>
-                        <div class="col-6 stat-item">
+                        <div class="col-4 stat-item border-end-desk">
                             <span class="stat-val text-success-custom" id="mmBayar">0</span>
                             <div class="stat-lbl">Bayar</div>
                         </div>
-                        <div class="col-6 stat-item">
+                        <div class="col-4 stat-item border-end-desk">
                             <span class="stat-val text-primary-custom" id="mmKirim">0</span>
                             <div class="stat-lbl">Kirim</div>
+                        </div>
+                        <div class="col-4 stat-item">
+                            <span class="stat-val text-danger-custom" id="mmTelat">0</span>
+                            <div class="stat-lbl fw-bold text-danger">Telat</div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="col-6 col-md-6">
+            <div class="col-md-6 col-12">
                 <div class="stat-card">
                     <div class="stat-header text-warning">
-                        <i class="fa-solid fa-triangle-exclamation"></i> Mitra Modal PAR
+                        <i class="fa-solid fa-triangle-exclamation"></i> Bermasalah
                     </div>
                     <div class="row g-0">
                         <div class="col-12 stat-item mb-3">
                             <span class="stat-val" id="ncTotal">0</span>
-                            <div class="stat-lbl">Total Mitra</div>
+                            <div class="stat-lbl">Total Akun</div>
                         </div>
-                        <div class="col-6 stat-item">
+                        <div class="col-4 stat-item border-end-desk">
                             <span class="stat-val text-success-custom" id="ncBayar">0</span>
                             <div class="stat-lbl">Bayar</div>
                         </div>
-                        <div class="col-6 stat-item">
+                        <div class="col-4 stat-item border-end-desk">
                             <span class="stat-val text-primary-custom" id="ncKirim">0</span>
                             <div class="stat-lbl">Kirim</div>
+                        </div>
+                        <div class="col-4 stat-item">
+                            <span class="stat-val text-danger-custom" id="ncTelat">0</span>
+                            <div class="stat-lbl fw-bold text-danger">Telat</div>
                         </div>
                     </div>
                 </div>
