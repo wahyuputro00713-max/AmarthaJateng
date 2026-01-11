@@ -48,7 +48,7 @@ onAuthStateChanged(auth, async (user) => {
             // STEP 2: Ambil Data KHUSUS Area User
             globalData = await fetchMainData(userProfile.area);
 
-            // Setup UI
+            // Setup UI (Termasuk Auto Filter Hari)
             initializeFilters();
             
             // Auto render
@@ -106,10 +106,12 @@ async function fetchMainData(reqArea) {
     }
 }
 
-// 4. Logika Filter & Dropdown
+// 4. Logika Filter & Dropdown (UPDATED: Auto Hari)
 function initializeFilters() {
+    // A. Populate Area Filter
     populateFilters(globalData);
 
+    // B. Set Area & Point dari Profil User
     if (userProfile.area && els.filterArea) {
         els.filterArea.value = userProfile.area; 
         updatePointDropdown(userProfile.area);
@@ -119,6 +121,21 @@ function initializeFilters() {
             if(pointExists) els.filterPoint.value = userProfile.point;
         }
         updateBPDropdown();
+    }
+
+    // C. LOGIKA BARU: Auto Set Hari sesuai Device User
+    if (els.filterHari) {
+        const daysMap = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+        const todayIndex = new Date().getDay(); // 0 = Minggu, 1 = Senin, dst.
+        const todayName = daysMap[todayIndex];
+
+        // Cek apakah hari ini ada di opsi dropdown (Senin-Jumat)
+        const dayOptionExists = [...els.filterHari.options].some(o => o.value === todayName);
+
+        if (dayOptionExists) {
+            els.filterHari.value = todayName;
+            console.log("Auto-filter set to:", todayName);
+        }
     }
 }
 
@@ -167,7 +184,7 @@ if(els.filterArea) {
                 renderGroupedData(globalData);
                 
                 if(els.filterPoint) els.filterPoint.value = ""; 
-                if(els.filterBP) els.filterBP.value = "";     
+                if(els.filterBP) els.filterBP.value = "";      
                 updatePointDropdown(newArea);
                 updateBPDropdown();
             } catch(e) {
@@ -177,7 +194,7 @@ if(els.filterArea) {
             }
         } else {
             if(els.filterPoint) els.filterPoint.value = ""; 
-            if(els.filterBP) els.filterBP.value = "";     
+            if(els.filterBP) els.filterBP.value = "";      
             updatePointDropdown(els.filterArea.value);
             updateBPDropdown();
         }
@@ -186,7 +203,7 @@ if(els.filterArea) {
 
 if(els.filterPoint) {
     els.filterPoint.addEventListener('change', () => {
-        if(els.filterBP) els.filterBP.value = "";     
+        if(els.filterBP) els.filterBP.value = "";      
         updateBPDropdown();
     });
 }
@@ -207,7 +224,7 @@ function fillSelect(el, items) {
     if(items.includes(current)) el.value = current;
 }
 
-// 5. RENDER DATA
+// 5. RENDER DATA (WITH STATS & FILTER)
 function renderGroupedData(data) {
     const fArea = els.filterArea ? els.filterArea.value.toLowerCase() : "";
     const fPoint = els.filterPoint ? els.filterPoint.value.toLowerCase() : "";
@@ -268,7 +285,7 @@ function renderGroupedData(data) {
             if(statusBayar === 'telat') {
                 countTelat++;
             } else {
-                countBayar++; // Asumsi selain 'telat' dianggap bayar (lancar/sakit/izin dsb)
+                countBayar++; 
             }
 
             // Hitung Status Kirim
@@ -427,7 +444,7 @@ if(els.btnTampilkan) {
     });
 }
 
-// 7. FUNGSI KIRIM DATA (Global) - DIPERBAIKI SESUAI CODE.GS
+// 7. FUNGSI KIRIM DATA (Global)
 window.kirimData = async function(btn, namaBP, custNo, namaMitra, selectId) {
     const selectEl = document.getElementById(selectId);
     const jenisBayar = selectEl ? selectEl.value : "Normal";
@@ -441,12 +458,9 @@ window.kirimData = async function(btn, namaBP, custNo, namaMitra, selectId) {
     if(selectEl) selectEl.disabled = true;
 
     try {
-        // --- PERBAIKAN PENTING ---
-        // Backend mengharapkan 'jenisLaporan' untuk memproses input.
-        // 'action' digunakan agar script tidak masuk ke logika Getter (get_data_modal, dll).
         const payload = {
-            action: "input_laporan",    // Action sembarang agar masuk ke blok input di code.gs
-            jenisLaporan: "ClosingModal", // WAJIB ADA: sesuai baris 133 di code.gs
+            action: "input_laporan",    
+            jenisLaporan: "ClosingModal", 
             idKaryawan: userProfile.idKaryawan || "Unknown",
             namaBP: namaBP,
             customerNumber: custNo,
@@ -468,7 +482,6 @@ window.kirimData = async function(btn, namaBP, custNo, namaMitra, selectId) {
         }
     } catch (error) {
         alert("Gagal Kirim: " + error.message);
-        // Kembalikan tombol jika gagal
         btn.innerHTML = originalContent;
         btn.disabled = false;
         if(selectEl) selectEl.disabled = false;
