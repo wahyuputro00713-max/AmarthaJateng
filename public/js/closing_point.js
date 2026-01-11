@@ -243,11 +243,8 @@ function getValue(row, keys) {
 }
 
 function setupHeaderFilters() {
-    // Logic khusus untuk RM/AM/Admin agar bisa filter data
     const filterContainer = document.getElementById('filterContainer');
     if (!filterContainer) return;
-
-    // Bersihkan filter lama jika ada
     filterContainer.innerHTML = '';
 
     const createButton = () => {
@@ -370,6 +367,10 @@ function filterAndRenderData() {
         hierarchy[p_bp][p_majelis].push(mitraData);
     });
 
+    // Hitung Telat (Belum Kirim)
+    stats.mm_telat = stats.mm_total - stats.mm_kirim;
+    stats.nc_telat = stats.nc_total - stats.nc_kirim;
+
     renderStats(stats);
     if (matchCount === 0) {
         container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-magnifying-glass"></i><p>Tidak ada data di hari <b>${currentDayName}</b></p></div>`;
@@ -390,9 +391,12 @@ function renderStats(stats) {
     if(el('mmTotal')) el('mmTotal').textContent = stats.mm_total;
     if(el('mmBayar')) el('mmBayar').textContent = stats.mm_bayar;
     if(el('mmKirim')) el('mmKirim').textContent = stats.mm_kirim;
+    if(el('mmTelat')) el('mmTelat').textContent = stats.mm_telat;
+
     if(el('ncTotal')) el('ncTotal').textContent = stats.nc_total;
     if(el('ncBayar')) el('ncBayar').textContent = stats.nc_bayar;
     if(el('ncKirim')) el('ncKirim').textContent = stats.nc_kirim;
+    if(el('ncTelat')) el('ncTelat').textContent = stats.nc_telat;
 }
 
 function renderAccordion(hierarchy) {
@@ -453,7 +457,6 @@ function renderAccordion(hierarchy) {
     });
 }
 
-// --- CORE RENDER FUNCTION: MODERN CARD ---
 function createMitraCard(mitra) {
     const savedData = draftData[mitra.id] || {};
     const isChecked = savedData.checked ? "checked" : "";
