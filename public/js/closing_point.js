@@ -309,7 +309,7 @@ function updatePointDropdownOptions(fixedArea = null) {
 
 // --- RENDER DATA ---
 function filterAndRenderData() {
-    let stats = { mm_total: 0, mm_bayar: 0, mm_kirim: 0, nc_total: 0, nc_bayar: 0, nc_kirim: 0 };
+    let stats = { mm_total: 0, mm_bayar: 0, mm_kirim: 0, nc_total: 0, nc_bayar: 0, nc_kirim: 0, mm_telat: 0, nc_telat: 0 };
     let hierarchy = {}; 
     const elArea = document.getElementById('selectArea');
     const elPoint = document.getElementById('selectPoint');
@@ -367,7 +367,7 @@ function filterAndRenderData() {
         hierarchy[p_bp][p_majelis].push(mitraData);
     });
 
-    // Hitung Telat (Belum Kirim)
+    // Hitung Telat
     stats.mm_telat = stats.mm_total - stats.mm_kirim;
     stats.nc_telat = stats.nc_total - stats.nc_kirim;
 
@@ -475,6 +475,11 @@ function createMitraCard(mitra) {
     const lockedClass = isValidationLocked ? "disabled" : "";
     const lockedAttr = isValidationLocked ? "" : `onclick="toggleValidation(this, '${mitra.id}')"`;
     
+    // --- LOGIKA WAJIB ALASAN BARU ---
+    // Wajib jika: (PAR/PARTIAL) ATAU (Belum Lunas + Terkirim + Jenis Normal)
+    const isNormalLateAndSent = (!isLunas && isTerkirim && jenisBayar === "NORMAL");
+    const isMandatoryReason = isNonNormal || isNormalLateAndSent;
+
     // Styling Classes
     const cardStatusClass = isLunas ? "card-lunas" : (isTerkirim ? "card-normal" : "card-telat");
     const badgeBayarClass = isLunas ? "badge-success" : "badge-danger";
@@ -522,9 +527,9 @@ function createMitraCard(mitra) {
             </div>
         `;
     } else {
-        const placeholder = isNonNormal ? "Wajib isi alasan..." : "Ket. (Opsional)...";
-        const requiredClass = isNonNormal ? "required" : ""; 
-        const requiredAttr = isNonNormal ? 'data-wajib="true"' : 'data-wajib="false"';
+        const placeholder = isMandatoryReason ? "Wajib isi alasan..." : "Ket. (Opsional)...";
+        const requiredClass = isMandatoryReason ? "required" : ""; 
+        const requiredAttr = isMandatoryReason ? 'data-wajib="true"' : 'data-wajib="false"';
 
         inputHtml = `
             <input type="text" class="input-modern ${requiredClass}" 
@@ -585,7 +590,7 @@ window.toggleValidation = function(element, id) {
     const daySelect = document.getElementById(`day-${id}`);
     const inputReason = document.getElementById(`validasi-${id}`);
 
-    // VALIDASI WAJIB
+    // VALIDASI WAJIB (PAR/PARTIAL atau NORMAL tapi TELAT & TERKIRIM)
     if (inputReason) {
         const isWajib = inputReason.getAttribute('data-wajib') === 'true';
         if (isWajib && inputReason.value.trim() === "") {
