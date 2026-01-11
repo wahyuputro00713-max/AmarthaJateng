@@ -9,6 +9,31 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
+        /* --- Tambahan Style untuk Statistik Mini di Header Accordion --- */
+.stats-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+}
+
+.mini-stat {
+    display: flex;
+    align-items: center;
+    font-size: 0.7rem;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-weight: 600;
+    border: 1px solid transparent;
+}
+
+/* Warna-warni status */
+.stat-bayar { background: #e6fffa; color: #00b894; border-color: #b2f2bb; }
+.stat-telat { background: #fff5f5; color: #ff7675; border-color: #ffcccc; }
+.stat-sent  { background: #e7f5ff; color: #74c0fc; border-color: #a5d8ff; }
+.stat-unsent{ background: #f8f9fa; color: #636e72; border-color: #dfe6e9; }
+
+.mini-stat i { margin-right: 4px; }
         :root {
             --primary-color: #6c5ce7; /* Warna Ungu Modern */
             --secondary-color: #a29bfe;
