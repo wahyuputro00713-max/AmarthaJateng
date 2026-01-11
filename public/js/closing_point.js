@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getDatabase, ref, get, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getDatabase, ref, get, set, onValue, off } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // --- KONFIGURASI FIREBASE ---
 const firebaseConfig = {
@@ -40,8 +40,9 @@ let allRawData = [];
 let draftData = {}; 
 let readStatusData = {}; 
 let isPageLocked = false;
-// VAR GLOBAL BARU UNTUK STATS
+let lockOwner = "Admin"; // Variabel baru untuk menyimpan siapa yang mengunci
 let currentStats = { total: 0, telat: 0, bayar: 0 };
+let currentLockListener = null; // Untuk menghapus listener lama agar tidak menumpuk
 
 const clean = (str) => {
     if (!str) return "";
@@ -117,12 +118,20 @@ function checkGlobalLock() {
 
     const pointKey = clean(userProfile.point);
     const lockPath = `closing_locks/${pointKey}/${dateStr}`;
+    const lockRef = ref(db, lockPath);
 
-    onValue(ref(db, lockPath), (snapshot) => {
+    // Hapus listener lama jika ada (Mencegah double listener)
+    if (currentLockListener) {
+        off(lockRef, 'value', currentLockListener);
+    }
+
+    // Pasang listener baru
+    currentLockListener = onValue(lockRef, (snapshot) => {
         const data = snapshot.val();
         if (data && data.isLocked === true) {
             isPageLocked = true;
-            applyLockMode(data.lockedBy);
+            lockOwner = data.lockedBy || "Admin"; // Simpan nama pengunci
+            applyLockMode(lockOwner);
         } else {
             isPageLocked = false;
             releaseLockMode();
@@ -195,7 +204,7 @@ function initPage() {
                 if(container) container.innerHTML = `<div class="empty-state"><div class="spinner-border text-primary"></div><p class="mt-2">Memuat data hari ${currentDayName}...</p></div>`;
                 
                 isPageLocked = false; 
-                checkGlobalLock(); 
+                checkGlobalLock(); // Panggil lock check saat ganti tanggal
 
                 setTimeout(() => { filterAndRenderData(); }, 500);
             }
@@ -386,7 +395,7 @@ function filterAndRenderData() {
         hierarchy[p_bp][p_majelis].push(mitraData);
     });
 
-    // HITUNG STATS GLOBAL UNTUK DIKIRIM KE SERVER
+    // HITUNG STATS GLOBAL
     currentStats.total = stats.mm_total + stats.nc_total;
     currentStats.telat = stats.mm_telat + stats.nc_telat;
     currentStats.bayar = stats.mm_bayar + stats.nc_bayar;
@@ -398,10 +407,11 @@ function filterAndRenderData() {
         renderAccordion(hierarchy);
         updateGlobalValidationStatus();
         
+        // --- PERBAIKAN INFINITE LOOP DI SINI ---
+        // JANGAN PANGGIL checkGlobalLock() LAGI!
+        // Cukup terapkan state lock jika memang sedang terkunci
         if (isPageLocked) {
-            applyLockMode("System/Admin");
-        } else {
-            checkGlobalLock();
+            applyLockMode(lockOwner);
         }
     }
 }
@@ -656,7 +666,6 @@ async function updateJBDaysToServer() {
     }
 }
 
-// --- FUNGSI KIRIM REKAP CLOSING (BARU) ---
 async function sendClosingSummary() {
     const btn = document.getElementById('btnValidateAll');
     if(btn) btn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up fa-spin me-1"></i> Mengirim Rekap...`;
@@ -664,7 +673,6 @@ async function sendClosingSummary() {
     const elArea = document.getElementById('selectArea');
     const elPoint = document.getElementById('selectPoint');
     
-    // Ambil data dari dropdown atau profile jika dropdown tidak ada
     const areaName = (elArea && elArea.value !== "ALL") ? elArea.value : userProfile.area;
     const pointName = (elPoint && elPoint.value !== "ALL") ? elPoint.value : userProfile.point;
 
@@ -775,7 +783,7 @@ document.addEventListener("DOMContentLoaded", () => {
                btnValAll.disabled = true;
                btnValAll.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Memproses...`;
                await updateJBDaysToServer();
-               await sendClosingSummary(); // Kirim Rekap ke Sheet
+               await sendClosingSummary();
                downloadCSV();
                setGlobalLock(true);
             }
