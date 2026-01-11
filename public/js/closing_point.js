@@ -243,55 +243,97 @@ function getValue(row, keys) {
 }
 
 function setupHeaderFilters() {
-    const filterContainer = document.getElementById('filterContainer');
-    if (!filterContainer) return;
+    // 1. Cek atau Buat Container Filter secara otomatis jika belum ada di HTML
+    let filterContainer = document.getElementById('filterContainer');
+    
+    if (!filterContainer) {
+        // Jika user lupa update HTML, kita buat container secara manual via JS
+        const navbar = document.querySelector('.navbar-custom .d-flex.flex-column');
+        if (navbar) {
+            filterContainer = document.createElement('div');
+            filterContainer.id = 'filterContainer';
+            filterContainer.className = 'mt-2 w-100';
+            navbar.appendChild(filterContainer);
+        } else {
+            // Fallback lokasi lain
+            const header = document.querySelector('.navbar-custom');
+            if(header) {
+                filterContainer = document.createElement('div');
+                filterContainer.id = 'filterContainer';
+                filterContainer.className = 'mt-2 w-100 px-3 pb-2';
+                header.appendChild(filterContainer);
+            } else {
+                return; // Gagal menemukan tempat
+            }
+        }
+    }
+
+    // Bersihkan isi container sebelum render ulang
     filterContainer.innerHTML = '';
 
-    const createButton = () => {
-        const btn = document.createElement('button');
-        btn.id = 'btnShowData';
-        btn.className = 'btn btn-sm btn-outline-primary w-100 shadow-sm fw-bold';
-        btn.innerHTML = '<i class="fa-solid fa-magnifying-glass me-1"></i> Tampilkan Data';
-        btn.addEventListener('click', function() {
-             const originalText = this.innerHTML; this.disabled = true; this.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin me-1"></i> Memuat...';
-             setTimeout(() => { filterAndRenderData(); this.disabled = false; this.innerHTML = originalText; }, 300);
-        });
-        filterContainer.appendChild(btn);
-    };
-
+    // 2. Logic Pembuatan Dropdown Berdasarkan Role
     if (currentRole === "RM" || currentRole === "ADMIN") {
         const row = document.createElement('div');
         row.className = 'd-flex gap-2 mb-2';
         
+        // Buat Dropdown Area
         const selArea = document.createElement('select'); 
         selArea.id = 'selectArea'; 
-        selArea.className = 'header-select flex-fill';
+        selArea.className = 'header-select flex-fill form-select form-select-sm shadow-sm';
+        
+        // Isi Opsi Area
         let areaOpts = `<option value="ALL">Semua Area</option>`;
-        Object.keys(dataPoints).forEach(area => { const selected = (area === userProfile.area) ? "selected" : ""; areaOpts += `<option value="${area}" ${selected}>${area}</option>`; });
+        Object.keys(dataPoints).forEach(area => { 
+            // Cek apakah user punya area default, jika ya set selected
+            const isSelected = (userProfile.area && clean(area) === clean(userProfile.area)) ? "selected" : ""; 
+            areaOpts += `<option value="${area}" ${isSelected}>${area}</option>`; 
+        });
         selArea.innerHTML = areaOpts; 
         
+        // Buat Dropdown Point
         const selPoint = document.createElement('select'); 
         selPoint.id = 'selectPoint'; 
-        selPoint.className = 'header-select flex-fill';
+        selPoint.className = 'header-select flex-fill form-select form-select-sm shadow-sm';
 
         row.appendChild(selArea);
         row.appendChild(selPoint);
         filterContainer.appendChild(row);
 
-        selArea.addEventListener('change', () => updatePointDropdownOptions());
+        // --- EVENT LISTENERS (LOGIKA UTAMA) ---
+        
+        // Saat Area diganti:
+        selArea.addEventListener('change', () => {
+            updatePointDropdownOptions(); // 1. Perbarui daftar Point sesuai Area baru
+            filterAndRenderData();        // 2. Render ulang data tabel
+        });
+
+        // Saat Point diganti:
+        selPoint.addEventListener('change', () => {
+            filterAndRenderData();        // Render ulang data tabel
+        });
+
+        // Inisialisasi pertama kali
         updatePointDropdownOptions(); 
-        createButton();
 
     } else if (currentRole === "AM") {
+        // Khusus AM (Hanya Dropdown Point)
         const selPoint = document.createElement('select'); 
         selPoint.id = 'selectPoint'; 
-        selPoint.className = 'header-select w-100 mb-2';
+        selPoint.className = 'header-select w-100 mb-2 form-select form-select-sm shadow-sm';
         filterContainer.appendChild(selPoint);
+        
         updatePointDropdownOptions(userProfile.area);
-        createButton();
+        
+        selPoint.addEventListener('change', () => {
+            filterAndRenderData();
+        });
     }
-}
 
+    // (Opsional) Hapus tombol manual jika ingin full otomatis, 
+    // atau biarkan sebagai indikator visual.
+    const btnShow = document.getElementById('btnShowData');
+    if(btnShow) btnShow.style.display = 'none'; // Sembunyikan tombol manual agar tidak bingung
+}
 function updatePointDropdownOptions(fixedArea = null) {
     const selectPoint = document.getElementById('selectPoint'); if (!selectPoint) return;
     const selectArea = document.getElementById('selectArea');
