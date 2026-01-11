@@ -22,7 +22,6 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxSmjz4ybJmztePGYl1J
 const ADMIN_ID = "17246";
 // =========================================================================
 
-// --- DATA POINT ---
 const dataPoints = {
     "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucuk"],
     "Magelang": ["Grabag", "Mungkid", "Pakis", "Salam"],
@@ -40,9 +39,10 @@ let globalMitraList = [];
 let allRawData = []; 
 let draftData = {}; 
 let readStatusData = {}; 
-let isPageLocked = false; 
+let isPageLocked = false;
+// VAR GLOBAL BARU UNTUK STATS
+let currentStats = { total: 0, telat: 0, bayar: 0 };
 
-// Helper string
 const clean = (str) => {
     if (!str) return "";
     return String(str).toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -81,7 +81,7 @@ function saveToStorage(id, isChecked, reason, day = "") {
     updateGlobalValidationStatus();
 }
 
-// --- FUNGSI LOCKING (SERVER SIDE) ---
+// --- LOCK SERVER SIDE ---
 function setGlobalLock(status) {
     if(!userProfile || !userProfile.point) return;
     const dateInput = document.getElementById('dateInput');
@@ -100,9 +100,7 @@ function setGlobalLock(status) {
             isLocked: true,
             lockedBy: userProfile.nama || "User",
             lockedAt: new Date().toISOString()
-        }).then(() => {
-            console.log(`Halaman dikunci untuk ${userProfile.point}`);
-        }).catch((err) => console.error("Gagal lock:", err));
+        });
     }
 }
 
@@ -243,11 +241,8 @@ function getValue(row, keys) {
 }
 
 function setupHeaderFilters() {
-    // 1. Cek atau Buat Container Filter secara otomatis jika belum ada di HTML
     let filterContainer = document.getElementById('filterContainer');
-    
     if (!filterContainer) {
-        // Jika user lupa update HTML, kita buat container secara manual via JS
         const navbar = document.querySelector('.navbar-custom .d-flex.flex-column');
         if (navbar) {
             filterContainer = document.createElement('div');
@@ -255,42 +250,33 @@ function setupHeaderFilters() {
             filterContainer.className = 'mt-2 w-100';
             navbar.appendChild(filterContainer);
         } else {
-            // Fallback lokasi lain
             const header = document.querySelector('.navbar-custom');
             if(header) {
                 filterContainer = document.createElement('div');
                 filterContainer.id = 'filterContainer';
                 filterContainer.className = 'mt-2 w-100 px-3 pb-2';
                 header.appendChild(filterContainer);
-            } else {
-                return; // Gagal menemukan tempat
-            }
+            } else { return; }
         }
     }
 
-    // Bersihkan isi container sebelum render ulang
     filterContainer.innerHTML = '';
 
-    // 2. Logic Pembuatan Dropdown Berdasarkan Role
     if (currentRole === "RM" || currentRole === "ADMIN") {
         const row = document.createElement('div');
         row.className = 'd-flex gap-2 mb-2';
         
-        // Buat Dropdown Area
         const selArea = document.createElement('select'); 
         selArea.id = 'selectArea'; 
         selArea.className = 'header-select flex-fill form-select form-select-sm shadow-sm';
         
-        // Isi Opsi Area
         let areaOpts = `<option value="ALL">Semua Area</option>`;
         Object.keys(dataPoints).forEach(area => { 
-            // Cek apakah user punya area default, jika ya set selected
             const isSelected = (userProfile.area && clean(area) === clean(userProfile.area)) ? "selected" : ""; 
             areaOpts += `<option value="${area}" ${isSelected}>${area}</option>`; 
         });
         selArea.innerHTML = areaOpts; 
         
-        // Buat Dropdown Point
         const selPoint = document.createElement('select'); 
         selPoint.id = 'selectPoint'; 
         selPoint.className = 'header-select flex-fill form-select form-select-sm shadow-sm';
@@ -298,42 +284,26 @@ function setupHeaderFilters() {
         row.appendChild(selArea);
         row.appendChild(selPoint);
         filterContainer.appendChild(row);
-
-        // --- EVENT LISTENERS (LOGIKA UTAMA) ---
         
-        // Saat Area diganti:
         selArea.addEventListener('change', () => {
-            updatePointDropdownOptions(); // 1. Perbarui daftar Point sesuai Area baru
-            filterAndRenderData();        // 2. Render ulang data tabel
+            updatePointDropdownOptions(); 
+            filterAndRenderData();       
         });
-
-        // Saat Point diganti:
         selPoint.addEventListener('change', () => {
-            filterAndRenderData();        // Render ulang data tabel
+            filterAndRenderData();        
         });
-
-        // Inisialisasi pertama kali
         updatePointDropdownOptions(); 
 
     } else if (currentRole === "AM") {
-        // Khusus AM (Hanya Dropdown Point)
         const selPoint = document.createElement('select'); 
         selPoint.id = 'selectPoint'; 
         selPoint.className = 'header-select w-100 mb-2 form-select form-select-sm shadow-sm';
         filterContainer.appendChild(selPoint);
-        
         updatePointDropdownOptions(userProfile.area);
-        
-        selPoint.addEventListener('change', () => {
-            filterAndRenderData();
-        });
+        selPoint.addEventListener('change', () => { filterAndRenderData(); });
     }
-
-    // (Opsional) Hapus tombol manual jika ingin full otomatis, 
-    // atau biarkan sebagai indikator visual.
-    const btnShow = document.getElementById('btnShowData');
-    if(btnShow) btnShow.style.display = 'none'; // Sembunyikan tombol manual agar tidak bingung
 }
+
 function updatePointDropdownOptions(fixedArea = null) {
     const selectPoint = document.getElementById('selectPoint'); if (!selectPoint) return;
     const selectArea = document.getElementById('selectArea');
@@ -391,27 +361,13 @@ function filterAndRenderData() {
         const bucketNum = parseInt(rawBucket);
         const isCurrent = rawBucket.toLowerCase().includes("current") || rawBucket.toLowerCase().includes("lancar") || (!isNaN(bucketNum) && bucketNum <= 1);
 
-        // --- PERBAIKAN LOGIKA HITUNG ---
         if (isCurrent) { 
-            // Kategori: Mitra Modal (DPD 0/Current)
             stats.mm_total++; 
-            if (isLunas) {
-                stats.mm_bayar++;
-            } else {
-                // Jika DPD Current tapi belum Lunas = Telat
-                stats.mm_telat++;
-            }
+            if (isLunas) stats.mm_bayar++; else stats.mm_telat++;
             if (isTerkirim) stats.mm_kirim++; 
-
         } else { 
-            // Kategori: Bermasalah (DPD > 0)
             stats.nc_total++; 
-            if (isLunas) {
-                stats.nc_bayar++;
-            } else {
-                // Jika DPD Bermasalah dan belum Lunas = Telat
-                stats.nc_telat++;
-            }
+            if (isLunas) stats.nc_bayar++; else stats.nc_telat++;
             if (isTerkirim) stats.nc_kirim++; 
         }
 
@@ -429,6 +385,11 @@ function filterAndRenderData() {
         if (!hierarchy[p_bp][p_majelis]) hierarchy[p_bp][p_majelis] = [];
         hierarchy[p_bp][p_majelis].push(mitraData);
     });
+
+    // HITUNG STATS GLOBAL UNTUK DIKIRIM KE SERVER
+    currentStats.total = stats.mm_total + stats.nc_total;
+    currentStats.telat = stats.mm_telat + stats.nc_telat;
+    currentStats.bayar = stats.mm_bayar + stats.nc_bayar;
 
     renderStats(stats);
     if (matchCount === 0) {
@@ -522,7 +483,6 @@ function createMitraCard(mitra) {
     const savedReason = savedData.reason || ""; 
     const savedDay = savedData.day || ""; 
 
-    // --- LOGIKA UTAMA ---
     const jenisBayar = String(mitra.jenis_bayar).toUpperCase().trim();
     const isJB = jenisBayar === "JB";
     const isNonNormal = ["PAR", "PARTIAL", "PAR PAYMENT"].includes(jenisBayar);
@@ -534,29 +494,23 @@ function createMitraCard(mitra) {
     const lockedClass = isValidationLocked ? "disabled" : "";
     const lockedAttr = isValidationLocked ? "" : `onclick="toggleValidation(this, '${mitra.id}')"`;
     
-    // --- LOGIKA WAJIB ALASAN (REVISI) ---
-    // Wajib jika: (PAR/PARTIAL) ATAU (Belum Lunas + Terkirim + Jenis Normal)
     const isNormalLateAndSent = (!isLunas && isTerkirim && jenisBayar === "NORMAL");
     const isMandatoryReason = isNonNormal || isNormalLateAndSent;
 
-    // Styling Classes
     const cardStatusClass = isLunas ? "card-lunas" : (isTerkirim ? "card-normal" : "card-telat");
     const badgeBayarClass = isLunas ? "badge-success" : "badge-danger";
     const badgeKirimClass = isTerkirim ? "badge-success" : "badge-warning";
     const badgeJenisClass = "badge-info";
 
-    // Logic Bucket
     let bucketText = (mitra.bucket == "0" || String(mitra.bucket).toLowerCase().includes("current")) ? "Lancar" : `DPD: ${mitra.bucket}`;
     let badgeBucketClass = (mitra.bucket == "0" || String(mitra.bucket).toLowerCase().includes("current")) ? "badge-info" : "badge-warning";
 
-    // Logic BLL
     let bllText = (mitra.status_bll || "").trim();
     let bllBadgeHtml = "";
     if (bllText && bllText !== "-" && bllText.toLowerCase() !== "null") {
         bllBadgeHtml = `<span class="badge-pill badge-purple">${bllText}</span>`;
     }
 
-    // Logic Data O
     let badgeDataO = "";
     if (mitra.data_o && mitra.data_o !== "-" && mitra.data_o !== "null") {
         let labelTgl = mitra.data_o;
@@ -569,7 +523,6 @@ function createMitraCard(mitra) {
         badgeDataO = `<span class="badge-pill badge-warning"><i class="fa-regular fa-calendar me-1"></i>${labelTgl}</span>`;
     }
 
-    // Form Input
     let inputHtml = "";
     if (isJB) {
         inputHtml = `
@@ -645,11 +598,9 @@ window.saveReasonInput = function(id, reason, day) {
 
 window.toggleValidation = function(element, id) {
     if (isPageLocked || element.classList.contains('disabled')) return;
-
     const daySelect = document.getElementById(`day-${id}`);
     const inputReason = document.getElementById(`validasi-${id}`);
 
-    // VALIDASI WAJIB
     if (inputReason) {
         const isWajib = inputReason.getAttribute('data-wajib') === 'true';
         if (isWajib && inputReason.value.trim() === "") {
@@ -666,7 +617,6 @@ window.toggleValidation = function(element, id) {
         return; 
     }
 
-    // Toggle Check
     if (!element.classList.contains('checked')) {
         element.classList.add('checked');
     } else {
@@ -679,7 +629,6 @@ window.toggleValidation = function(element, id) {
     updateMajelisStats(element);
 };
 
-// --- BATCH UPDATE JB ---
 async function updateJBDaysToServer() {
     const updates = [];
     globalMitraList.forEach(m => {
@@ -691,7 +640,6 @@ async function updateJBDaysToServer() {
     });
 
     if (updates.length === 0) return; 
-
     const btn = document.getElementById('btnValidateAll');
     if(btn) btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin me-1"></i> Update Hari JB...`;
 
@@ -708,7 +656,40 @@ async function updateJBDaysToServer() {
     }
 }
 
-// --- LOCK UI ---
+// --- FUNGSI KIRIM REKAP CLOSING (BARU) ---
+async function sendClosingSummary() {
+    const btn = document.getElementById('btnValidateAll');
+    if(btn) btn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up fa-spin me-1"></i> Mengirim Rekap...`;
+
+    const elArea = document.getElementById('selectArea');
+    const elPoint = document.getElementById('selectPoint');
+    
+    // Ambil data dari dropdown atau profile jika dropdown tidak ada
+    const areaName = (elArea && elArea.value !== "ALL") ? elArea.value : userProfile.area;
+    const pointName = (elPoint && elPoint.value !== "ALL") ? elPoint.value : userProfile.point;
+
+    const payload = {
+        action: "closing_summary",
+        area: areaName,
+        point: pointName,
+        totalAkun: currentStats.total,
+        totalTelat: currentStats.telat,
+        totalBayar: currentStats.bayar
+    };
+
+    try {
+        await fetch(SCRIPT_URL, {
+            method: 'POST', 
+            body: JSON.stringify(payload),
+            redirect: "follow", 
+            headers: { "Content-Type": "text/plain;charset=utf-8" }
+        });
+        console.log("Rekap terkirim");
+    } catch (err) {
+        console.error("Gagal kirim rekap:", err);
+    }
+}
+
 function applyLockMode(lockedBy = "Admin") {
     const btnValAll = document.getElementById('btnValidateAll');
     if(btnValAll) {
@@ -794,6 +775,7 @@ document.addEventListener("DOMContentLoaded", () => {
                btnValAll.disabled = true;
                btnValAll.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Memproses...`;
                await updateJBDaysToServer();
+               await sendClosingSummary(); // Kirim Rekap ke Sheet
                downloadCSV();
                setGlobalLock(true);
             }
