@@ -221,22 +221,45 @@ function initPage() {
 // --- FETCH DATA ---
 async function fetchRepaymentData(targetPoint) {
     const container = document.getElementById('accordionBP');
+    const btnVal = document.getElementById('btnValidateAll');
+
+    // 1. NONAKTIFKAN TOMBOL SAAT TARIK DATA
+    if (btnVal) {
+        btnVal.disabled = true;
+        btnVal.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Data..`;
+        btnVal.classList.remove('btn-success', 'btn-primary');
+        btnVal.classList.add('btn-secondary');
+    }
+
     try {
         if(container) container.innerHTML = `<div class="empty-state"><div class="spinner-border text-primary" role="status"></div><p>Sinkronisasi Database...</p></div>`;
+        
         const response = await fetch(SCRIPT_URL, {
             method: 'POST', body: JSON.stringify({ action: "get_majelis" }), 
             redirect: "follow", headers: { "Content-Type": "text/plain;charset=utf-8" }
         });
+        
         const result = await response.json();
-        if (result.result !== "success") { alert("Gagal: " + result.error); return; }
+        
+        if (result.result !== "success") { 
+            alert("Gagal: " + result.error);
+            if (btnVal) btnVal.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Error`;
+            return; 
+        }
+        
         allRawData = result.data || [];
         setupHeaderFilters();
-        if (currentRole === "BM") filterAndRenderData();
-        else {
-            if(container) container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-filter text-info"></i><h6>Siap Menampilkan Data</h6><p class="small">Silakan pilih Area & Point di atas, lalu klik <b>Tampilkan Data</b>.</p></div>`;
+        
+        if (currentRole === "BM") {
+            filterAndRenderData();
+        } else {
+            if(container) container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-filter text-info"></i><h6>Siap Menampilkan Data</h6><p class="small">Silakan pilih Area & Point di atas.</p></div>`;
+            // Biarkan tombol tetap disabled sampai user memilih data
         }
+
     } catch (error) {
         if(container) container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-wifi text-danger"></i><p>Gagal koneksi server.</p></div>`;
+        if (btnVal) btnVal.innerHTML = `<i class="fa-solid fa-plug-circle-xmark"></i> Offline`;
     }
 }
 
