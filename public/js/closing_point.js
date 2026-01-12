@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getDatabase, ref, get, set, onValue, off } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getDatabase, ref, get, set, onValue, off, remove, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // --- KONFIGURASI FIREBASE ---
 const firebaseConfig = {
@@ -18,7 +18,7 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 // =========================================================================
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzwVFQEH4w8A8bXMcnEecqQexWv_8UWeAEHRfv2LM5iVfzXhkrJ9wEAP4EKz-IBYrnm/exec"; 
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxSmjz4ybJmztePGYl1JGH_ih3mvBFW1nHcA8Qu8ShWzdgcLIDsMYvFcRgh0mKtyFf5/exec"; 
 const ADMIN_ID = "17246";
 // =========================================================================
 
@@ -40,46 +40,69 @@ let allRawData = [];
 let draftData = {}; 
 let readStatusData = {}; 
 let isPageLocked = false;
-let lockOwner = "Admin"; // Variabel baru untuk menyimpan siapa yang mengunci
+let lockOwner = "Admin"; 
 let currentStats = { total: 0, telat: 0, bayar: 0 };
-let currentLockListener = null; // Untuk menghapus listener lama agar tidak menumpuk
+
+let currentLockListener = null; 
+let currentDraftListener = null;
 
 const clean = (str) => {
     if (!str) return "";
     return String(str).toLowerCase().replace(/[^a-z0-9]/g, "");
 };
 
-// --- STORAGE LOKAL ---
-function getStorageKey() {
-    const dateStr = new Date().toISOString().split('T')[0];
-    return `closing_draft_${dateStr}`; 
-}
-function getReadStatusKey() {
-    const dateStr = new Date().toISOString().split('T')[0];
-    return `closing_read_${dateStr}`; 
-}
+// --- SYNC DRAFT REALTIME ---
+function listenToDrafts() {
+    if(!userProfile || !userProfile.point) return;
 
-function loadFromStorage() {
-    try {
-        const rawDraft = localStorage.getItem(getStorageKey());
-        draftData = rawDraft ? JSON.parse(rawDraft) : {};
-        const rawRead = localStorage.getItem(getReadStatusKey());
-        readStatusData = rawRead ? JSON.parse(rawRead) : {};
-        isPageLocked = false; 
-    } catch (e) {
-        draftData = {}; readStatusData = {}; isPageLocked = false;
+    const dateInput = document.getElementById('dateInput');
+    let dateStr = "";
+    if (dateInput && !dateInput.classList.contains('d-none')) {
+        dateStr = dateInput.value; 
+    } else {
+        dateStr = new Date().toLocaleDateString('en-CA');
     }
+
+    const pointKey = clean(userProfile.point);
+    const draftPath = `closing_drafts/${pointKey}/${dateStr}`;
+    const draftRef = ref(db, draftPath);
+
+    if (currentDraftListener) {
+        off(draftRef, 'value', currentDraftListener);
+    }
+
+    currentDraftListener = onValue(draftRef, (snapshot) => {
+        const data = snapshot.val();
+        draftData = data || {}; 
+        
+        if (allRawData.length > 0) {
+            filterAndRenderData();
+        }
+    });
 }
 
-function saveToStorage(id, isChecked, reason, day = "") {
+function saveToDraft(id, isChecked, reason, day = "") {
     if (isPageLocked) return; 
-    if (!draftData) draftData = {};
-    if (!draftData[id]) draftData[id] = {};
-    draftData[id].checked = isChecked;
-    draftData[id].reason = reason;
-    draftData[id].day = day; 
-    localStorage.setItem(getStorageKey(), JSON.stringify(draftData));
-    updateGlobalValidationStatus();
+    if(!userProfile || !userProfile.point) return;
+
+    const dateInput = document.getElementById('dateInput');
+    let dateStr = "";
+    if (dateInput && !dateInput.classList.contains('d-none')) {
+        dateStr = dateInput.value; 
+    } else {
+        dateStr = new Date().toLocaleDateString('en-CA');
+    }
+
+    const pointKey = clean(userProfile.point);
+    const itemPath = `closing_drafts/${pointKey}/${dateStr}/${id}`;
+
+    update(ref(db, itemPath), {
+        checked: isChecked,
+        reason: reason,
+        day: day,
+        lastUpdate: new Date().toISOString(),
+        updatedBy: userProfile.nama || "User"
+    });
 }
 
 // --- LOCK SERVER SIDE ---
@@ -120,17 +143,15 @@ function checkGlobalLock() {
     const lockPath = `closing_locks/${pointKey}/${dateStr}`;
     const lockRef = ref(db, lockPath);
 
-    // Hapus listener lama jika ada (Mencegah double listener)
     if (currentLockListener) {
         off(lockRef, 'value', currentLockListener);
     }
 
-    // Pasang listener baru
     currentLockListener = onValue(lockRef, (snapshot) => {
         const data = snapshot.val();
         if (data && data.isLocked === true) {
             isPageLocked = true;
-            lockOwner = data.lockedBy || "Admin"; // Simpan nama pengunci
+            lockOwner = data.lockedBy || "Admin";
             applyLockMode(lockOwner);
         } else {
             isPageLocked = false;
@@ -139,10 +160,41 @@ function checkGlobalLock() {
     });
 }
 
+window.unlockGlobalStatus = function() {
+    if (!userProfile || !userProfile.point) return;
+    
+    if (!["RM", "ADMIN"].includes(currentRole) && userProfile.idKaryawan !== ADMIN_ID) {
+        alert("Hanya RM atau Admin yang bisa membuka kunci laporan.");
+        return;
+    }
+
+    if (!confirm("Apakah Anda yakin ingin MEMBUKA KUNCI laporan ini?\nUser lain akan bisa mengedit kembali.")) {
+        return;
+    }
+
+    const dateInput = document.getElementById('dateInput');
+    let dateStr = "";
+    if (dateInput && !dateInput.classList.contains('d-none')) {
+        dateStr = dateInput.value; 
+    } else {
+        dateStr = new Date().toLocaleDateString('en-CA');
+    }
+    const pointKey = clean(userProfile.point); 
+    const lockPath = `closing_locks/${pointKey}/${dateStr}`;
+
+    remove(ref(db, lockPath))
+        .then(() => {
+            alert("Laporan berhasil dibuka kembali!");
+        })
+        .catch((error) => {
+            alert("Gagal membuka kunci: " + error.message);
+        });
+};
+
 window.markMajelisAsRead = function(uniqueKey, elementId) {
     if (!readStatusData[uniqueKey]) {
         readStatusData[uniqueKey] = true;
-        localStorage.setItem(getReadStatusKey(), JSON.stringify(readStatusData));
+        localStorage.setItem(`closing_read_${new Date().toISOString().split('T')[0]}`, JSON.stringify(readStatusData));
         const dot = document.getElementById(`notif-${elementId}`);
         if(dot) dot.style.display = 'none';
     }
@@ -151,7 +203,7 @@ window.markMajelisAsRead = function(uniqueKey, elementId) {
 // --- AUTH & INIT ---
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        loadFromStorage(); checkUserRole(user.uid);
+        checkUserRole(user.uid);
     } else {
         window.location.replace("index.html");
     }
@@ -204,7 +256,8 @@ function initPage() {
                 if(container) container.innerHTML = `<div class="empty-state"><div class="spinner-border text-primary"></div><p class="mt-2">Memuat data hari ${currentDayName}...</p></div>`;
                 
                 isPageLocked = false; 
-                checkGlobalLock(); // Panggil lock check saat ganti tanggal
+                checkGlobalLock(); 
+                listenToDrafts(); 
 
                 setTimeout(() => { filterAndRenderData(); }, 500);
             }
@@ -214,7 +267,12 @@ function initPage() {
     }
 
     let targetPoint = (["RM", "AM", "ADMIN"].includes(currentRole)) ? "ALL" : userProfile.point;
-    setTimeout(() => { checkGlobalLock(); }, 1000); 
+    
+    setTimeout(() => { 
+        checkGlobalLock(); 
+        listenToDrafts(); 
+    }, 1000); 
+    
     fetchRepaymentData(targetPoint);
 }
 
@@ -223,22 +281,20 @@ async function fetchRepaymentData(targetPoint) {
     const container = document.getElementById('accordionBP');
     const btnVal = document.getElementById('btnValidateAll');
 
-    // 1. NONAKTIFKAN TOMBOL SAAT TARIK DATA
+    // 1. NONAKTIFKAN TOMBOL SAAT LOADING
     if (btnVal) {
         btnVal.disabled = true;
         btnVal.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Data..`;
-        btnVal.classList.remove('btn-success', 'btn-primary');
+        btnVal.classList.remove('btn-success', 'btn-primary', 'btn-danger');
         btnVal.classList.add('btn-secondary');
     }
 
     try {
         if(container) container.innerHTML = `<div class="empty-state"><div class="spinner-border text-primary" role="status"></div><p>Sinkronisasi Database...</p></div>`;
-        
         const response = await fetch(SCRIPT_URL, {
             method: 'POST', body: JSON.stringify({ action: "get_majelis" }), 
             redirect: "follow", headers: { "Content-Type": "text/plain;charset=utf-8" }
         });
-        
         const result = await response.json();
         
         if (result.result !== "success") { 
@@ -254,7 +310,6 @@ async function fetchRepaymentData(targetPoint) {
             filterAndRenderData();
         } else {
             if(container) container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-filter text-info"></i><h6>Siap Menampilkan Data</h6><p class="small">Silakan pilih Area & Point di atas.</p></div>`;
-            // Biarkan tombol tetap disabled sampai user memilih data
         }
 
     } catch (error) {
@@ -357,13 +412,18 @@ function filterAndRenderData() {
     let hierarchy = {}; 
     const elArea = document.getElementById('selectArea');
     const elPoint = document.getElementById('selectPoint');
+    
     let filterArea = (elArea && elArea.value) ? elArea.value : (currentRole === 'AM' ? (userProfile.area || "ALL") : "ALL");
     let filterPoint = (elPoint && elPoint.value) ? elPoint.value : (currentRole === 'BM' ? (userProfile.point || "ALL") : "ALL");
 
     globalMitraList = [];
     const container = document.getElementById('accordionBP');
     if(!container) return;
-    if (!allRawData || allRawData.length === 0) { container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-folder-open"></i><p>Data Kosong.</p></div>`; return; }
+    
+    if (!allRawData || allRawData.length === 0) { 
+        container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-folder-open"></i><p>Data Kosong.</p></div>`; 
+        return; 
+    }
 
     let matchCount = 0;
     const todayClean = clean(currentDayName);
@@ -371,12 +431,15 @@ function filterAndRenderData() {
     allRawData.forEach(row => {
         const p_hari_clean = clean(getValue(row, ["hari", "day"]));
         if (p_hari_clean !== todayClean) return;
+        
         const p_area_clean = clean(getValue(row, ["area", "region"]));
         const p_cabang_clean = clean(getValue(row, ["cabang", "point", "unit"]));
+        
         if (filterArea !== "ALL") { const fArea = clean(filterArea); if (!p_area_clean.includes(fArea) && !fArea.includes(p_area_clean)) return; }
         if (filterPoint !== "ALL") { const fPoint = clean(filterPoint); if (!p_cabang_clean.includes(fPoint) && !fPoint.includes(p_cabang_clean)) return; }
 
         matchCount++;
+        
         const p_bp = getValue(row, ["bp", "petugas", "ao"]) || "Tanpa BP";
         const p_majelis = getValue(row, ["majelis", "group", "kelompok"]) || "Umum";
         const rawBucket = String(getValue(row, ["bucket", "dpd", "kolek"]) || "0").trim();
@@ -384,7 +447,6 @@ function filterAndRenderData() {
         const st_kirim = getValue(row, ["status_kirim", "kirim"]) || "Belum";
         const alasan_db = getValue(row, ["keterangan", "alasan"]) || "";
         const p_jenis = getValue(row, ["jenis_pembayaran", "jenis", "type"]) || "-";
-        
         const st_bll = getValue(row, ["status_bll", "bll", "ket_bll"]) || "-";
         const val_data_o = getValue(row, ["data_o"]) || "-";
 
@@ -413,26 +475,34 @@ function filterAndRenderData() {
             data_o: val_data_o 
         };
         globalMitraList.push(mitraData);
+        
         if (!hierarchy[p_bp]) hierarchy[p_bp] = {};
         if (!hierarchy[p_bp][p_majelis]) hierarchy[p_bp][p_majelis] = [];
         hierarchy[p_bp][p_majelis].push(mitraData);
     });
 
-    // HITUNG STATS GLOBAL
     currentStats.total = stats.mm_total + stats.nc_total;
     currentStats.telat = stats.mm_telat + stats.nc_telat;
     currentStats.bayar = stats.mm_bayar + stats.nc_bayar;
 
     renderStats(stats);
+
     if (matchCount === 0) {
         container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-magnifying-glass"></i><p>Tidak ada data di hari <b>${currentDayName}</b></p></div>`;
+        
+        // JIKA DATA KOSONG, TOMBOL VALIDASI TETAP MATI
+        const btnVal = document.getElementById('btnValidateAll');
+        if(btnVal) {
+            btnVal.disabled = true;
+            btnVal.innerHTML = `<i class="fa-solid fa-ban me-1"></i> Data Kosong`;
+            btnVal.classList.remove('btn-success', 'btn-secondary', 'btn-danger');
+            btnVal.classList.add('btn-primary');
+        }
+
     } else {
         renderAccordion(hierarchy);
-        updateGlobalValidationStatus();
+        updateGlobalValidationStatus(); 
         
-        // --- PERBAIKAN INFINITE LOOP DI SINI ---
-        // JANGAN PANGGIL checkGlobalLock() LAGI!
-        // Cukup terapkan state lock jika memang sedang terkunci
         if (isPageLocked) {
             applyLockMode(lockOwner);
         }
@@ -454,8 +524,9 @@ function renderStats(stats) {
 
 function renderAccordion(hierarchy) {
     const container = document.getElementById('accordionBP'); if(!container) return; container.innerHTML = "";
-    const counterHtml = `<div class="validation-bar"><div><i class="fa-solid fa-clipboard-check me-2 text-primary"></i><strong>Status Validasi</strong></div><span class="badge bg-primary rounded-pill p-2" id="statusCounter">0 / 0</span></div>`;
-    container.insertAdjacentHTML('beforeend', counterHtml);
+    // Counter dihilangkan dari sini karena sudah ada di tombol validasi
+    // const counterHtml = `<div class="validation-bar">...</div>`; 
+    // container.insertAdjacentHTML('beforeend', counterHtml);
 
     Object.keys(hierarchy).sort().forEach((bpName, bpIndex) => {
         let majelisHtml = "";
@@ -626,7 +697,7 @@ window.saveReasonInput = function(id, reason, day) {
     const currentReason = reason !== undefined ? reason : (existing.reason || "");
     const currentDay = day !== undefined ? day : (existing.day || "");
     const isChecked = btn && btn.classList.contains('checked');
-    saveToStorage(id, isChecked, currentReason, currentDay);
+    saveToDraft(id, isChecked, currentReason, currentDay);
 };
 
 window.toggleValidation = function(element, id) {
@@ -658,7 +729,7 @@ window.toggleValidation = function(element, id) {
 
     const valReason = inputReason ? inputReason.value : "";
     const valDay = daySelect ? daySelect.value : "";
-    saveToStorage(id, element.classList.contains('checked'), valReason, valDay);
+    saveToDraft(id, element.classList.contains('checked'), valReason, valDay);
     updateMajelisStats(element);
 };
 
@@ -689,59 +760,55 @@ async function updateJBDaysToServer() {
     }
 }
 
-// Pastikan fungsi ini ada di js/closing_point.js dan dipanggil
 async function sendClosingSummary() {
     const btn = document.getElementById('btnValidateAll');
-    // Update UI tombol agar terlihat sedang proses
     if(btn) btn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up fa-spin me-1"></i> Mengirim Rekap...`;
 
     const elArea = document.getElementById('selectArea');
     const elPoint = document.getElementById('selectPoint');
     
-    // Ambil Nama Area & Point yang sedang aktif
-    // Jika dropdown ada value, pakai itu. Jika tidak, pakai data profile user.
-    const areaName = (elArea && elArea.value !== "ALL") ? elArea.value : (userProfile.area || "-");
-    const pointName = (elPoint && elPoint.value !== "ALL") ? elPoint.value : (userProfile.point || "-");
-
-    // Pastikan stats tidak kosong (default 0)
-    const statTotal = currentStats ? currentStats.total : 0;
-    const statTelat = currentStats ? currentStats.telat : 0;
-    const statBayar = currentStats ? currentStats.bayar : 0;
+    const areaName = (elArea && elArea.value !== "ALL") ? elArea.value : userProfile.area;
+    const pointName = (elPoint && elPoint.value !== "ALL") ? elPoint.value : userProfile.point;
 
     const payload = {
         action: "closing_summary",
         area: areaName,
         point: pointName,
-        totalAkun: statTotal,
-        totalTelat: statTelat,
-        totalBayar: statBayar
+        totalAkun: currentStats.total,
+        totalTelat: currentStats.telat,
+        totalBayar: currentStats.bayar
     };
 
     try {
-        console.log("Mengirim data:", payload); // Debugging: Cek di console apa yang dikirim
-        const response = await fetch(SCRIPT_URL, {
+        await fetch(SCRIPT_URL, {
             method: 'POST', 
             body: JSON.stringify(payload),
             redirect: "follow", 
             headers: { "Content-Type": "text/plain;charset=utf-8" }
         });
-        const resJson = await response.json();
-        console.log("Respon Server:", resJson); // Debugging: Cek respon server
-        
-        if (resJson.result !== "success") {
-            alert("Gagal menyimpan rekap ke Spreadsheet: " + resJson.error);
-        }
+        console.log("Rekap terkirim");
     } catch (err) {
-        console.error("Gagal kirim rekap (Network Error):", err);
+        console.error("Gagal kirim rekap:", err);
     }
 }
 
 function applyLockMode(lockedBy = "Admin") {
     const btnValAll = document.getElementById('btnValidateAll');
+    const canUnlock = ["RM", "ADMIN"].includes(currentRole) || userProfile.idKaryawan === ADMIN_ID;
+
     if(btnValAll) {
-        btnValAll.disabled = true;
-        btnValAll.innerHTML = `<i class="fa-solid fa-lock me-1"></i> Terkunci oleh ${lockedBy}`;
-        btnValAll.classList.replace('btn-primary', 'btn-secondary');
+        if (canUnlock) {
+            btnValAll.disabled = false;
+            btnValAll.innerHTML = `<i class="fa-solid fa-lock-open me-1"></i> Buka Kunci (Locked by ${lockedBy})`;
+            btnValAll.classList.remove('btn-primary', 'btn-success', 'btn-secondary');
+            btnValAll.classList.add('btn-danger');
+            btnValAll.onclick = window.unlockGlobalStatus; 
+        } else {
+            btnValAll.disabled = true;
+            btnValAll.innerHTML = `<i class="fa-solid fa-lock me-1"></i> Terkunci oleh ${lockedBy}`;
+            btnValAll.classList.replace('btn-primary', 'btn-secondary');
+            btnValAll.classList.remove('btn-success', 'btn-danger');
+        }
     }
     document.querySelectorAll('.btn-check-action').forEach(b => b.classList.add('disabled'));
     document.querySelectorAll('input, select').forEach(i => i.disabled = true);
@@ -750,35 +817,75 @@ function applyLockMode(lockedBy = "Admin") {
 function releaseLockMode() {
     if(!isPageLocked) {
         const btnValAll = document.getElementById('btnValidateAll');
+        
+        // Cek data
+        const totalMitra = document.querySelectorAll('.btn-check-action').length;
+        const checkedMitra = document.querySelectorAll('.btn-check-action.checked').length;
+
         if(btnValAll) {
-            btnValAll.disabled = false; 
-            btnValAll.classList.replace('btn-secondary', 'btn-primary');
-            btnValAll.innerHTML = `<i class="fa-solid fa-calendar-check me-1"></i> Validasi Hari Ini`;
+            if (btnValAll.onclick) btnValAll.onclick = null; 
+            btnValAll.classList.remove('btn-secondary', 'btn-danger');
+
+            if (totalMitra > 0 && totalMitra === checkedMitra) {
+                // SEMUA TERCENTANG: AKTIFKAN TOMBOL
+                btnValAll.disabled = false; 
+                btnValAll.classList.remove('btn-primary');
+                btnValAll.classList.add('btn-success');
+                btnValAll.innerHTML = `<i class="fa-solid fa-file-arrow-down me-1"></i> Selesai & Download`;
+            } else if (totalMitra > 0) {
+                // BELUM SEMUA TERCENTANG: NONAKTIFKAN TOMBOL
+                btnValAll.disabled = true;
+                btnValAll.classList.remove('btn-success');
+                btnValAll.classList.add('btn-primary');
+                btnValAll.innerHTML = `<i class="fa-solid fa-calendar-check me-1"></i> Selesaikan ${totalMitra - checkedMitra} Lagi`;
+            } else {
+                // DATA KOSONG
+                btnValAll.disabled = true;
+                btnValAll.classList.add('btn-primary');
+                if (!btnValAll.innerHTML.includes("spin")) {
+                    btnValAll.innerHTML = `<i class="fa-solid fa-ban me-1"></i> Data Kosong`;
+                }
+            }
         }
-        if(allRawData.length > 0) filterAndRenderData();
+        
+        const allChecks = document.querySelectorAll('.btn-check-action');
+        allChecks.forEach(btn => {
+            if(!btn.getAttribute('onclick')) {
+            } else {
+                 btn.classList.remove('disabled');
+            }
+        });
+
+        const allInputs = document.querySelectorAll('input.input-modern, select');
+        allInputs.forEach(inp => inp.disabled = false);
     }
 }
 
+// FUNGSI INI AKAN DIPANGGIL SETIAP KALI CENTANG BERUBAH
 function updateGlobalValidationStatus() {
     if (isPageLocked) return;
     const totalMitra = document.querySelectorAll('.btn-check-action').length;
     const checkedMitra = document.querySelectorAll('.btn-check-action.checked').length;
     
+    // Update Text Counter (Jika ada elemennya)
     const counterEl = document.getElementById('statusCounter');
     if(counterEl) counterEl.textContent = `${checkedMitra} / ${totalMitra}`;
 
+    // Update Status Tombol Validasi
     const btnValAll = document.getElementById('btnValidateAll');
     if(btnValAll) {
-        if (checkedMitra === totalMitra && totalMitra > 0) {
+        if (totalMitra > 0 && checkedMitra === totalMitra) {
+            // JIKA SEMUA SUDAH DICENTANG -> AKTIF
             btnValAll.disabled = false;
             btnValAll.innerHTML = `<i class="fa-solid fa-file-arrow-down me-1"></i> Selesai & Download`; 
             btnValAll.classList.remove('btn-primary', 'btn-secondary');
             btnValAll.classList.add('btn-success'); 
         } else {
+            // JIKA BELUM SEMUA -> NONAKTIF (DISABLED)
             btnValAll.disabled = true;
             btnValAll.innerHTML = `<i class="fa-solid fa-hourglass-half me-1"></i> Selesaikan ${totalMitra - checkedMitra} Lagi`;
-            btnValAll.classList.remove('btn-success', 'btn-primary');
-            btnValAll.classList.add('btn-secondary');
+            btnValAll.classList.remove('btn-success', 'btn-secondary');
+            btnValAll.classList.add('btn-primary');
         }
     }
 }
