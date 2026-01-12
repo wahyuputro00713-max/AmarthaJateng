@@ -1,4 +1,4 @@
-// GANTI URL INI DENGAN URL DEPLOYMENT APPS SCRIPT ANDA
+// GANTI URL INI DENGAN URL DEPLOYMENT APPS SCRIPT TERBARU
 const API_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; 
 
 let globalData = [];
@@ -6,14 +6,12 @@ let globalData = [];
 document.addEventListener("DOMContentLoaded", () => {
     fetchData();
     
-    // Event Listener: Saat Area dipilih, update opsi Point & filter data
     document.getElementById('filterArea').addEventListener('change', function() {
         const selectedArea = this.value;
         updatePointOptions(selectedArea); 
         filterData(); 
     });
 
-    // Event Listener: Saat Point dipilih, langsung filter data
     document.getElementById('filterPoint').addEventListener('change', filterData);
 });
 
@@ -27,8 +25,8 @@ async function fetchData() {
 
         if (result.result === "success") {
             globalData = result.data;
-            populateAreaFilter(globalData); // Setup awal filter Area
-            renderData(globalData);         // Tampilkan semua data awal
+            populateAreaFilter(globalData);
+            renderData(globalData);
         } else {
             document.getElementById("loading").innerText = "Gagal memuat data.";
         }
@@ -38,12 +36,9 @@ async function fetchData() {
     }
 }
 
-// 1. Fungsi Mengisi Dropdown Area (Hanya dipanggil sekali saat data load)
 function populateAreaFilter(data) {
     const areas = [...new Set(data.map(item => item.area))].sort();
     const areaSelect = document.getElementById("filterArea");
-
-    // Reset opsi area
     areaSelect.innerHTML = '<option value="all">Semua Area</option>';
 
     areas.forEach(area => {
@@ -53,32 +48,22 @@ function populateAreaFilter(data) {
         areaSelect.appendChild(option);
     });
 
-    // Inisialisasi Point (Tampilkan semua point karena default Area = All)
     updatePointOptions("all");
 }
 
-// 2. Fungsi Update Opsi Point (Dipanggil setiap kali Area berubah)
 function updatePointOptions(selectedArea) {
     const pointSelect = document.getElementById("filterPoint");
-    
-    // Cari point yang relevan
     let relevantData;
+
     if (selectedArea === "all") {
-        // Jika pilih semua area, ambil semua point yang ada di data
         relevantData = globalData;
     } else {
-        // Jika pilih area tertentu, filter data hanya untuk area itu
         relevantData = globalData.filter(item => item.area === selectedArea);
     }
     
-    // Ambil list point unik dari data yang sudah difilter
     const filteredPoints = [...new Set(relevantData.map(item => item.point))].sort();
-
-    // Simpan nilai point saat ini (jika user mau ganti area tapi point namanya sama)
-    // atau reset ke 'all' (lebih aman reset ke all agar tidak error)
     pointSelect.innerHTML = '<option value="all">Semua Point</option>';
 
-    // Masukkan opsi point baru
     filteredPoints.forEach(point => {
         let option = document.createElement("option");
         option.value = point;
@@ -86,7 +71,6 @@ function updatePointOptions(selectedArea) {
         pointSelect.appendChild(option);
     });
     
-    // Kembalikan pilihan point ke "Semua Point" agar user memilih ulang
     pointSelect.value = "all";
 }
 
@@ -95,12 +79,12 @@ function filterData() {
     const selectedPoint = document.getElementById("filterPoint").value;
 
     const filtered = globalData.filter(item => {
-        // Logika Filter:
-        // 1. Jika Area 'all', lolos. Jika tidak, harus sama dengan item.area
         const matchArea = (selectedArea === "all" || item.area === selectedArea);
-        
-        // 2. Jika Point 'all', lolos. Jika tidak, harus sama dengan item.point
         const matchPoint = (selectedPoint === "all" || item.point === selectedPoint);
+        
+        // Opsional: Jika ingin menyembunyikan yang sudah di-FU, tambahkan logika ini:
+        // const notYetFu = item.status_fu !== "Sudah";
+        // return matchArea && matchPoint && notYetFu;
         
         return matchArea && matchPoint;
     });
@@ -119,28 +103,78 @@ function renderData(data) {
     }
 
     data.forEach(item => {
-        // Format Nomor HP (62xxx)
         let rawHp = item.no_hp.replace(/[^0-9]/g, '');
-        if (rawHp.startsWith('0')) {
-            rawHp = '62' + rawHp.substring(1);
-        }
+        if (rawHp.startsWith('0')) rawHp = '62' + rawHp.substring(1);
 
-        // Pesan WhatsApp
         const pesan = `Salam Sehat Ibu Calon mitra Amartha. Apakah benar ini ${item.nama_mitra}. Selamat ibu berkesempatan mendapatkan modal dari PT Amartha Mikro Fintek dengan membentuk Kelompok Minimal 6 Orang. Jika bersedia membuat kelompok Silahkan balas WA ini. Terimakasih`;
-        const encodedPesan = encodeURIComponent(pesan);
-        const waLink = `https://wa.me/${rawHp}?text=${encodedPesan}`;
+        const waLink = `https://wa.me/${rawHp}?text=${encodeURIComponent(pesan)}`;
+
+        // Cek status FU
+        const isFu = item.status_fu === "Sudah";
+        const cardClass = isFu ? "card already-fu" : "card";
+        const btnText = isFu ? "Sudah di-FU" : "Followup (WA)";
+        const btnStyle = isFu ? "background-color: #ccc; cursor: default;" : "";
 
         const card = document.createElement("div");
-        card.className = "card";
+        card.className = cardClass;
+        // Tambahkan style opacity jika sudah FU
+        if(isFu) card.style.opacity = "0.7";
+
         card.innerHTML = `
             <div class="tag">${item.area} - ${item.point}</div>
             <h3>${item.nama_mitra}</h3>
             <p><strong>BP:</strong> ${item.nama_bp}</p>
             <p><strong>No HP:</strong> ${item.no_hp}</p>
-            <a href="${waLink}" class="btn-wa" target="_blank">
-                Followup (WA)
-            </a>
+            <button class="btn-wa" style="${btnStyle}" 
+                onclick="handleFollowUp('${item.nama_mitra}', '${item.no_hp}', '${waLink}', this, ${isFu})">
+                ${btnText}
+            </button>
         `;
         container.appendChild(card);
     });
+}
+
+// Fungsi Baru: Menangani Klik Follow Up
+async function handleFollowUp(nama, hp, link, btnElement, alreadyFu) {
+    // 1. Jika sudah di-FU sebelumnya, buka WA saja, jangan update lagi (atau blok jika mau)
+    if (alreadyFu) {
+        // Opsional: alert("Mitra ini sudah di-follow up.");
+        return; 
+    }
+
+    // 2. Buka WhatsApp di tab baru
+    window.open(link, '_blank');
+
+    // 3. Update Tampilan Button langsung (Feedback Instant)
+    btnElement.innerText = "Memproses...";
+    btnElement.style.backgroundColor = "#ccc";
+    btnElement.disabled = true;
+
+    // 4. Kirim data ke Spreadsheet (Backend)
+    try {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: "update_status_fu",
+                namaMitra: nama,
+                noHp: hp
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.result === "success") {
+            btnElement.innerText = "Sudah di-FU";
+            // Update data lokal agar kalau difilter ulang statusnya tetap 'Sudah'
+            const item = globalData.find(d => d.nama_mitra === nama && d.no_hp === hp);
+            if (item) item.status_fu = "Sudah";
+        } else {
+            btnElement.innerText = "Gagal Update";
+            btnElement.style.backgroundColor = "red";
+            console.error(result.message);
+        }
+    } catch (e) {
+        console.error("Error updating status:", e);
+        btnElement.innerText = "Error";
+    }
 }
