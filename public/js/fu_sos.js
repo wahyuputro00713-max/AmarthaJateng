@@ -106,7 +106,7 @@ function renderData(data) {
         let rawHp = item.no_hp.replace(/[^0-9]/g, '');
         if (rawHp.startsWith('0')) rawHp = '62' + rawHp.substring(1);
 
-        const pesan = `Salam Sehat Ibu Calon mitra Amartha. Apakah benar ini ${item.nama_mitra}. Selamat ibu berkesempatan mendapatkan modal dari PT Amartha Mikro Fintek dengan membentuk Kelompok Minimal 6 Orang. Jika bersedia membuat kelompok Silahkan balas WA ini. Terimakasih`;
+        const pesan = `Salam Sehat Ibu Calon mitra Amartha. Apakah benar ini ibu ${item.nama_mitra}. Selamat ibu berkesempatan mendapatkan modal dari PT Amartha Mikro Fintek dengan membentuk Kelompok Minimal 6 Orang. Jika bersedia membuat kelompok Silahkan balas WA ini. Terimakasih`;
         const waLink = `https://wa.me/${rawHp}?text=${encodeURIComponent(pesan)}`;
 
         // Cek status FU
