@@ -16,16 +16,17 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; // Pastikan URL ini benar
+// GANTI URL INI JIKA ANDA DEPLOY ULANG APPS SCRIPT BARU
+const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; 
 
-// State
 let globalData = [];
 let userProfile = {};
 let modalInstance = null;
 
-// DOM Elements
 const els = {
     filterArea: document.getElementById('filterArea'),
+    filterPoint: document.getElementById('filterPoint'),
+    filterBP: document.getElementById('filterBP'),
     filterHari: document.getElementById('filterHari'),
     btnTampilkan: document.getElementById('btnTampilkan'),
     container: document.getElementById('collectionContainer'),
@@ -33,34 +34,32 @@ const els = {
     empty: document.getElementById('emptyState'),
     lblMitra: document.getElementById('totalMitra'),
     lblOs: document.getElementById('totalOs'),
-    // Modal Elements
+    // Modal
     mAmount: document.getElementById('mAmount'),
     mAmountReal: document.getElementById('mAmountReal'),
     mGeotag: document.getElementById('mGeotag'),
     mFoto: document.getElementById('mFoto')
 };
 
-// 1. Init & Auth
+// 1. Init
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         modalInstance = new bootstrap.Modal(document.getElementById('modalInput'));
         showLoading(true);
         try {
-            // Ambil Profil
             const snap = await get(ref(db, 'users/' + user.uid));
             if (snap.exists()) userProfile = snap.val();
             
-            // Ambil Data Collection
             await fetchData();
-            
-            // Setup Filter
-            setupFilters();
-
-            // Format Rupiah di Modal
+            initializeFilters(); 
             setupRupiahInput();
 
+            // Auto render pertama kali
+            renderData(globalData);
+
         } catch (e) {
-            alert("Error: " + e.message);
+            console.error(e);
+            alert("Gagal memuat data. Periksa koneksi internet.");
         } finally {
             showLoading(false);
         }
@@ -78,24 +77,117 @@ async function fetchData() {
             headers: { "Content-Type": "text/plain;charset=utf-8" }
         });
         const result = await response.json();
+        
         if (result.result === 'success') {
             globalData = result.data;
-            renderData(globalData);
+            if (globalData.length === 0) {
+                console.warn("Data kosong dari Spreadsheet. Pastikan tab 'Data Collection' ada isinya.");
+            }
+        } else {
+            throw new Error(result.error || "Gagal mengambil data dari server.");
         }
     } catch (e) {
-        console.error(e);
+        console.error("Fetch Error:", e);
+        throw e;
     }
 }
 
-// 3. Render Data (Group by Majelis)
+// 3. Logic Filter Pintar
+function initializeFilters() {
+    // A. Isi Area Dropdown
+    const areas = [...new Set(globalData.map(d => d.area).filter(a => a))].sort();
+    fillSelect(els.filterArea, areas);
+
+    // B. Set Default dari Profil User
+    if (userProfile.area && areas.includes(userProfile.area)) {
+        els.filterArea.value = userProfile.area;
+        updatePointDropdown(); // Trigger update point
+    }
+
+    // C. Auto Hari Ini
+    const days = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
+    const today = days[new Date().getDay()];
+    if([...els.filterHari.options].some(o => o.value === today)) {
+        els.filterHari.value = today;
+    }
+
+    // D. Event Listeners
+    els.filterArea.addEventListener('change', () => {
+        updatePointDropdown();
+        updateBPDropdown();
+    });
+
+    els.filterPoint.addEventListener('change', () => {
+        updateBPDropdown();
+    });
+
+    els.btnTampilkan.addEventListener('click', () => {
+        showLoading(true);
+        setTimeout(() => {
+            renderData(globalData);
+            showLoading(false);
+        }, 50);
+    });
+}
+
+function updatePointDropdown() {
+    const selectedArea = els.filterArea.value;
+    let relevantData = globalData;
+    
+    if(selectedArea) {
+        relevantData = globalData.filter(d => d.area === selectedArea);
+    }
+
+    const points = [...new Set(relevantData.map(d => d.point).filter(p => p))].sort();
+    fillSelect(els.filterPoint, points);
+    
+    // Reset selection
+    els.filterPoint.value = "";
+    
+    // Kalo user profile punya point, auto select
+    if(userProfile.point && points.includes(userProfile.point) && (!selectedArea || selectedArea === userProfile.area)) {
+        els.filterPoint.value = userProfile.point;
+    }
+    updateBPDropdown();
+}
+
+function updateBPDropdown() {
+    const selectedArea = els.filterArea.value;
+    const selectedPoint = els.filterPoint.value;
+    
+    let relevantData = globalData;
+    if(selectedArea) relevantData = relevantData.filter(d => d.area === selectedArea);
+    if(selectedPoint) relevantData = relevantData.filter(d => d.point === selectedPoint);
+
+    const bps = [...new Set(relevantData.map(d => d.nama_bp).filter(b => b))].sort();
+    fillSelect(els.filterBP, bps);
+}
+
+function fillSelect(el, items) {
+    const defaultOpt = el.options[0];
+    el.innerHTML = "";
+    el.appendChild(defaultOpt);
+    items.forEach(i => {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = i;
+        el.appendChild(opt);
+    });
+}
+
+// 4. Render Data
 function renderData(data) {
     const fArea = els.filterArea.value;
+    const fPoint = els.filterPoint.value;
+    const fBP = els.filterBP.value;
     const fHari = els.filterHari.value;
 
     let filtered = data.filter(d => {
         let matchArea = fArea === "" || d.area === fArea;
+        let matchPoint = fPoint === "" || d.point === fPoint;
+        let matchBP = fBP === "" || d.nama_bp === fBP;
         let matchHari = fHari === "" || d.hari === fHari;
-        return matchArea && matchHari;
+        return matchArea && matchPoint && matchBP && matchHari;
     });
 
     if (filtered.length === 0) {
@@ -108,13 +200,12 @@ function renderData(data) {
 
     els.empty.classList.add('d-none');
     
-    // Hitung Total OS
     let totalOs = 0;
     filtered.forEach(d => totalOs += parseInt(d.tunggakan.replace(/[^0-9]/g,'') || 0));
     els.lblMitra.innerText = `${filtered.length} Nasabah`;
     els.lblOs.innerText = formatRupiah(totalOs);
 
-    // Grouping
+    // Grouping per Majelis
     const grouped = {};
     filtered.forEach(item => {
         const m = item.majelis || "Lainnya";
@@ -124,6 +215,9 @@ function renderData(data) {
 
     const html = Object.keys(grouped).sort().map((majelis, idx) => {
         const items = grouped[majelis];
+        // Ambil info BP dari item pertama
+        const bpName = items[0].nama_bp || "-";
+        
         const rows = items.map(item => `
             <tr>
                 <td>
@@ -132,11 +226,12 @@ function renderData(data) {
                 </td>
                 <td>
                     <div class="nominal-text text-danger">${formatRupiah(item.angsuran)}</div>
-                    <span class="d-block small text-muted">Tunggakan: ${formatRupiah(item.tunggakan)}</span>
+                    <span class="d-block small text-muted" style="font-size: 0.7rem;">OS: ${formatRupiah(item.tunggakan)}</span>
                 </td>
                 <td class="text-end">
-                    <button class="btn btn-sm btn-primary" onclick="window.openModalInput('${item.cust_no}')">
-                        <i class="fa-solid fa-hand-holding-dollar"></i>
+                    <button class="btn btn-sm btn-primary shadow-sm" style="background: var(--primary-color); border:none;" 
+                        onclick="window.openModalInput('${item.cust_no}')">
+                        <i class="fa-solid fa-hand-holding-dollar"></i> Input
                     </button>
                 </td>
             </tr>
@@ -146,9 +241,12 @@ function renderData(data) {
             <div class="accordion-item">
                 <h2 class="accordion-header">
                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#clp${idx}">
-                        <div class="d-flex justify-content-between w-100 pe-3">
-                            <span class="fw-bold text-dark">${majelis}</span>
-                            <span class="badge bg-primary rounded-pill">${items.length}</span>
+                        <div class="d-flex flex-column w-100">
+                            <div class="d-flex justify-content-between align-items-center w-100 pe-3">
+                                <span class="fw-bold text-dark"><i class="fa-solid fa-users me-2 text-warning"></i>${majelis}</span>
+                                <span class="badge bg-light text-dark border">${items.length} Org</span>
+                            </div>
+                            <small class="text-muted mt-1" style="font-size: 0.7rem;">BP: ${bpName}</small>
                         </div>
                     </button>
                 </h2>
@@ -166,58 +264,26 @@ function renderData(data) {
     els.container.innerHTML = html;
 }
 
-// 4. Filter Logic
-function setupFilters() {
-    // Populate Area
-    const areas = [...new Set(globalData.map(d => d.area).filter(a => a))].sort();
-    areas.forEach(a => {
-        const opt = document.createElement('option');
-        opt.value = a; opt.textContent = a;
-        els.filterArea.appendChild(opt);
-    });
-
-    // Set Default if Profile exists
-    if (userProfile.area && areas.includes(userProfile.area)) {
-        els.filterArea.value = userProfile.area;
-    }
-
-    // Auto Hari Ini
-    const days = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
-    const today = days[new Date().getDay()];
-    if([...els.filterHari.options].some(o => o.value === today)) {
-        els.filterHari.value = today;
-    }
-
-    els.btnTampilkan.addEventListener('click', () => renderData(globalData));
-    
-    // Initial Render
-    renderData(globalData);
-}
-
-// 5. MODAL & SUBMIT LOGIC
+// 5. MODAL Logic
 window.openModalInput = function(custNo) {
     const data = globalData.find(d => String(d.cust_no) === String(custNo));
     if (!data) return;
 
-    // Isi Modal
     document.getElementById('dispNama').innerText = data.mitra;
     document.getElementById('dispId').innerText = data.cust_no;
     
-    // Hidden Fields
     document.getElementById('mCustNo').value = data.cust_no;
     document.getElementById('mNamaMitra').value = data.mitra;
     document.getElementById('mArea').value = data.area;
     document.getElementById('mPoint').value = data.point;
-    // Gunakan Data Profil untuk ID Karyawan & BP
     document.getElementById('mIdKaryawan').value = userProfile.idKaryawan || "-";
     document.getElementById('mNamaBP').value = userProfile.nama || data.nama_bp;
 
-    // Reset Input
     els.mAmount.value = "";
     els.mAmountReal.value = "";
     els.mFoto.value = "";
-    window.ambilLokasi(); // Auto trigger location
-
+    
+    window.ambilLokasi();
     modalInstance.show();
 };
 
@@ -227,13 +293,13 @@ window.ambilLokasi = function() {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             (pos) => {
-                geoEl.value = `http://maps.google.com/?q=${pos.coords.latitude},${pos.coords.longitude}`;
+                geoEl.value = `https://www.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}`;
             },
-            (err) => { geoEl.value = "Gagal ambil lokasi"; alert("Aktifkan GPS!"); },
+            (err) => { geoEl.value = "Gagal ambil lokasi"; },
             { enableHighAccuracy: true }
         );
     } else {
-        geoEl.value = "Browser tidak support";
+        geoEl.value = "Tidak Support";
     }
 };
 
@@ -242,9 +308,9 @@ window.submitCollection = async function() {
     const geo = els.mGeotag.value;
     const file = els.mFoto.files[0];
 
-    if (!amt || parseInt(amt) < 1000) { alert("Isi nominal yang benar!"); return; }
+    if (!amt || parseInt(amt) < 1000) { alert("Nominal tidak valid!"); return; }
     if (!geo.includes("http")) { alert("Lokasi belum terkunci!"); return; }
-    if (!file) { alert("Wajib foto bukti!"); return; }
+    if (!file) { alert("Wajib upload foto!"); return; }
 
     if(!confirm("Kirim data sekarang?")) return;
 
@@ -281,25 +347,17 @@ window.submitCollection = async function() {
         const res = await req.json();
 
         if (res.result === 'success') {
-            alert("Data Berhasil Dikirim!");
-            // Opsional: Hapus baris atau tandai sudah bayar
-            // renderData(globalData);
+            alert("✅ Berhasil terkirim!");
         } else {
             throw new Error(res.error || "Gagal simpan");
         }
     } catch (e) {
         alert("Gagal: " + e.message);
-        modalInstance.show(); // Show again if fail
+        modalInstance.show(); 
     } finally {
         showLoading(false);
     }
 };
-
-// Utilities
-function showLoading(show) {
-    if(show) els.loading.classList.remove('d-none');
-    else els.loading.classList.add('d-none');
-}
 
 function setupRupiahInput() {
     els.mAmount.addEventListener('keyup', function(e) {
@@ -309,7 +367,7 @@ function setupRupiahInput() {
 }
 
 function formatRupiah(angka, prefix = 'Rp ') {
-    if (!angka) return prefix + "0";
+    if (!angka || angka == 0) return prefix + "0";
     let number_string = String(angka).replace(/[^,\d]/g, '').toString(),
         split = number_string.split(','),
         sisa = split[0].length % 3,
@@ -329,3 +387,8 @@ const toBase64 = file => new Promise((resolve, reject) => {
     reader.onload = () => resolve(reader.result);
     reader.onerror = error => reject(error);
 });
+
+function showLoading(show) {
+    if(show) els.loading.classList.remove('d-none');
+    else els.loading.classList.add('d-none');
+}
