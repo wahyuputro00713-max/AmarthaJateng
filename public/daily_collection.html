@@ -32,11 +32,6 @@
         .mitra-id { display: block; font-size: 0.7rem; color: #b2bec3; }
         .nominal-text { font-family: 'Consolas', monospace; font-weight: 600; font-size: 0.9rem; }
         
-        /* Modal Custom */
-        .modal-header { background: var(--primary-color); color: white; }
-        .btn-purple { background: var(--primary-color); color: white; border: none; }
-        .btn-purple:hover { background: var(--secondary-color); color: white; }
-
         #loadingOverlay { z-index: 9999; background: rgba(255,255,255,0.9); backdrop-filter: blur(5px); }
     </style>
 </head>
@@ -44,7 +39,7 @@
 
     <div id="loadingOverlay" class="d-none position-fixed top-0 start-0 w-100 h-100 d-flex flex-column justify-content-center align-items-center">
         <div class="spinner-border text-primary" role="status"></div>
-        <p class="text-muted fw-bold mt-2">Memproses Data...</p>
+        <p class="text-muted fw-bold mt-2">Memuat Data...</p>
     </div>
 
     <nav class="navbar-custom">
@@ -60,12 +55,20 @@
         
         <div class="filter-card mt-n4"> 
             <div class="row g-3">
-                <div class="col-6">
+                <div class="col-6 col-md-3">
                     <label class="form-label small text-muted">Area</label>
                     <select id="filterArea" class="form-select form-select-sm"><option value="">Semua Area</option></select>
                 </div>
-                <div class="col-6">
-                    <label class="form-label small text-muted">Hari Kumpulan</label>
+                <div class="col-6 col-md-3">
+                    <label class="form-label small text-muted">Point</label>
+                    <select id="filterPoint" class="form-select form-select-sm"><option value="">Semua Point</option></select>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label small text-muted">Nama BP</label>
+                    <select id="filterBP" class="form-select form-select-sm"><option value="">Semua BP</option></select>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label small text-muted">Hari</label>
                     <select id="filterHari" class="form-select form-select-sm">
                         <option value="">Semua Hari</option>
                         <option value="Senin">Senin</option>
@@ -76,7 +79,9 @@
                     </select>
                 </div>
                 <div class="col-12">
-                    <button id="btnTampilkan" class="btn btn-purple w-100 shadow-sm"><i class="fa-solid fa-filter me-2"></i>Tampilkan Data</button>
+                    <button id="btnTampilkan" class="btn btn-primary w-100 shadow-sm" style="background-color: var(--primary-color); border:none;">
+                        <i class="fa-solid fa-filter me-2"></i>Tampilkan Data
+                    </button>
                 </div>
             </div>
         </div>
@@ -90,14 +95,15 @@
 
         <div id="emptyState" class="text-center py-5 d-none">
             <i class="fa-solid fa-box-open fs-1 text-muted mb-3"></i>
-            <p class="text-muted">Data tidak ditemukan.</p>
+            <h5 class="fw-bold text-secondary">Data Tidak Ditemukan</h5>
+            <p class="text-muted small">Coba ubah filter atau pastikan sheet 'Data Collection' sudah diisi.</p>
         </div>
     </div>
 
     <div class="modal fade" id="modalInput" tabindex="-1" data-bs-backdrop="static">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow">
-                <div class="modal-header">
+                <div class="modal-header" style="background: var(--primary-color); color: white;">
                     <h5 class="modal-title fw-bold fs-6"><i class="fa-solid fa-hand-holding-dollar me-2"></i>Input Setoran</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
@@ -133,10 +139,10 @@
                         <div class="col-6">
                             <label class="form-label small">Ket</label>
                             <select id="mKet" class="form-select">
+                                <option value="Bayar 1+">Bayar 1+</option>
                                 <option value="Lunas">Lunas</option>
                                 <option value="Parsial">Parsial</option>
                                 <option value="BTC">BTC</option>
-                                <option value="Bayar 1+">Bayar 1+</option>
                             </select>
                         </div>
                     </div>
@@ -151,7 +157,7 @@
                     </div>
                 </div>
                 <div class="modal-footer border-0 pt-0">
-                    <button type="button" class="btn btn-primary w-100 fw-bold shadow-sm" onclick="window.submitCollection()">
+                    <button type="button" class="btn btn-primary w-100 fw-bold shadow-sm" onclick="window.submitCollection()" style="background: var(--primary-color); border:none;">
                         <i class="fa-solid fa-paper-plane me-2"></i>KIRIM DATA
                     </button>
                 </div>
