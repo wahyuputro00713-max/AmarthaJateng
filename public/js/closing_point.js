@@ -37,75 +37,83 @@ let currentDayName = "";
 let currentRole = ""; 
 let globalMitraList = []; 
 let allRawData = []; 
+
+// DATA LOKAL (Disimpan di Browser)
 let draftData = {}; 
 let readStatusData = {}; 
+
 let isPageLocked = false;
 let lockOwner = "Admin"; 
 let currentStats = { total: 0, telat: 0, bayar: 0 };
-
 let currentLockListener = null; 
-let currentDraftListener = null;
 
+// Helper Strings
 const clean = (str) => {
     if (!str) return "";
     return String(str).toLowerCase().replace(/[^a-z0-9]/g, "");
 };
 
-// --- SYNC DRAFT REALTIME ---
-function listenToDrafts() {
-    if(!userProfile || !userProfile.point) return;
+// =================================================================
+// 1. STORAGE MANAGEMENT (LOCAL STORAGE / BROWSER MEMORY)
+// =================================================================
 
+function getStorageKey() {
+    // Kunci unik berdasarkan: ID User + Tanggal
+    // Agar validasi hari ini tidak menimpa besok, dan user A tidak menimpa user B
     const dateInput = document.getElementById('dateInput');
     let dateStr = "";
-    if (dateInput && !dateInput.classList.contains('d-none')) {
+    if (dateInput && !dateInput.classList.contains('d-none') && dateInput.value) {
         dateStr = dateInput.value; 
     } else {
         dateStr = new Date().toLocaleDateString('en-CA');
     }
+    
+    const userId = userProfile ? (userProfile.idKaryawan || "guest") : "guest";
+    return `closing_draft_${userId}_${dateStr}`;
+}
 
-    const pointKey = clean(userProfile.point);
-    const draftPath = `closing_drafts/${pointKey}/${dateStr}`;
-    const draftRef = ref(db, draftPath);
-
-    if (currentDraftListener) {
-        off(draftRef, 'value', currentDraftListener);
-    }
-
-    currentDraftListener = onValue(draftRef, (snapshot) => {
-        const data = snapshot.val();
-        draftData = data || {}; 
-        
-        if (allRawData.length > 0) {
-            filterAndRenderData();
+function loadFromStorage() {
+    try {
+        const key = getStorageKey();
+        const raw = localStorage.getItem(key);
+        if (raw) {
+            draftData = JSON.parse(raw);
+        } else {
+            draftData = {};
         }
-    });
-}
+        
+        // Load Read Status (Notif merah)
+        const readKey = `closing_read_${new Date().toLocaleDateString('en-CA')}`;
+        const rawRead = localStorage.getItem(readKey);
+        readStatusData = rawRead ? JSON.parse(rawRead) : {};
 
-function saveToDraft(id, isChecked, reason, day = "") {
-    if (isPageLocked) return; 
-    if(!userProfile || !userProfile.point) return;
-
-    const dateInput = document.getElementById('dateInput');
-    let dateStr = "";
-    if (dateInput && !dateInput.classList.contains('d-none')) {
-        dateStr = dateInput.value; 
-    } else {
-        dateStr = new Date().toLocaleDateString('en-CA');
+    } catch (e) {
+        console.error("Gagal load storage:", e);
+        draftData = {};
     }
-
-    const pointKey = clean(userProfile.point);
-    const itemPath = `closing_drafts/${pointKey}/${dateStr}/${id}`;
-
-    update(ref(db, itemPath), {
-        checked: isChecked,
-        reason: reason,
-        day: day,
-        lastUpdate: new Date().toISOString(),
-        updatedBy: userProfile.nama || "User"
-    });
 }
 
-// --- LOCK SERVER SIDE ---
+function saveToStorage(id, isChecked, reason, day) {
+    if (!draftData) draftData = {};
+    
+    // Pastikan Key ID aman (String)
+    const safeId = String(id).replace(/[.#$/[\]]/g, "_"); 
+    
+    draftData[safeId] = {
+        checked: isChecked,
+        reason: reason || "",
+        day: day || ""
+    };
+
+    // Simpan ke Browser
+    const key = getStorageKey();
+    localStorage.setItem(key, JSON.stringify(draftData));
+}
+
+// =================================================================
+// 2. LOCK SYSTEM (SERVER SIDE - FIREBASE)
+// =================================================================
+
 function setGlobalLock(status) {
     if(!userProfile || !userProfile.point) return;
     const dateInput = document.getElementById('dateInput');
@@ -194,13 +202,16 @@ window.unlockGlobalStatus = function() {
 window.markMajelisAsRead = function(uniqueKey, elementId) {
     if (!readStatusData[uniqueKey]) {
         readStatusData[uniqueKey] = true;
-        localStorage.setItem(`closing_read_${new Date().toISOString().split('T')[0]}`, JSON.stringify(readStatusData));
+        localStorage.setItem(`closing_read_${new Date().toLocaleDateString('en-CA')}`, JSON.stringify(readStatusData));
         const dot = document.getElementById(`notif-${elementId}`);
         if(dot) dot.style.display = 'none';
     }
 };
 
-// --- AUTH & INIT ---
+// =================================================================
+// 3. AUTH & INIT
+// =================================================================
+
 onAuthStateChanged(auth, (user) => {
     if (user) {
         checkUserRole(user.uid);
@@ -257,7 +268,7 @@ function initPage() {
                 
                 isPageLocked = false; 
                 checkGlobalLock(); 
-                listenToDrafts(); 
+                loadFromStorage(); // Load data tanggal baru
 
                 setTimeout(() => { filterAndRenderData(); }, 500);
             }
@@ -268,20 +279,19 @@ function initPage() {
 
     let targetPoint = (["RM", "AM", "ADMIN"].includes(currentRole)) ? "ALL" : userProfile.point;
     
+    // Load Data Awal
     setTimeout(() => { 
         checkGlobalLock(); 
-        listenToDrafts(); 
+        loadFromStorage();
     }, 1000); 
     
     fetchRepaymentData(targetPoint);
 }
 
-// --- FETCH DATA ---
 async function fetchRepaymentData(targetPoint) {
     const container = document.getElementById('accordionBP');
     const btnVal = document.getElementById('btnValidateAll');
 
-    // 1. NONAKTIFKAN TOMBOL SAAT LOADING
     if (btnVal) {
         btnVal.disabled = true;
         btnVal.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Data..`;
@@ -406,7 +416,10 @@ function updatePointDropdownOptions(fixedArea = null) {
     else selectPoint.value = "ALL";
 }
 
-// --- RENDER DATA ---
+// =================================================================
+// 4. RENDER DATA & UI
+// =================================================================
+
 function filterAndRenderData() {
     let stats = { mm_total: 0, mm_bayar: 0, mm_kirim: 0, nc_total: 0, nc_bayar: 0, nc_kirim: 0, mm_telat: 0, nc_telat: 0 };
     let hierarchy = {}; 
@@ -422,6 +435,14 @@ function filterAndRenderData() {
     
     if (!allRawData || allRawData.length === 0) { 
         container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-folder-open"></i><p>Data Kosong.</p></div>`; 
+        
+        const btnVal = document.getElementById('btnValidateAll');
+        if(btnVal) {
+            btnVal.disabled = true;
+            btnVal.innerHTML = `<i class="fa-solid fa-ban me-1"></i> Data Kosong`;
+            btnVal.classList.remove('btn-success', 'btn-secondary', 'btn-danger');
+            btnVal.classList.add('btn-primary');
+        }
         return; 
     }
 
@@ -489,8 +510,6 @@ function filterAndRenderData() {
 
     if (matchCount === 0) {
         container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-magnifying-glass"></i><p>Tidak ada data di hari <b>${currentDayName}</b></p></div>`;
-        
-        // JIKA DATA KOSONG, TOMBOL VALIDASI TETAP MATI
         const btnVal = document.getElementById('btnValidateAll');
         if(btnVal) {
             btnVal.disabled = true;
@@ -498,7 +517,6 @@ function filterAndRenderData() {
             btnVal.classList.remove('btn-success', 'btn-secondary', 'btn-danger');
             btnVal.classList.add('btn-primary');
         }
-
     } else {
         renderAccordion(hierarchy);
         updateGlobalValidationStatus(); 
@@ -524,9 +542,6 @@ function renderStats(stats) {
 
 function renderAccordion(hierarchy) {
     const container = document.getElementById('accordionBP'); if(!container) return; container.innerHTML = "";
-    // Counter dihilangkan dari sini karena sudah ada di tombol validasi
-    // const counterHtml = `<div class="validation-bar">...</div>`; 
-    // container.insertAdjacentHTML('beforeend', counterHtml);
 
     Object.keys(hierarchy).sort().forEach((bpName, bpIndex) => {
         let majelisHtml = "";
@@ -534,7 +549,15 @@ function renderAccordion(hierarchy) {
         Object.keys(majelisObj).sort().forEach((majName, majIndex) => {
             const mitraList = majelisObj[majName];
             let checkedCount = 0; let hasNewUpdate = false;
-            mitraList.forEach(m => { const saved = draftData[m.id] || {}; if (saved.checked) checkedCount++; if (m.is_terkirim) hasNewUpdate = true; });
+            
+            // LOGIC UTAMA: Baca dari Local Storage (draftData)
+            mitraList.forEach(m => { 
+                const safeKey = String(m.id).replace(/[.#$/[\]]/g, "_");
+                const saved = draftData[safeKey] || {}; 
+                if (saved.checked) checkedCount++; 
+                if (m.is_terkirim) hasNewUpdate = true; 
+            });
+
             const uniqueKey = `${bpName}_${majName}`.replace(/\s+/g, '_');
             const showDot = (hasNewUpdate && !readStatusData[uniqueKey]);
             const dotHtml = showDot ? `<span class="badge bg-danger rounded-circle p-1 ms-2" id="notif-maj-${bpIndex}-${majIndex}" style="font-size: 5px;"> </span>` : ``;
@@ -582,7 +605,9 @@ function renderAccordion(hierarchy) {
 }
 
 function createMitraCard(mitra) {
-    const savedData = draftData[mitra.id] || {};
+    const safeKey = String(mitra.id).replace(/[.#$/[\]]/g, "_");
+    const savedData = draftData[safeKey] || {};
+    
     const isChecked = savedData.checked ? "checked" : "";
     const savedReason = savedData.reason || ""; 
     const savedDay = savedData.day || ""; 
@@ -688,16 +713,22 @@ function createMitraCard(mitra) {
     `;
 }
 
-// --- EVENTS ---
+// =================================================================
+// 5. USER INTERACTIONS (SAVE TO LOCAL)
+// =================================================================
 
 window.saveReasonInput = function(id, reason, day) {
     if (isPageLocked) return;
     const btn = document.querySelector(`#btn-${id}`);
-    const existing = draftData[id] || {};
+    const safeKey = String(id).replace(/[.#$/[\]]/g, "_");
+    const existing = draftData[safeKey] || {};
+    
     const currentReason = reason !== undefined ? reason : (existing.reason || "");
     const currentDay = day !== undefined ? day : (existing.day || "");
     const isChecked = btn && btn.classList.contains('checked');
-    saveToDraft(id, isChecked, currentReason, currentDay);
+    
+    // Simpan ke Local Storage
+    saveToStorage(id, isChecked, currentReason, currentDay);
 };
 
 window.toggleValidation = function(element, id) {
@@ -729,14 +760,19 @@ window.toggleValidation = function(element, id) {
 
     const valReason = inputReason ? inputReason.value : "";
     const valDay = daySelect ? daySelect.value : "";
-    saveToDraft(id, element.classList.contains('checked'), valReason, valDay);
+    
+    // Simpan ke Local Storage
+    saveToStorage(id, element.classList.contains('checked'), valReason, valDay);
+    
+    // Update UI
     updateMajelisStats(element);
 };
 
 async function updateJBDaysToServer() {
     const updates = [];
     globalMitraList.forEach(m => {
-        const stored = draftData[m.id];
+        const safeKey = String(m.id).replace(/[.#$/[\]]/g, "_");
+        const stored = draftData[safeKey];
         const isJB = String(m.jenis_bayar).toUpperCase() === "JB";
         if (isJB && stored && stored.checked && stored.day) {
             updates.push({ customerNumber: m.id, hariBaru: stored.day });
@@ -748,15 +784,12 @@ async function updateJBDaysToServer() {
     if(btn) btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin me-1"></i> Update Hari JB...`;
 
     try {
-        const response = await fetch(SCRIPT_URL, {
+        await fetch(SCRIPT_URL, {
             method: 'POST', body: JSON.stringify({ action: "batch_update_jb", items: updates }),
             redirect: "follow", headers: { "Content-Type": "text/plain;charset=utf-8" }
         });
-        const res = await response.json();
-        console.log("Update JB:", res);
     } catch (err) {
         console.error("Gagal JB:", err);
-        alert("Peringatan: Gagal update tanggal JB.");
     }
 }
 
@@ -766,7 +799,6 @@ async function sendClosingSummary() {
 
     const elArea = document.getElementById('selectArea');
     const elPoint = document.getElementById('selectPoint');
-    
     const areaName = (elArea && elArea.value !== "ALL") ? elArea.value : userProfile.area;
     const pointName = (elPoint && elPoint.value !== "ALL") ? elPoint.value : userProfile.point;
 
@@ -786,7 +818,6 @@ async function sendClosingSummary() {
             redirect: "follow", 
             headers: { "Content-Type": "text/plain;charset=utf-8" }
         });
-        console.log("Rekap terkirim");
     } catch (err) {
         console.error("Gagal kirim rekap:", err);
     }
@@ -817,8 +848,6 @@ function applyLockMode(lockedBy = "Admin") {
 function releaseLockMode() {
     if(!isPageLocked) {
         const btnValAll = document.getElementById('btnValidateAll');
-        
-        // Cek data
         const totalMitra = document.querySelectorAll('.btn-check-action').length;
         const checkedMitra = document.querySelectorAll('.btn-check-action.checked').length;
 
@@ -827,19 +856,16 @@ function releaseLockMode() {
             btnValAll.classList.remove('btn-secondary', 'btn-danger');
 
             if (totalMitra > 0 && totalMitra === checkedMitra) {
-                // SEMUA TERCENTANG: AKTIFKAN TOMBOL
                 btnValAll.disabled = false; 
                 btnValAll.classList.remove('btn-primary');
                 btnValAll.classList.add('btn-success');
                 btnValAll.innerHTML = `<i class="fa-solid fa-file-arrow-down me-1"></i> Selesai & Download`;
             } else if (totalMitra > 0) {
-                // BELUM SEMUA TERCENTANG: NONAKTIFKAN TOMBOL
                 btnValAll.disabled = true;
                 btnValAll.classList.remove('btn-success');
                 btnValAll.classList.add('btn-primary');
                 btnValAll.innerHTML = `<i class="fa-solid fa-calendar-check me-1"></i> Selesaikan ${totalMitra - checkedMitra} Lagi`;
             } else {
-                // DATA KOSONG
                 btnValAll.disabled = true;
                 btnValAll.classList.add('btn-primary');
                 if (!btnValAll.innerHTML.includes("spin")) {
@@ -861,27 +887,23 @@ function releaseLockMode() {
     }
 }
 
-// FUNGSI INI AKAN DIPANGGIL SETIAP KALI CENTANG BERUBAH
 function updateGlobalValidationStatus() {
     if (isPageLocked) return;
     const totalMitra = document.querySelectorAll('.btn-check-action').length;
     const checkedMitra = document.querySelectorAll('.btn-check-action.checked').length;
     
-    // Update Text Counter (Jika ada elemennya)
-    const counterEl = document.getElementById('statusCounter');
-    if(counterEl) counterEl.textContent = `${checkedMitra} / ${totalMitra}`;
+    // Update Text Counter (Opsional, jika ada elemennya)
+    // const counterEl = document.getElementById('statusCounter');
+    // if(counterEl) counterEl.textContent = `${checkedMitra} / ${totalMitra}`;
 
-    // Update Status Tombol Validasi
     const btnValAll = document.getElementById('btnValidateAll');
     if(btnValAll) {
         if (totalMitra > 0 && checkedMitra === totalMitra) {
-            // JIKA SEMUA SUDAH DICENTANG -> AKTIF
             btnValAll.disabled = false;
             btnValAll.innerHTML = `<i class="fa-solid fa-file-arrow-down me-1"></i> Selesai & Download`; 
             btnValAll.classList.remove('btn-primary', 'btn-secondary');
             btnValAll.classList.add('btn-success'); 
-        } else {
-            // JIKA BELUM SEMUA -> NONAKTIF (DISABLED)
+        } else if (totalMitra > 0) {
             btnValAll.disabled = true;
             btnValAll.innerHTML = `<i class="fa-solid fa-hourglass-half me-1"></i> Selesaikan ${totalMitra - checkedMitra} Lagi`;
             btnValAll.classList.remove('btn-success', 'btn-secondary');
@@ -900,13 +922,15 @@ function updateMajelisStats(btnElement) {
         const checkedInMajelis = collapseDiv.querySelectorAll('.btn-check-action.checked').length;
         countDiv.innerText = `${checkedInMajelis} / ${allInMajelis} Selesai`;
     }
+    updateGlobalValidationStatus();
 }
 
 function downloadCSV() {
     if (globalMitraList.length === 0) return alert("Data kosong.");
     let csvContent = "ID Mitra,Nama Mitra,BP,Majelis,Status Bayar,Status Kirim,Status BLL,Jenis Bayar,Hari Baru (JB),DPD Bucket,Keterangan\n";
     globalMitraList.forEach(m => {
-        const stored = draftData[m.id] || {};
+        const safeKey = String(m.id).replace(/[.#$/[\]]/g, "_");
+        const stored = draftData[safeKey] || {};
         const finalReason = stored.reason || m.alasan || "-";
         const finalDay = stored.day || "-";
         const row = [`'${m.id}`, `"${m.nama}"`, `"${m.bp}"`, `"${m.majelis}"`, m.status_bayar, m.status_kirim, m.status_bll, m.jenis_bayar, finalDay, m.bucket, `"${finalReason}"`].join(",");
