@@ -12,7 +12,7 @@ const firebaseConfig = {
     appId: "1:22431520744:web:711af76a5335d97179765d"
 };
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzwVFQEH4w8A8bXMcnEecqQexWv_8UWeAEHRfv2LM5iVfzXhkrJ9wEAP4EKz-IBYrnm/exec"; 
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx_QMVJdpvPOhABEri_MUOPZ-03fQ8XA4XDSXe-V7jIc8Bu0QNlhJpAWkTj19VFVZrsyA/exec"; 
 
 // --- DATA POINT & KOORDINAT ---
 const DATA_POINTS = {
@@ -21,7 +21,7 @@ const DATA_POINTS = {
     "Solo": ["Banjarsari", "Gemolong", "Masaran", "Tangen"],
     "Solo 2": ["Gatak", "Jumantono", "Karanganyar", "Nguter", "Pasar Kliwon"],
     "Yogyakarta": ["01 Sleman", "Kalasan", "Ngaglik", "Umbulharjo"],
-    "Yogyakarta 2": ["01 Pandak", "01 Pengasih", "01 Pleret", "Kutoarjo", "Purworejo", "Saptosari"],
+    "Yogyakarta 2": ["01 Pandak", "01 Pangasih", "01 Pleret", "Kutoarjo", "Purworejo", "Saptosari"],
     "Wonogiri": ["Jatisrono", "Ngadirojo", "Ngawen 2", "Pracimantoro", "Wonosari"]
 };
 
@@ -54,7 +54,7 @@ const DATABASE_KOORDINAT_POINT = {
     "Ngaglik":       { lat: -7.7448999, lng: 110.3953837 },
     "Umbulharjo":    { lat: -7.8221304, lng: 110.3877378 },
     "01 Pandak":     { lat: -7.898319, lng: 110.3041433 },
-    "01 Pengasih":   { lat: -7.8499644, lng: 110.1694607 },
+    "01 Pangasih":   { lat: -7.8499644, lng: 110.1694607 },
     "01 Pleret":     { lat: -7.856949, lng: 110.4097071 },
     "Kutoarjo":      { lat: -7.724611, lng: 109.915361 },
     "Purworejo":     { lat: -7.7150278, lng: 110.00125 },
@@ -62,7 +62,7 @@ const DATABASE_KOORDINAT_POINT = {
 };
 
 const MAX_JARAK_METER = 300;
-const MAX_JAM_ABSEN = "08:20";
+const MAX_JAM_ABSEN = "08:15";
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
