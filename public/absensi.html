@@ -60,6 +60,15 @@
                 </div>
             </div>
 
+            <div class="mb-3">
+                <label class="form-label small text-muted">STATUS KEHADIRAN</label>
+                <select class="form-select fw-bold bg-white text-dark border-primary" id="statusKehadiran" required>
+                    <option value="Hadir" selected>Hadir (WFO/Lapangan)</option>
+                    <option value="Sakit">Sakit</option>
+                    <option value="Izin">Izin / Cuti</option>
+                </select>
+            </div>
+
             <div class="mb-4">
                 <label class="form-label small text-muted">TITIK POINT (Pilih Lokasi)</label>
                 <select class="form-select fw-bold text-primary bg-light" id="pointKaryawan" required>
@@ -86,7 +95,7 @@
             </p>
 
             <div class="mb-4">
-                <label class="form-label fw-bold">Foto Selfie</label>
+                <label class="form-label fw-bold" id="labelFoto">Foto Selfie</label>
                 <div class="p-3 bg-light rounded text-center border border-dashed" onclick="document.getElementById('fotoSelfie').click()" style="cursor: pointer;">
                     <i class="fa-solid fa-camera fa-2x text-muted mb-2"></i>
                     <p class="m-0 small text-muted">Ambil Foto (Wajib)</p>
