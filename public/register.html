@@ -7,6 +7,37 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="styles/login.css" rel="stylesheet">
+    
+    <style>
+        /* CSS Tambahan Khusus untuk Update Ini */
+        .snowflake {
+            position: fixed; top: -10px; z-index: 99999; color: #dbeeff;
+            text-shadow: 0 0 5px rgba(0,0,0,0.1); user-select: none; pointer-events: none;
+            cursor: default; animation-name: fall; animation-timing-function: linear;
+            animation-iteration-count: infinite;
+        }
+        @keyframes fall { to { transform: translateY(105vh); } }
+
+        /* Style untuk Prefix +62 */
+        .phone-prefix {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-weight: bold;
+            color: #6c757d;
+            z-index: 5;
+            font-size: 1rem;
+        }
+        /* Padding khusus input HP agar tidak menabrak +62 */
+        .input-hp {
+            padding-left: 55px !important; 
+        }
+        /* Class helper untuk hide/show */
+        .d-none-custom {
+            display: none;
+        }
+    </style>
 </head>
 <body>
 
@@ -41,6 +72,23 @@
             </div>
 
             <div class="input-group-modern">
+                <label class="input-label">Email Pribadi</label>
+                <div class="input-wrapper">
+                    <input type="email" class="form-control" id="email" placeholder="Email terhubung di HP" required autocomplete="off">
+                    <i class="fa-solid fa-envelope input-icon-left"></i>
+                </div>
+            </div>
+
+            <div class="input-group-modern">
+                <label class="input-label">Nomer HP (WA Aktif)</label>
+                <div class="input-wrapper position-relative">
+                    <span class="phone-prefix">+62</span>
+                    <input type="number" class="form-control input-hp" id="noHp" placeholder="81234567890" required autocomplete="off">
+                </div>
+                <small class="text-muted" style="font-size: 0.75rem;">*Masukan nomor tanpa angka 0 di depan</small>
+            </div>
+
+            <div class="input-group-modern mt-2">
                 <label class="input-label">Kata Sandi</label>
                 <div class="input-wrapper">
                     <input type="password" class="form-control" id="password" placeholder="Minimal 6 Karakter" required>
@@ -54,7 +102,7 @@
                     <div class="input-group-modern mb-0">
                         <label class="input-label">Jabatan</label>
                         <div class="input-wrapper">
-                            <select class="form-control" id="jabatan" required style="appearance:none;">
+                            <select class="form-control" id="jabatan" required style="appearance:none;" onchange="updateFormFields()">
                                 <option value="" disabled selected>Pilih...</option>
                                 <option value="RM">RM</option>
                                 <option value="AM">AM</option>
@@ -76,6 +124,32 @@
                 </div>
             </div>
 
+            <div class="row g-2 mt-2">
+                <div class="col-6 d-none-custom" id="containerArea">
+                    <div class="input-group-modern mb-0">
+                        <label class="input-label">Area</label>
+                        <div class="input-wrapper">
+                            <select class="form-control" id="areaSelect" style="appearance:none;" onchange="updatePoints()">
+                                <option value="" disabled selected>Pilih Area...</option>
+                                </select>
+                            <i class="fa-solid fa-map input-icon-left"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-6 d-none-custom" id="containerPoint">
+                    <div class="input-group-modern mb-0">
+                        <label class="input-label">Point</label>
+                        <div class="input-wrapper">
+                            <select class="form-control" id="pointSelect" style="appearance:none;">
+                                <option value="" disabled selected>Pilih Point...</option>
+                                </select>
+                            <i class="fa-solid fa-building input-icon-left"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <button type="submit" class="btn-login mt-4">DAFTAR SEKARANG</button>
         </form>
 
@@ -84,27 +158,100 @@
         </div>
     </div>
 
-    <script type="module" src="./js/register.js"></script>
-    <style>
-    .snowflake {
-        position: fixed;
-        top: -10px;
-        z-index: 99999; /* Paling depan */
-        color: #dbeeff; /* Putih agak biru */
-        text-shadow: 0 0 5px rgba(0,0,0,0.1); /* Bayangan tipis biar kelihatan di background putih */
-        user-select: none;
-        pointer-events: none; /* Klik tembus ke belakang */
-        cursor: default;
-        animation-name: fall;
-        animation-timing-function: linear;
-        animation-iteration-count: infinite;
-    }
+    <script>
+        // Data Area dan Point
+        const dataLokasi = {
+            "Klaten": ["01 Wedi", "Karangnongko", "Mojosongo", "Polanharjo", "Trucuk"],
+            "Magelang": ["Grabag", "Mungkid", "Pakis", "Salam"],
+            "Solo": ["Banjarsari", "Gemolong", "Masaran", "Tangen"],
+            "Solo 2": ["Gatak", "Jumantono", "Karanganyar", "Nguter", "Pasar Kliwon"],
+            "Yogyakarta": ["01 Sleman", "Kalasan", "Ngaglik", "Umbulharjo"],
+            "Yogyakarta 2": ["01 Pandak", "01 Pangasih", "01 Pleret", "Kutoarjo", "Purworejo", "Saptosari"],
+            "Wonogiri": ["Jatisrono", "Ngadirojo", "Ngawen 2", "Pracimantoro", "Wonosari"]
+        };
 
-    @keyframes fall {
-        to {
-            transform: translateY(105vh);
+        // Fungsi Utama: Mengatur Tampilan Field berdasarkan Jabatan
+        function updateFormFields() {
+            const jabatan = document.getElementById("jabatan").value;
+            const containerArea = document.getElementById("containerArea");
+            const containerPoint = document.getElementById("containerPoint");
+            const areaSelect = document.getElementById("areaSelect");
+            const pointSelect = document.getElementById("pointSelect");
+
+            // Reset tampilan (Sembunyikan dulu semua)
+            containerArea.classList.add("d-none-custom");
+            containerPoint.classList.add("d-none-custom");
+            
+            // Reset required attribute agar tidak error saat submit jika hidden
+            areaSelect.required = false;
+            pointSelect.required = false;
+
+            // Logika Bisnis
+            if (jabatan === "RM") {
+                // RM: Hanya Regional (Area & Point Hidden) - Sudah default hidden
+            } 
+            else if (jabatan === "AM") {
+                // AM: Regional + Area (Point Hidden)
+                containerArea.classList.remove("d-none-custom");
+                areaSelect.required = true;
+                populateArea(); // Isi dropdown area
+            } 
+            else if (jabatan === "BM" || jabatan === "BP") {
+                // BM/BP: Tampilkan Semua (Regional + Area + Point)
+                containerArea.classList.remove("d-none-custom");
+                containerPoint.classList.remove("d-none-custom");
+                areaSelect.required = true;
+                pointSelect.required = true;
+                populateArea(); // Isi dropdown area
+            }
         }
-    }
-</style>
+
+        // Fungsi Mengisi Dropdown Area
+        function populateArea() {
+            const areaSelect = document.getElementById("areaSelect");
+            // Cek jika opsi sudah ada (selain opsi pertama "Pilih Area...") agar tidak duplikat
+            if (areaSelect.options.length > 1) return; 
+
+            for (let key in dataLokasi) {
+                let option = document.createElement("option");
+                option.value = key;
+                option.text = key;
+                areaSelect.add(option);
+            }
+        }
+
+        // Fungsi Mengisi Dropdown Point saat Area dipilih
+        function updatePoints() {
+            const areaSelected = document.getElementById("areaSelect").value;
+            const pointSelect = document.getElementById("pointSelect");
+            
+            // Reset isi point
+            pointSelect.innerHTML = '<option value="" disabled selected>Pilih Point...</option>';
+
+            // Ambil data array point berdasarkan key area
+            const listPoints = dataLokasi[areaSelected];
+
+            if (listPoints) {
+                listPoints.forEach(function(pointName) {
+                    let option = document.createElement("option");
+                    option.value = pointName;
+                    option.text = pointName;
+                    pointSelect.add(option);
+                });
+            }
+        }
+        
+        // Toggle Password Script (Bawaan Anda)
+        const togglePassword = document.querySelector('#togglePassword');
+        const password = document.querySelector('#password');
+        togglePassword.addEventListener('click', function (e) {
+            const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+            password.setAttribute('type', type);
+            this.classList.toggle('fa-eye-slash');
+        });
+    </script>
+
+    <script type="module" src="./js/register.js"></script>
+
 </body>
 </html>
