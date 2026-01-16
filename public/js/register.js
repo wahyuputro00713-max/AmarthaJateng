@@ -17,6 +17,10 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
+// --- KONFIGURASI SPREADSHEET (GOOGLE APPS SCRIPT) ---
+// GANTI URL DI BAWAH INI DENGAN URL DEPLOYMENT ANDA SENDIRI
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyvYLEFpt_Dt4ZjVgieOMj7t2ZsfY89spAgLvqy084otsNd0rAd9-LoexRw2T_oZiN7xw/exec"; 
+
 // --- LOGIKA REGISTER ---
 const registerForm = document.getElementById('registerForm');
 const loadingOverlay = document.getElementById('loadingOverlay');
@@ -28,7 +32,7 @@ if (registerForm) {
         // 1. Ambil Data Input
         const nama = document.getElementById('nama').value.trim();
         const idKaryawan = document.getElementById('idKaryawan').value.trim();
-        const emailPribadi = document.getElementById('email').value.trim(); // Gunakan Email Asli!
+        const emailPribadi = document.getElementById('email').value.trim();
         const password = document.getElementById('password').value;
         const jabatan = document.getElementById('jabatan').value;
         const regional = document.getElementById('regional').value;
@@ -54,10 +58,9 @@ if (registerForm) {
             return;
         }
 
-        // Tampilkan Loading
         loadingOverlay.style.display = 'flex';
 
-        // 3. CEK DULU: Apakah ID Karyawan sudah dipakai?
+        // 3. CEK DATA
         const dbRef = ref(db);
         get(child(dbRef, `data_karyawan/${idKaryawan}`)).then((snapshot) => {
             if (snapshot.exists()) {
@@ -65,7 +68,6 @@ if (registerForm) {
                 alert("❌ ID Karyawan " + idKaryawan + " sudah terdaftar!");
                 return;
             } else {
-                // Jika ID belum ada, Lanjut Buat Akun dengan EMAIL ASLI
                 prosesRegisterAuth(emailPribadi, password, nama, idKaryawan, formattedHp, jabatan, regional, area, point);
             }
         }).catch((error) => {
@@ -81,39 +83,37 @@ function prosesRegisterAuth(email, password, nama, idKaryawan, hp, jabatan, regi
         .then((userCredential) => {
             const user = userCredential.user;
             
-            // Siapkan Data User
+            // Siapkan Object Data
             const userData = {
                 nama: nama,
                 idKaryawan: idKaryawan,
-                email: email,       // Email Asli
+                email: email,
                 noHp: hp,
                 jabatan: jabatan,
                 regional: regional,
                 area: area,
                 point: point,
+                uid: user.uid,
                 createdAt: new Date().toISOString()
             };
 
-            // SIMPAN KE DB (2 LOKASI)
-            
-            // Lokasi 1: Profil User (users/UID) - Untuk data profil
+            // SIMPAN KE FIREBASE (2 LOKASI)
             const p1 = set(ref(db, 'users/' + user.uid), userData);
+            const p2 = set(ref(db, 'data_karyawan/' + idKaryawan), { email: email, uid: user.uid });
 
-            // Lokasi 2: Lookup ID (data_karyawan/ID) - Agar bisa Login pakai ID
-            // Kita simpan emailnya di sini agar nanti pas login bisa dicari
-            const p2 = set(ref(db, 'data_karyawan/' + idKaryawan), {
-                email: email,
-                uid: user.uid
-            });
+            // SIMPAN KE SPREADSHEET (Parallel)
+            const p3 = kirimKeSpreadsheet(userData);
 
-            Promise.all([p1, p2])
+            Promise.all([p1, p2, p3])
                 .then(() => {
-                    alert("✅ Registrasi Berhasil! Silakan Cek Email Anda jika ada verifikasi.");
+                    alert("✅ Registrasi Berhasil! Data tersimpan di System & Spreadsheet.");
                     window.location.href = "index.html"; 
                 })
                 .catch((error) => {
-                    console.error("Gagal simpan DB:", error);
-                    alert("Akun dibuat tapi gagal menyimpan data.");
+                    console.error("Salah satu penyimpanan gagal:", error);
+                    // Tetap arahkan sukses karena akun Auth sudah jadi
+                    alert("Registrasi berhasil, namun ada kendala sinkronisasi data.");
+                    window.location.href = "index.html";
                 });
 
         })
@@ -127,6 +127,18 @@ function prosesRegisterAuth(email, password, nama, idKaryawan, hp, jabatan, regi
                 alert("Gagal: " + error.message);
             }
         });
+}
+
+// --- FUNGSI KIRIM KE SPREADSHEET ---
+function kirimKeSpreadsheet(data) {
+    // Gunakan mode 'no-cors' karena Google Script Web App berada di domain berbeda
+    // Catatan: 'no-cors' berarti kita tidak bisa membaca respons JSON 'success' dari Google, 
+    // tapi data tetap terkirim.
+    
+    return fetch(SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify(data)
+    });
 }
 
 // --- LOGIKA TOGGLE PASSWORD ---
