@@ -72,6 +72,7 @@ const ui = {
     nama: document.getElementById('namaKaryawan'),
     id: document.getElementById('idKaryawan'),
     area: document.getElementById('areaKaryawan'),
+    status: document.getElementById('statusKehadiran'), // NEW
     pointSelect: document.getElementById('pointKaryawan'),
     jam: document.getElementById('jamRealtime'),
     tanggal: document.getElementById('tanggalHariIni'),
@@ -82,6 +83,7 @@ const ui = {
     btnAbsen: document.getElementById('btnAbsen'),
     errorMsg: document.getElementById('errorMsg'),
     fotoInput: document.getElementById('fotoSelfie'),
+    labelFoto: document.getElementById('labelFoto'),
     preview: document.getElementById('previewContainer')
 };
 
@@ -89,7 +91,7 @@ let userPointData = null;
 let isValidTime = false;
 let isValidLocation = false;
 
-// --- FUNGSI HELPER TANGGAL LOKAL ---
+// --- FUNGSI HELPER ---
 function getLocalTodayDate() {
     const d = new Date();
     const year = d.getFullYear();
@@ -98,8 +100,6 @@ function getLocalTodayDate() {
     return `${year}-${month}-${day}`; 
 }
 
-// --- NEW: FUNGSI KOMPRESI GAMBAR ---
-// Mengubah ukuran gambar max 800px dan kualitas 60% agar ringan (< 300KB)
 function compressImage(file, maxWidth = 800, quality = 0.6) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -111,19 +111,14 @@ function compressImage(file, maxWidth = 800, quality = 0.6) {
                 const canvas = document.createElement('canvas');
                 let width = img.width;
                 let height = img.height;
-
-                // Hitung rasio aspek untuk resize
                 if (width > maxWidth) {
                     height *= maxWidth / width;
                     width = maxWidth;
                 }
-
                 canvas.width = width;
                 canvas.height = height;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
-
-                // Convert canvas ke Base64 JPEG dengan kualitas yang diturunkan
                 resolve(canvas.toDataURL('image/jpeg', quality));
             };
             img.onerror = (err) => reject(err);
@@ -132,6 +127,7 @@ function compressImage(file, maxWidth = 800, quality = 0.6) {
     });
 }
 
+// --- EVENT LISTENER ---
 if (ui.pointSelect) {
     ui.pointSelect.addEventListener('change', function() {
         const selectedPoint = this.value;
@@ -146,6 +142,24 @@ if (ui.pointSelect) {
     });
 }
 
+// Update tombol saat Status Kehadiran berubah
+if (ui.status) {
+    ui.status.addEventListener('change', function() {
+        const val = this.value;
+        if (val === "Sakit" || val === "Izin") {
+            // Jika Sakit/Izin, ubah label foto dan validasi lokasi
+            ui.labelFoto.textContent = "Foto Bukti (Surat Dokter/Lainnya)";
+            ui.statusLokasi.className = "status-box status-success";
+            ui.statusLokasi.innerHTML = `<span><i class="fa-solid fa-check me-2"></i>Lokasi Diabaikan (${val})</span>`;
+        } else {
+            ui.labelFoto.textContent = "Foto Selfie";
+            // Trigger ulang cek lokasi
+            if (userPointData) ui.statusLokasi.innerHTML = `<span><i class="fa-solid fa-sync fa-spin me-2"></i>Cek Ulang GPS...</span>`;
+        }
+        updateTombol();
+    });
+}
+
 onAuthStateChanged(auth, (user) => {
     if (user) {
         checkIfAlreadyAbsent(user.uid);
@@ -157,7 +171,6 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
-// FUNGSI CEK STATUS (Updated)
 async function checkIfAlreadyAbsent(uid) {
     const today = getLocalTodayDate(); 
     const absensiRef = ref(db, `absensi/${today}/${uid}`);
@@ -177,7 +190,6 @@ function loadUserData(uid) {
     get(userRef).then((snapshot) => {
         if (snapshot.exists()) {
             const data = snapshot.val();
-
             ui.nama.value = data.nama || "-";
             ui.id.value = data.idKaryawan || "-";
             ui.area.value = data.area || "-";
@@ -230,6 +242,9 @@ function cekLokasiUser() {
     }
 
     navigator.geolocation.watchPosition((pos) => {
+        const statusHadir = ui.status.value;
+        if (statusHadir === "Sakit" || statusHadir === "Izin") return; // Skip cek jika Sakit
+
         if (!userPointData) return;
 
         const userLat = pos.coords.latitude;
@@ -259,6 +274,7 @@ function cekLokasiUser() {
 }
 
 function showErrorLokasi(msg) {
+    if (ui.status.value === "Sakit" || ui.status.value === "Izin") return;
     ui.statusLokasi.className = "status-box status-error";
     ui.statusLokasi.innerHTML = `<span><i class="fa-solid fa-triangle-exclamation me-2"></i>${msg}</span>`;
     isValidLocation = false;
@@ -277,20 +293,30 @@ function hitungJarak(lat1, lon1, lat2, lon2) {
 }
 
 function updateTombol() {
-    if (isValidTime && isValidLocation) {
+    const statusVal = ui.status.value;
+    // Logika: Jika Hadir, wajib ValidTime & ValidLocation. Jika Sakit/Izin, bypass Location, tapi Time tetap (opsional).
+    // Disini saya buat Sakit/Izin mem-bypass lokasi.
+    
+    let lokasiOk = isValidLocation;
+    if (statusVal === "Sakit" || statusVal === "Izin") {
+        lokasiOk = true; // Bypass lokasi
+    }
+
+    if (isValidTime && lokasiOk) {
         ui.btnAbsen.disabled = false;
-        ui.btnAbsen.innerHTML = `<i class="fa-solid fa-fingerprint me-2"></i> MASUK SEKARANG`;
+        ui.btnAbsen.innerHTML = `<i class="fa-solid fa-fingerprint me-2"></i> KIRIM ${statusVal.toUpperCase()}`;
+        ui.btnAbsen.className = "btn btn-primary w-100 py-3 fw-bold rounded-3 shadow-sm";
         ui.errorMsg.textContent = "";
     } else {
         ui.btnAbsen.disabled = true;
         ui.btnAbsen.innerHTML = `<i class="fa-solid fa-ban me-2"></i> ABSEN TERKUNCI`;
+        ui.btnAbsen.className = "btn btn-secondary w-100 py-3 fw-bold rounded-3 shadow-sm";
 
         if (!isValidTime) ui.errorMsg.textContent = "Absen ditutup lewat 08:20.";
-        else if (!isValidLocation) ui.errorMsg.textContent = `Di luar radius kantor (Maks ${MAX_JARAK_METER}m).`;
+        else if (!lokasiOk) ui.errorMsg.textContent = `Di luar radius kantor (Maks ${MAX_JARAK_METER}m).`;
     }
 }
 
-// Preview Gambar
 ui.fotoInput.addEventListener('change', function() {
     const file = this.files[0];
     if(file) {
@@ -302,18 +328,15 @@ ui.fotoInput.addEventListener('change', function() {
     }
 });
 
-// SUBMIT FORM (Updated dengan Kompresi)
 document.getElementById('absensiForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!ui.fotoInput.files[0]) { alert("Wajib Foto Selfie!"); return; }
+    if (!ui.fotoInput.files[0]) { alert("Wajib lampirkan Foto (Selfie/Bukti Sakit)!"); return; }
 
     const loadingOverlay = document.getElementById('loadingOverlay');
     loadingOverlay.style.display = 'flex';
 
     try {
         const file = ui.fotoInput.files[0];
-        
-        // --- 1. GUNAKAN KOMPRESI DI SINI ---
         const base64 = await compressImage(file); 
         const today = getLocalTodayDate(); 
 
@@ -325,11 +348,11 @@ document.getElementById('absensiForm').addEventListener('submit', async (e) => {
             point: ui.pointSelect.value, 
             tanggal: today,
             jamAbsen: ui.jam.textContent,
-            geotag: document.getElementById('geotagInput').value,
-            // Hapus prefix data:image/... karena Canvas sudah memberikan format yang bersih
+            geotag: document.getElementById('geotagInput').value || "-", // Geotag mungkin kosong jika sakit
             foto: base64.replace(/^data:image\/(png|jpeg|jpg);base64,/, ""),
             namaFoto: `Absen_${ui.nama.value}.jpg`,
-            mimeType: "image/jpeg"
+            mimeType: "image/jpeg",
+            status: ui.status.value // KIRIM STATUS KE SPREADSHEET
         };
 
         const response = await fetch(SCRIPT_URL, { 
@@ -344,16 +367,15 @@ document.getElementById('absensiForm').addEventListener('submit', async (e) => {
         if (result.result === 'success') {
             const user = auth.currentUser;
             if (user) {
-                // SIMPAN KE FIREBASE
                 await set(ref(db, `absensi/${today}/${user.uid}`), {
                     timestamp: new Date().toISOString(),
                     nama: ui.nama.value,
                     point: ui.pointSelect.value,
-                    status: "Hadir"
+                    status: ui.status.value // SIMPAN STATUS KE FIREBASE
                 });
             }
 
-            alert("✅ Absen Berhasil!");
+            alert(`✅ Absen ${ui.status.value} Berhasil!`);
             window.location.href = "home.html";
         } else { throw new Error(result.error); }
 
