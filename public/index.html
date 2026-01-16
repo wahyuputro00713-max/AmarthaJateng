@@ -8,6 +8,17 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="styles/login.css" rel="stylesheet">
     <link rel="icon" type="image/png" href="assets/amarthalogo.png">
+
+    <style>
+        html, body {
+            /* Memastikan tidak ada border di atas */
+            border-top: none !important;
+            /* Memastikan tidak ada jarak di atas yang memunculkan warna background html */
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+        }
+    </style>
+
 </head>
 <body>
 
@@ -47,6 +58,7 @@
                     Lupa Password?
                 </a>
             </div>
+            
             <button type="submit" class="btn-login">MASUK SEKARANG</button>
         </form>
 
@@ -56,6 +68,26 @@
     </div>
 
     <script type="module" src="./js/login.js"></script>
+    <style>
+    .snowflake {
+        position: fixed;
+        top: -10px;
+        z-index: 99999; /* Paling depan */
+        color: #dbeeff; /* Putih agak biru */
+        text-shadow: 0 0 5px rgba(0,0,0,0.1); /* Bayangan tipis biar kelihatan di background putih */
+        user-select: none;
+        pointer-events: none; /* Klik tembus ke belakang */
+        cursor: default;
+        animation-name: fall;
+        animation-timing-function: linear;
+        animation-iteration-count: infinite;
+    }
+
+    @keyframes fall {
+        to {
+            transform: translateY(105vh);
+        }
+    }
 </style>
 </body>
 </html>
