@@ -36,7 +36,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 // ⚠️ PASTE URL APPS SCRIPT YANG BARU DI SINI ⚠️
-const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; 
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby1XUbzu58PqfPT8cSAUEypmdgLtJTEHL2SzSC2iZWrYx2bJQa8URvwxNL-0Ay6SqUlYw/exec"; 
 
 // 1. Cek Login & Isi Data User
 onAuthStateChanged(auth, (user) => {
