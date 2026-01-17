@@ -8,17 +8,19 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         :root {
-            --primary-color: #4e73df;
-            --secondary-color: #858796;
+            /* MENGUBAH WARNA UTAMA JADI UNGU AMARTHA */
+            --primary-color: #7b3f99; 
+            --primary-dark: #5a2a75;
             --bg-color: #f8f9fc;
         }
         body {
             background-color: var(--bg-color);
             font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            padding-bottom: 80px; /* Space for floating buttons */
+            padding-bottom: 80px;
         }
+        /* Header dengan Gradasi Ungu */
         .header-bg {
-            background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
+            background: linear-gradient(135deg, #9c5ec0 0%, #7b3f99 100%);
             height: 180px;
             border-bottom-left-radius: 30px;
             border-bottom-right-radius: 30px;
@@ -46,6 +48,7 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
             background-color: #fff;
         }
+        /* Tombol Kamera Ungu */
         .btn-camera {
             position: absolute;
             bottom: 5px;
@@ -65,6 +68,7 @@
         }
         .btn-camera:active { transform: scale(0.9); }
         
+        /* Styling Form */
         .form-floating > .form-control {
             border-radius: 12px;
             border: 1px solid #e3e6f0;
@@ -73,11 +77,32 @@
         .form-floating > .form-control:focus {
             background-color: #fff;
             border-color: var(--primary-color);
-            box-shadow: 0 0 0 0.25rem rgba(78, 115, 223, 0.1);
+            box-shadow: 0 0 0 0.25rem rgba(123, 63, 153, 0.25);
         }
         .form-control:disabled, .form-control[readonly] {
             background-color: #eaecf4;
             opacity: 1;
+        }
+        .section-title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #b7b9cc;
+            letter-spacing: 0.5px;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+        }
+        .text-primary-custom {
+            color: var(--primary-color) !important;
+        }
+
+        /* Override Tombol Bootstrap Primary jadi Ungu */
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        .btn-primary:hover, .btn-primary:active {
+            background-color: var(--primary-dark) !important;
+            border-color: var(--primary-dark) !important;
         }
         
         /* Floating Action Buttons */
@@ -104,17 +129,13 @@
             text-decoration: none;
         }
         .fab-btn:active { transform: scale(0.95); }
+        
+        /* Tombol Edit jadi Ungu */
         .fab-edit { background: var(--primary-color); }
+        
+        /* Tombol WA tetap Hijau (Standar UX) */
         .fab-wa { background: #25D366; }
 
-        .section-title {
-            font-size: 0.85rem;
-            font-weight: 700;
-            color: #b7b9cc;
-            letter-spacing: 0.5px;
-            margin-bottom: 15px;
-            text-transform: uppercase;
-        }
     </style>
 </head>
 <body>
@@ -173,7 +194,7 @@
             </div>
 
             <div class="mb-4">
-                <p class="section-title text-primary"><i class="fa-solid fa-location-dot me-2"></i>Area Kerja</p>
+                <p class="section-title text-primary-custom"><i class="fa-solid fa-location-dot me-2"></i>Area Kerja</p>
                 
                 <div class="form-floating mb-3">
                     <select class="form-select" id="areaSelect" disabled>
