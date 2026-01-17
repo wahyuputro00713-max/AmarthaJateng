@@ -17,7 +17,7 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 // URL APPS SCRIPT
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx2KZSe3p07k8TJr3ZYz6CybEc-Zk4Cfd_bg2L9G_t_VIEWWEy--yVNxZ92V7CiI1WA/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbykwpBCX59nU4l5pbkpB7q5QuLrbDTTNLEDOV-MCeP0g1VX60i1J6NNnFDMifsxqzzvLg/exec";
 
 // State Management
 let globalData = [];
