@@ -64,6 +64,10 @@ const DATABASE_KOORDINAT_POINT = {
 const MAX_JARAK_METER = 300;
 const MAX_JAM_ABSEN = "08:15";
 
+// --- DAFTAR STATUS YANG TIDAK PERLU VALIDASI JARAK ---
+// Tambahkan WFH dan WFC di sini
+const STATUS_BEBAS_LOKASI = ["Sakit", "Izin", "WFH", "WFC"];
+
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
@@ -72,7 +76,7 @@ const ui = {
     nama: document.getElementById('namaKaryawan'),
     id: document.getElementById('idKaryawan'),
     area: document.getElementById('areaKaryawan'),
-    status: document.getElementById('statusKehadiran'), // NEW
+    status: document.getElementById('statusKehadiran'),
     pointSelect: document.getElementById('pointKaryawan'),
     jam: document.getElementById('jamRealtime'),
     tanggal: document.getElementById('tanggalHariIni'),
@@ -90,6 +94,7 @@ const ui = {
 let userPointData = null; 
 let isValidTime = false;
 let isValidLocation = false;
+let userJabatan = ""; // Variabel untuk menyimpan jabatan
 
 // --- FUNGSI HELPER ---
 function getLocalTodayDate() {
@@ -142,19 +147,32 @@ if (ui.pointSelect) {
     });
 }
 
-// Update tombol saat Status Kehadiran berubah
+// Update tombol & Tampilan saat Status Kehadiran berubah
 if (ui.status) {
     ui.status.addEventListener('change', function() {
         const val = this.value;
-        if (val === "Sakit" || val === "Izin") {
-            // Jika Sakit/Izin, ubah label foto dan validasi lokasi
-            ui.labelFoto.textContent = "Foto Bukti (Surat Dokter/Lainnya)";
+        
+        // Cek apakah status yang dipilih termasuk kategori Bebas Lokasi
+        if (STATUS_BEBAS_LOKASI.includes(val)) {
+            // Logic khusus untuk WFH/WFC/Sakit/Izin
+            if (val === "Sakit") {
+                ui.labelFoto.textContent = "Foto Surat Dokter / Obat";
+            } else if (val === "WFH") {
+                ui.labelFoto.textContent = "Foto Selfie (Di Rumah)";
+            } else if (val === "WFC") {
+                ui.labelFoto.textContent = "Foto Selfie (Di Lokasi Kerja)";
+            } else {
+                ui.labelFoto.textContent = "Foto Bukti";
+            }
+            
             ui.statusLokasi.className = "status-box status-success";
-            ui.statusLokasi.innerHTML = `<span><i class="fa-solid fa-check me-2"></i>Lokasi Diabaikan (${val})</span>`;
+            ui.statusLokasi.innerHTML = `<span><i class="fa-solid fa-check me-2"></i>Lokasi Valid (${val})</span>`;
         } else {
+            // Kembali ke mode Hadir (WFO)
             ui.labelFoto.textContent = "Foto Selfie";
-            // Trigger ulang cek lokasi
-            if (userPointData) ui.statusLokasi.innerHTML = `<span><i class="fa-solid fa-sync fa-spin me-2"></i>Cek Ulang GPS...</span>`;
+            if (userPointData) {
+                ui.statusLokasi.innerHTML = `<span><i class="fa-solid fa-sync fa-spin me-2"></i>Cek Ulang GPS...</span>`;
+            }
         }
         updateTombol();
     });
@@ -193,6 +211,24 @@ function loadUserData(uid) {
             ui.nama.value = data.nama || "-";
             ui.id.value = data.idKaryawan || "-";
             ui.area.value = data.area || "-";
+            
+            // Simpan jabatan ke variabel global
+            userJabatan = data.jabatan || ""; 
+
+            // LOGIKA TAMBAHAN KHUSUS JABATAN RM
+            if (userJabatan === "RM") {
+                // Tambahkan Opsi WFH
+                const optWFH = document.createElement("option");
+                optWFH.value = "WFH";
+                optWFH.text = "WFH (Work From Home)";
+                ui.status.add(optWFH);
+
+                // Tambahkan Opsi WFC
+                const optWFC = document.createElement("option");
+                optWFC.value = "WFC";
+                optWFC.text = "WFC (Work From Cafe/Anywhere)";
+                ui.status.add(optWFC);
+            }
 
             if (data.area && DATA_POINTS[data.area]) {
                 ui.pointSelect.innerHTML = '<option value="" disabled selected>Pilih Point...</option>';
@@ -243,7 +279,11 @@ function cekLokasiUser() {
 
     navigator.geolocation.watchPosition((pos) => {
         const statusHadir = ui.status.value;
-        if (statusHadir === "Sakit" || statusHadir === "Izin") return; // Skip cek jika Sakit
+        
+        // BYPASS LOKASI JIKA STATUS ADA DI DAFTAR (SAKIT, IZIN, WFH, WFC)
+        if (STATUS_BEBAS_LOKASI.includes(statusHadir)) {
+            return; 
+        }
 
         if (!userPointData) return;
 
@@ -274,7 +314,7 @@ function cekLokasiUser() {
 }
 
 function showErrorLokasi(msg) {
-    if (ui.status.value === "Sakit" || ui.status.value === "Izin") return;
+    if (STATUS_BEBAS_LOKASI.includes(ui.status.value)) return;
     ui.statusLokasi.className = "status-box status-error";
     ui.statusLokasi.innerHTML = `<span><i class="fa-solid fa-triangle-exclamation me-2"></i>${msg}</span>`;
     isValidLocation = false;
@@ -294,11 +334,11 @@ function hitungJarak(lat1, lon1, lat2, lon2) {
 
 function updateTombol() {
     const statusVal = ui.status.value;
-    // Logika: Jika Hadir, wajib ValidTime & ValidLocation. Jika Sakit/Izin, bypass Location, tapi Time tetap (opsional).
-    // Disini saya buat Sakit/Izin mem-bypass lokasi.
     
+    // Logika: Jika Status ada di daftar BEBAS LOKASI, maka lokasi dianggap OK (true)
     let lokasiOk = isValidLocation;
-    if (statusVal === "Sakit" || statusVal === "Izin") {
+    
+    if (STATUS_BEBAS_LOKASI.includes(statusVal)) {
         lokasiOk = true; // Bypass lokasi
     }
 
@@ -330,7 +370,7 @@ ui.fotoInput.addEventListener('change', function() {
 
 document.getElementById('absensiForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!ui.fotoInput.files[0]) { alert("Wajib lampirkan Foto (Selfie/Bukti Sakit)!"); return; }
+    if (!ui.fotoInput.files[0]) { alert("Wajib lampirkan Foto!"); return; }
 
     const loadingOverlay = document.getElementById('loadingOverlay');
     loadingOverlay.style.display = 'flex';
@@ -348,11 +388,11 @@ document.getElementById('absensiForm').addEventListener('submit', async (e) => {
             point: ui.pointSelect.value, 
             tanggal: today,
             jamAbsen: ui.jam.textContent,
-            geotag: document.getElementById('geotagInput').value || "-", // Geotag mungkin kosong jika sakit
+            geotag: document.getElementById('geotagInput').value || "-", // Geotag mungkin kosong
             foto: base64.replace(/^data:image\/(png|jpeg|jpg);base64,/, ""),
             namaFoto: `Absen_${ui.nama.value}.jpg`,
             mimeType: "image/jpeg",
-            status: ui.status.value // KIRIM STATUS KE SPREADSHEET
+            status: ui.status.value 
         };
 
         const response = await fetch(SCRIPT_URL, { 
@@ -371,7 +411,7 @@ document.getElementById('absensiForm').addEventListener('submit', async (e) => {
                     timestamp: new Date().toISOString(),
                     nama: ui.nama.value,
                     point: ui.pointSelect.value,
-                    status: ui.status.value // SIMPAN STATUS KE FIREBASE
+                    status: ui.status.value 
                 });
             }
 
