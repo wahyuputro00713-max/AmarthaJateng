@@ -62,7 +62,7 @@ const DATABASE_KOORDINAT_POINT = {
 };
 
 const MAX_JARAK_METER = 300;
-const MAX_JAM_ABSEN = "08:15";
+const MAX_JAM_ABSEN = "10:30";
 
 // --- DAFTAR STATUS YANG TIDAK PERLU VALIDASI JARAK ---
 // Tambahkan WFH dan WFC di sini
