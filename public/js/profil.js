@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getDatabase, ref, get, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // --- KONFIGURASI FIREBASE ---
@@ -24,13 +24,14 @@ const dataPoints = {
     "Solo": ["Banjarsari", "Gemolong", "Masaran", "Tangen"],
     "Solo 2": ["Gatak", "Jumantono", "Karanganyar", "Nguter", "Pasar Kliwon"],
     "Yogyakarta": ["01 Sleman", "Kalasan", "Ngaglik", "Umbulharjo"],
-    "Yogyakarta 2": ["01 Pandak", "01 Pengasih", "01 Pleret", "Kutoarjo", "Purworejo", "Saptosari"],
+    "Yogyakarta 2": ["01 Pandak", "01 Pangasih", "01 Pleret", "Kutoarjo", "Purworejo", "Saptosari"],
     "Wonogiri": ["Jatisrono", "Ngadirojo", "Ngawen 2", "Pracimantoro", "Wonosari"]
 };
 
-// --- DOM ELEMENTS (Pastikan ID ini ada di HTML) ---
+// --- DOM ELEMENTS ---
 const el = {
     nama: document.getElementById('namaInput'),
+    email: document.getElementById('emailInput'), // Element baru untuk email
     jabatan: document.getElementById('jabatanInput'),
     regional: document.getElementById('regionalInput'),
     area: document.getElementById('areaSelect'),
@@ -55,6 +56,10 @@ let newPhotoBase64 = null;
 onAuthStateChanged(auth, (user) => {
     if (user) {
         currentUserUid = user.uid;
+        
+        // Load Email langsung dari Auth User
+        if (el.email) el.email.value = user.email || "-";
+        
         loadUserData(user.uid);
     } else {
         window.location.replace("index.html");
@@ -67,7 +72,7 @@ function loadUserData(uid) {
         if (snapshot.exists()) {
             const data = snapshot.val();
             
-            // Isi Textbox
+            // Isi Textbox (Hanya menampilkan, tidak untuk diedit nanti)
             if(el.nama) el.nama.value = data.nama || "";
             if(el.jabatan) el.jabatan.value = data.jabatan || "";
             if(el.regional) el.regional.value = data.regional || "";
@@ -104,7 +109,7 @@ function updatePointsDropdown(selectedArea) {
         el.point.appendChild(option);
     });
     
-    // Buka kunci point jika area tidak terkunci
+    // Buka kunci point jika area tidak terkunci (saat mode edit)
     if (!el.area.disabled) el.point.disabled = false;
 }
 
@@ -114,48 +119,42 @@ if(el.area) {
     });
 }
 
-// 3. LOGIKA TOMBOL EDIT (BAGIAN PENTING!)
+// 3. LOGIKA TOMBOL EDIT (UPDATE UTAMA DI SINI)
 if(el.btnEdit) {
     el.btnEdit.addEventListener('click', () => {
-        console.log("Tombol Edit Diklik - Membuka Kunci Form...");
+        console.log("Mode Edit Aktif");
 
-        // A. BUKA KUNCI INPUT TEXT (Nama, Jabatan, Regional)
-        // Kita gunakan property .readOnly = false agar lebih kuat daripada removeAttribute
-        const textInputs = [el.nama, el.jabatan, el.regional];
+        // A. BUKA KUNCI HANYA AREA & POINT
+        // Kita TIDAK membuka kunci Nama, Email, Jabatan, Regional sesuai permintaan.
         
-        textInputs.forEach(input => {
-            if(input) {
-                input.readOnly = false;           // Buka Kunci Readonly
-                input.disabled = false;           // Buka Kunci Disabled (jaga-jaga)
-                input.classList.remove('bg-light'); // Hapus warna abu-abu
-                input.classList.add('bg-white');    // Ubah jadi putih
-                input.style.border = "1px solid #0d6efd"; // Beri border biru biar terlihat aktif
-            }
-        });
-
-        // B. BUKA KUNCI DROPDOWN (Area & Point)
         if(el.area) el.area.disabled = false;
         if(el.point && el.area.value) el.point.disabled = false;
 
-        // C. TAMPILKAN TOMBOL SIMPAN & BATAL
+        // B. TAMPILKAN TOMBOL KAMERA (Untuk Edit Foto)
+        if(el.btnCamera) el.btnCamera.style.display = 'flex';
+
+        // C. UI CHANGES
         el.btnEdit.style.display = 'none'; // Sembunyikan tombol pensil
+        
+        // Tampilkan tombol Simpan/Batal
         if(el.actionButtons) {
             el.actionButtons.classList.remove('d-none');
             el.actionButtons.classList.add('d-flex');
         }
 
-        // D. TAMPILKAN TOMBOL KAMERA
-        if(el.btnCamera) el.btnCamera.style.display = 'flex';
-
-        // E. FOKUS KE NAMA
-        if(el.nama) el.nama.focus();
+        // Fokus ke Area select untuk memberi tahu user ini bisa diedit
+        if(el.area) el.area.focus();
+        
+        // Optional: Beri visual cue bahwa form aktif
+        el.area.classList.add('border-primary');
+        el.point.classList.add('border-primary');
     });
 }
 
 // 4. TOMBOL BATAL
 if(el.btnBatal) {
     el.btnBatal.addEventListener('click', () => {
-        location.reload(); // Refresh halaman untuk reset
+        location.reload(); 
     });
 }
 
@@ -178,16 +177,15 @@ if(el.fileInput) {
     });
 }
 
-// 6. SIMPAN DATA (KIRIM SEMUA PERUBAHAN)
+// 6. SIMPAN DATA
 if(el.form) {
     el.form.addEventListener('submit', async (e) => {
         e.preventDefault();
         
-        // Ambil semua nilai terbaru dari form
+        // Kita hanya mengambil nilai yang diizinkan untuk diedit
+        // Nama, Jabatan, Regional dibiarkan (tidak diupdate ulang untuk keamanan, atau bisa tetap dikirim sebagai data lama)
+        
         const updates = {
-            nama: el.nama.value,
-            jabatan: el.jabatan.value,
-            regional: el.regional.value,
             area: el.area.value,
             point: el.point.value
         };
@@ -198,7 +196,7 @@ if(el.form) {
 
         try {
             await update(ref(db, 'users/' + currentUserUid), updates);
-            alert("✅ Profil Berhasil Disimpan!");
+            alert("✅ Profil Berhasil Diperbarui!");
             location.reload();
         } catch (error) {
             console.error(error);
