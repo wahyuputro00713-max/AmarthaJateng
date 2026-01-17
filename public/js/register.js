@@ -19,7 +19,7 @@ const db = getDatabase(app);
 
 // --- KONFIGURASI SPREADSHEET (GOOGLE APPS SCRIPT) ---
 // GANTI URL DI BAWAH INI DENGAN URL DEPLOYMENT ANDA SENDIRI
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxMlNvx2STeyR3G_wquuPzEIkgrZYzgo_Gv970a81xk_cO07aJSo5J46nGsfkuoZ6zO7w/exec"; 
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbytAMFrfFgW4WcS6UP8B4Mkkdmqw_LgvDjxfIgYl7N6XvlEleldxLwFXTVAXHb7JbxY-A/exec"; 
 
 // --- LOGIKA REGISTER ---
 const registerForm = document.getElementById('registerForm');
