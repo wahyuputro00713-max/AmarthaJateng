@@ -18,7 +18,7 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 // =========================================================================
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzc8wtqUn_vgOiG7BRXi8JtmfgnebF0jzo1d7Ntu0mpXPjbTAu6uvXetjGh4bwFmz8D/exec"; 
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbykSD8oNhgA8nc6hl_ZO19q4Bzbg3k-ojWfmacglBH3vuN2NPbEAAtAyOuy2N117T3X3A/exec"; 
 const ADMIN_ID = "17246";
 // =========================================================================
 
