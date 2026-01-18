@@ -18,6 +18,7 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 // =========================================================================
+// PASTIKAN URL INI SAMA DENGAN YANG DI MAJELIS.JS
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzqKG_cKlb-xc-MMwO4Bbpfhvu7D0o5QHKmcx5K5m0hchsqjs1kw69bPAWpn9eeWA9t/exec"; 
 const ADMIN_ID = "17246";
 // =========================================================================
@@ -28,7 +29,7 @@ const dataPoints = {
     "Solo": ["Banjarsari", "Gemolong", "Masaran", "Tangen"],
     "Solo 2": ["Gatak", "Jumantono", "Karanganyar", "Nguter", "Pasar Kliwon"],
     "Yogyakarta": ["01 Sleman", "Kalasan", "Ngaglik", "Umbulharjo"],
-    "Yogyakarta 2": ["01 Pandak", "01 Pangasih", "01 Pleret", "Kutoarjo", "Purworejo", "Saptosari"],
+    "Yogyakarta 2": ["01 Pandak", "01 Pengasih", "01 Pleret", "Kutoarjo", "Purworejo", "Saptosari"],
     "Wonogiri": ["Jatisrono", "Ngadirojo", "Ngawen 2", "Pracimantoro", "Wonosari"]
 };
 
@@ -58,8 +59,6 @@ const clean = (str) => {
 // =================================================================
 
 function getStorageKey() {
-    // Kunci unik berdasarkan: ID User + Tanggal
-    // Agar validasi hari ini tidak menimpa besok, dan user A tidak menimpa user B
     const dateInput = document.getElementById('dateInput');
     let dateStr = "";
     if (dateInput && !dateInput.classList.contains('d-none') && dateInput.value) {
@@ -82,7 +81,6 @@ function loadFromStorage() {
             draftData = {};
         }
         
-        // Load Read Status (Notif merah)
         const readKey = `closing_read_${new Date().toLocaleDateString('en-CA')}`;
         const rawRead = localStorage.getItem(readKey);
         readStatusData = rawRead ? JSON.parse(rawRead) : {};
@@ -96,7 +94,6 @@ function loadFromStorage() {
 function saveToStorage(id, isChecked, reason, day) {
     if (!draftData) draftData = {};
     
-    // Pastikan Key ID aman (String)
     const safeId = String(id).replace(/[.#$/[\]]/g, "_"); 
     
     draftData[safeId] = {
@@ -105,7 +102,6 @@ function saveToStorage(id, isChecked, reason, day) {
         day: day || ""
     };
 
-    // Simpan ke Browser
     const key = getStorageKey();
     localStorage.setItem(key, JSON.stringify(draftData));
 }
@@ -268,7 +264,7 @@ function initPage() {
                 
                 isPageLocked = false; 
                 checkGlobalLock(); 
-                loadFromStorage(); // Load data tanggal baru
+                loadFromStorage(); 
 
                 setTimeout(() => { filterAndRenderData(); }, 500);
             }
@@ -279,7 +275,6 @@ function initPage() {
 
     let targetPoint = (["RM", "AM", "ADMIN"].includes(currentRole)) ? "ALL" : userProfile.point;
     
-    // Load Data Awal
     setTimeout(() => { 
         checkGlobalLock(); 
         loadFromStorage();
@@ -384,7 +379,7 @@ function setupHeaderFilters() {
         
         selArea.addEventListener('change', () => {
             updatePointDropdownOptions(); 
-            filterAndRenderData();       
+            filterAndRenderData();        
         });
         selPoint.addEventListener('change', () => {
             filterAndRenderData();        
@@ -454,17 +449,20 @@ function filterAndRenderData() {
         if (p_hari_clean !== todayClean) return;
         
         const p_area_clean = clean(getValue(row, ["area", "region"]));
-        const p_cabang_clean = clean(getValue(row, ["cabang", "point", "unit"]));
+        // DISESUAIKAN: Code.gs sekarang mengembalikan key 'point'
+        const p_cabang_clean = clean(getValue(row, ["point", "cabang", "unit"]));
         
         if (filterArea !== "ALL") { const fArea = clean(filterArea); if (!p_area_clean.includes(fArea) && !fArea.includes(p_area_clean)) return; }
         if (filterPoint !== "ALL") { const fPoint = clean(filterPoint); if (!p_cabang_clean.includes(fPoint) && !fPoint.includes(p_cabang_clean)) return; }
 
         matchCount++;
         
-        const p_bp = getValue(row, ["bp", "petugas", "ao"]) || "Tanpa BP";
+        // DISESUAIKAN: Code.gs sekarang mengembalikan key 'nama_bp'
+        const p_bp = getValue(row, ["nama_bp", "bp", "petugas", "ao"]) || "Tanpa BP";
         const p_majelis = getValue(row, ["majelis", "group", "kelompok"]) || "Umum";
         const rawBucket = String(getValue(row, ["bucket", "dpd", "kolek"]) || "0").trim();
-        const st_bayar = getValue(row, ["status_bayar", "bayar"]) || "Belum";
+        // DISESUAIKAN: Code.gs sekarang mengembalikan key 'status'
+        const st_bayar = getValue(row, ["status", "status_bayar", "bayar"]) || "Belum";
         const st_kirim = getValue(row, ["status_kirim", "kirim"]) || "Belum";
         const alasan_db = getValue(row, ["keterangan", "alasan"]) || "";
         const p_jenis = getValue(row, ["jenis_pembayaran", "jenis", "type"]) || "-";
@@ -487,8 +485,10 @@ function filterAndRenderData() {
         }
 
         const mitraData = {
-            id: getValue(row, ["id_mitra", "id", "account_id"]),
-            nama: getValue(row, ["nama_mitra", "nama", "client_name"]),
+            // DISESUAIKAN: Code.gs sekarang mengembalikan key 'cust_no'
+            id: getValue(row, ["cust_no", "id", "id_mitra", "account_id"]),
+            // DISESUAIKAN: Code.gs sekarang mengembalikan key 'mitra'
+            nama: getValue(row, ["mitra", "nama_mitra", "nama", "client_name"]),
             status_bayar: st_bayar, status_kirim: st_kirim, jenis_bayar: p_jenis,
             bucket: rawBucket, alasan: alasan_db, is_lunas: isLunas, is_terkirim: isTerkirim,
             bp: p_bp, majelis: p_majelis,
