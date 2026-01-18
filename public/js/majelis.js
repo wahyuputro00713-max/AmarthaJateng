@@ -16,7 +16,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// URL APPS SCRIPT
+// === PASTIKAN URL INI ADALAH DEPLOYMENT TERBARU DARI CODE.GS DI ATAS ===
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzc8wtqUn_vgOiG7BRXi8JtmfgnebF0jzo1d7Ntu0mpXPjbTAu6uvXetjGh4bwFmz8D/exec";
 
 // State Management
@@ -37,23 +37,15 @@ const els = {
     lblTotalMitra: document.getElementById('totalMitra')
 };
 
-// 1. ENTRY POINT: Login -> Profil -> Data Area
+// 1. ENTRY POINT
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         showLoading(true);
         try {
-            // STEP 1: Ambil Profil User
             userProfile = await fetchUserProfile(user.uid);
-            
-            // STEP 2: Ambil Data KHUSUS Area User
             globalData = await fetchMainData(userProfile.area);
-
-            // Setup UI (Termasuk Auto Filter Hari)
             initializeFilters();
-            
-            // Auto render
             renderGroupedData(globalData);
-
         } catch (error) {
             console.error("Error init:", error);
             alert("Gagal memuat data. Silakan refresh.");
@@ -69,12 +61,9 @@ onAuthStateChanged(auth, async (user) => {
 async function fetchUserProfile(uid) {
     try {
         const snapshot = await get(ref(db, 'users/' + uid));
-        if (snapshot.exists()) {
-            return snapshot.val();
-        }
+        if (snapshot.exists()) return snapshot.val();
         return { idKaryawan: "Unknown", area: "", point: "" };
     } catch (err) {
-        console.error("Gagal load profil:", err);
         return { idKaryawan: "Unknown", area: "", point: "" };
     }
 }
@@ -86,15 +75,12 @@ async function fetchMainData(reqArea) {
             action: "get_data_modal",
             reqArea: reqArea || "" 
         };
-
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify(payload),
             headers: { "Content-Type": "text/plain;charset=utf-8" }
         });
-
         const result = await response.json();
-        
         if (result.result === "success" && Array.isArray(result.data)) {
             return result.data;
         } else {
@@ -106,12 +92,10 @@ async function fetchMainData(reqArea) {
     }
 }
 
-// 4. Logika Filter & Dropdown (UPDATED: Auto Hari)
+// 4. Filters & Dropdown
 function initializeFilters() {
-    // A. Populate Area Filter
     populateFilters(globalData);
 
-    // B. Set Area & Point dari Profil User
     if (userProfile.area && els.filterArea) {
         els.filterArea.value = userProfile.area; 
         updatePointDropdown(userProfile.area);
@@ -123,29 +107,18 @@ function initializeFilters() {
         updateBPDropdown();
     }
 
-    // C. LOGIKA BARU: Auto Set Hari sesuai Device User
     if (els.filterHari) {
         const daysMap = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-        const todayIndex = new Date().getDay(); // 0 = Minggu, 1 = Senin, dst.
-        const todayName = daysMap[todayIndex];
-
-        // Cek apakah hari ini ada di opsi dropdown (Senin-Jumat)
+        const todayName = daysMap[new Date().getDay()];
         const dayOptionExists = [...els.filterHari.options].some(o => o.value === todayName);
-
-        if (dayOptionExists) {
-            els.filterHari.value = todayName;
-            console.log("Auto-filter set to:", todayName);
-        }
+        if (dayOptionExists) els.filterHari.value = todayName;
     }
 }
 
 function populateFilters(data) {
     if (!els.filterArea) return;
     let areas = [...new Set(data.map(i => i.area).filter(i => i && i !== "-"))];
-    
-    if (userProfile.area && !areas.includes(userProfile.area)) {
-        areas.push(userProfile.area);
-    }
+    if (userProfile.area && !areas.includes(userProfile.area)) areas.push(userProfile.area);
     areas.sort();
     fillSelect(els.filterArea, areas);
 }
@@ -170,7 +143,7 @@ function updateBPDropdown() {
     fillSelect(els.filterBP, bps);
 }
 
-// Event Listeners Filters
+// Event Listeners
 if(els.filterArea) {
     els.filterArea.addEventListener('change', async () => {
         const newArea = els.filterArea.value;
@@ -184,7 +157,7 @@ if(els.filterArea) {
                 renderGroupedData(globalData);
                 
                 if(els.filterPoint) els.filterPoint.value = ""; 
-                if(els.filterBP) els.filterBP.value = "";      
+                if(els.filterBP) els.filterBP.value = "";       
                 updatePointDropdown(newArea);
                 updateBPDropdown();
             } catch(e) {
@@ -194,7 +167,7 @@ if(els.filterArea) {
             }
         } else {
             if(els.filterPoint) els.filterPoint.value = ""; 
-            if(els.filterBP) els.filterBP.value = "";      
+            if(els.filterBP) els.filterBP.value = "";       
             updatePointDropdown(els.filterArea.value);
             updateBPDropdown();
         }
@@ -203,7 +176,7 @@ if(els.filterArea) {
 
 if(els.filterPoint) {
     els.filterPoint.addEventListener('change', () => {
-        if(els.filterBP) els.filterBP.value = "";      
+        if(els.filterBP) els.filterBP.value = "";       
         updateBPDropdown();
     });
 }
@@ -224,7 +197,7 @@ function fillSelect(el, items) {
     if(items.includes(current)) el.value = current;
 }
 
-// 5. RENDER DATA (WITH STATS & FILTER)
+// 5. RENDER DATA
 function renderGroupedData(data) {
     const fArea = els.filterArea ? els.filterArea.value.toLowerCase() : "";
     const fPoint = els.filterPoint ? els.filterPoint.value.toLowerCase() : "";
@@ -239,16 +212,9 @@ function renderGroupedData(data) {
         return true;
     });
 
-    // Handle Empty State
     if (filtered.length === 0) {
         els.majelisContainer.innerHTML = "";
         els.emptyState.classList.remove('d-none');
-        
-        const msg = (globalData.length === 0) 
-            ? "Data area ini belum tersedia." 
-            : "Data tidak ditemukan sesuai filter.";
-        els.emptyState.querySelector('p').innerHTML = msg;
-        
         els.lblTotalMajelis.innerText = "Total: 0";
         els.lblTotalMitra.innerText = "0 Mitra";
         return;
@@ -256,7 +222,6 @@ function renderGroupedData(data) {
 
     els.emptyState.classList.add('d-none');
 
-    // Grouping Data
     const grouped = {};
     filtered.forEach(item => {
         const m = item.majelis || "Tanpa Majelis";
@@ -268,35 +233,22 @@ function renderGroupedData(data) {
     els.lblTotalMajelis.innerText = `Total: ${majelisKeys.length} Majelis`;
     els.lblTotalMitra.innerText = `${filtered.length} Mitra`;
 
-    // Render HTML
     const htmlContent = majelisKeys.map((majelis, index) => {
         const mitras = grouped[majelis];
         const bpName = mitras[0].nama_bp || "-";
         
-        // --- LOGIKA HITUNG STATISTIK ---
-        let countBayar = 0;
-        let countTelat = 0;
-        let countSudahKirim = 0;
-        let countBelumKirim = 0;
+        let countBayar = 0, countTelat = 0, countSudahKirim = 0, countBelumKirim = 0;
 
         mitras.forEach(m => {
-            // Hitung Bayar vs Telat
             const statusBayar = String(m.status || "").toLowerCase();
-            if(statusBayar === 'telat') {
-                countTelat++;
-            } else {
-                countBayar++; 
-            }
-
-            // Hitung Status Kirim
             const statusKirim = String(m.status_kirim || "").toLowerCase();
-            if(statusKirim.includes('sudah')) {
-                countSudahKirim++;
-            } else {
-                countBelumKirim++;
-            }
+            
+            if(statusBayar === 'telat') countTelat++;
+            else countBayar++; 
+
+            if(statusKirim.includes('sudah')) countSudahKirim++;
+            else countBelumKirim++;
         });
-        // -------------------------------
 
         const rowsHtml = mitras.map(m => createRowHtml(m)).join('');
 
@@ -309,23 +261,12 @@ function renderGroupedData(data) {
                                 <span class="fw-bold text-dark"><i class="fa-solid fa-users me-2 text-primary"></i>${majelis}</span>
                                 <span class="majelis-badge">${mitras.length} Org</span>
                             </div>
-                            
                             <small class="text-muted fw-normal mt-1 mb-1" style="font-size: 11px;">BP: ${bpName}</small>
-
                             <div class="stats-row">
-                                <span class="mini-stat stat-bayar">
-                                    <i class="fa-solid fa-check-circle"></i> Bayar: ${countBayar}
-                                </span>
-                                <span class="mini-stat stat-telat">
-                                    <i class="fa-solid fa-circle-xmark"></i> Telat: ${countTelat}
-                                </span>
-                                <span class="mini-stat stat-sent">
-                                    <i class="fa-solid fa-paper-plane"></i> Terkirim: ${countSudahKirim}
-                                </span>
-                                ${(countBelumKirim > 0) ? `
-                                <span class="mini-stat stat-unsent">
-                                    <i class="fa-regular fa-clock"></i> Belum: ${countBelumKirim}
-                                </span>` : ''}
+                                <span class="mini-stat stat-bayar"><i class="fa-solid fa-check-circle"></i> Bayar: ${countBayar}</span>
+                                <span class="mini-stat stat-telat"><i class="fa-solid fa-circle-xmark"></i> Telat: ${countTelat}</span>
+                                <span class="mini-stat stat-sent"><i class="fa-solid fa-paper-plane"></i> Terkirim: ${countSudahKirim}</span>
+                                ${(countBelumKirim > 0) ? `<span class="mini-stat stat-unsent"><i class="fa-regular fa-clock"></i> Belum: ${countBelumKirim}</span>` : ''}
                             </div>
                         </div>
                     </button>
@@ -352,10 +293,16 @@ function renderGroupedData(data) {
     els.majelisContainer.innerHTML = htmlContent;
 }
 
-// Helper: Create Row HTML
+// 6. HELPER: CREATE ROW HTML (BAGIAN YG DIPERBAIKI)
 function createRowHtml(m) {
-    const statusBayar = String(m.status).toLowerCase();
+    // PROTEKSI DATA: Pakai String(...) || "" agar tidak error undefined
+    const rawNamaBP = m.nama_bp || "";
+    const rawMitra = m.mitra || "";
+    const rawCustNo = m.cust_no || "-";
+    
+    const statusBayar = String(m.status || "").toLowerCase();
     const statusKirim = String(m.status_kirim || "").toLowerCase();
+    
     const isSent = statusKirim.includes("sudah");
     const isBll = (m.status_bll === "BLL");
     
@@ -365,14 +312,16 @@ function createRowHtml(m) {
     const valAngsuran = formatRupiah(m.angsuran);
     const valPartial = formatRupiah(m.partial);
     const valSudahBayar = formatAngkaSaja(m.data_p);
-    const selectId = `payment-${m.cust_no}`;
+    const selectId = `payment-${rawCustNo}`;
     
     let actionHtml;
     if(isSent) {
         actionHtml = `<button class="btn btn-secondary btn-kirim" disabled><i class="fa-solid fa-check"></i> Terkirim</button>`;
     } else {
-        const safeName = m.nama_bp.replace(/'/g, "");
-        const safeMitra = m.mitra.replace(/'/g, "");
+        // AMAN DARI ERROR REPLACE
+        const safeName = String(rawNamaBP).replace(/'/g, "");
+        const safeMitra = String(rawMitra).replace(/'/g, "");
+        
         actionHtml = `
             <div class="d-flex justify-content-end align-items-center gap-1">
                 <select id="${selectId}" class="form-select form-select-sm p-0 px-1" style="width: auto; height: 26px; font-size: 10px; border-radius: 6px;">
@@ -383,7 +332,7 @@ function createRowHtml(m) {
                     <option value="JB">JB</option> 
                 </select>
                 <button class="btn btn-primary btn-kirim" 
-                    onclick="window.kirimData(this, '${safeName}', '${m.cust_no}', '${safeMitra}', '${selectId}')"
+                    onclick="window.kirimData(this, '${safeName}', '${rawCustNo}', '${safeMitra}', '${selectId}')"
                     style="background-color: #9b59b6; border:none; height: 26px; display: flex; align-items: center;">
                     <i class="fa-solid fa-paper-plane"></i>
                 </button>
@@ -394,8 +343,8 @@ function createRowHtml(m) {
     return `
         <tr>
             <td>
-                <span class="mitra-name">${m.mitra} ${bllBadge}</span>
-                <span class="mitra-id"><i class="fa-regular fa-id-card me-1"></i>${m.cust_no}</span>
+                <span class="mitra-name">${rawMitra} ${bllBadge}</span>
+                <span class="mitra-id"><i class="fa-regular fa-id-card me-1"></i>${rawCustNo}</span>
             </td>
             <td>
                 <div class="nominal-text">${valAngsuran}</div>
@@ -406,7 +355,7 @@ function createRowHtml(m) {
                 <span class="nominal-label">Angsuran Sudah dibayar</span>
             </td>
             <td class="text-center">
-                <span class="${badgeClass} fw-bold" style="font-size: 12px;">${m.status}</span>
+                <span class="${badgeClass} fw-bold" style="font-size: 12px;">${m.status || "-"}</span>
             </td>
             <td class="text-end">${actionHtml}</td>
         </tr>
@@ -444,14 +393,13 @@ if(els.btnTampilkan) {
     });
 }
 
-// 7. FUNGSI KIRIM DATA (Global) - DIPERBAIKI (AUTO UPDATE UI & STATS)
+// 7. FUNGSI KIRIM DATA (Input Laporan)
 window.kirimData = async function(btn, namaBP, custNo, namaMitra, selectId) {
     const selectEl = document.getElementById(selectId);
     const jenisBayar = selectEl ? selectEl.value : "Normal";
     
     if(!confirm(`Kirim laporan closing untuk mitra: ${namaMitra}\nJenis Pembayaran: ${jenisBayar}?`)) return;
 
-    // Simpan state tombol
     const originalContent = btn.innerHTML;
     btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
     btn.disabled = true;
@@ -476,42 +424,30 @@ window.kirimData = async function(btn, namaBP, custNo, namaMitra, selectId) {
         const result = await response.json();
         
         if (result.result === 'success') {
-            // === BAGIAN UTAMA PERBAIKAN ===
-            
-            // 1. Update Data di Memory (globalData)
+            // Update UI Lokal
             const index = globalData.findIndex(item => String(item.cust_no) === String(custNo));
             if (index !== -1) {
-                // Update status kirim agar statistik 'Terkirim' bertambah
                 globalData[index].status_kirim = "Sudah Terkirim"; 
-                
-                // Opsional: Update status bayar jika perlu (misal jika pilih PAR jadi Telat/Macet)
-                // globalData[index].status = (jenisBayar === 'Normal') ? 'Lancar' : 'Macet'; 
             }
 
-            // 2. Simpan ID Accordion yang sedang terbuka (supaya tidak tertutup saat render ulang)
+            // Simpan posisi accordion
             const openAccordion = document.querySelector('.accordion-collapse.show');
             const openId = openAccordion ? openAccordion.id : null;
 
-            // 3. Render Ulang Data (Agar Statistik di Header Terupdate)
             renderGroupedData(globalData);
 
-            // 4. Buka Kembali Accordion yang tadi terbuka
+            // Buka kembali accordion
             if (openId) {
                 const elContent = document.getElementById(openId);
                 const btnToggle = document.querySelector(`button[data-bs-target="#${openId}"]`);
-                
                 if (elContent) elContent.classList.add('show');
                 if (btnToggle) btnToggle.classList.remove('collapsed');
             }
-
-            // ==============================
-
         } else {
             throw new Error(result.error || "Gagal menyimpan data.");
         }
     } catch (error) {
         alert("Gagal Kirim: " + error.message);
-        // Kembalikan tombol jika gagal
         btn.innerHTML = originalContent;
         btn.disabled = false;
         if(selectEl) selectEl.disabled = false;
