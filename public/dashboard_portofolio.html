@@ -42,6 +42,14 @@
   </nav>
 
   <div class="container-fluid px-4">
+    <div class="row my-4">
+  <div class="col-md-4">
+    <label for="filter-area" class="form-label fw-bold">Pilih Area:</label>
+    <select id="filter-area" class="form-select shadow-sm">
+      <option value="all">Semua Area</option>
+      </select>
+  </div>
+</div>
     
     <div id="loading" class="text-center my-5">
       <div class="spinner-border text-primary" role="status"></div>
@@ -164,80 +172,132 @@
   <script>
 // ... kode HTML di atas tetap sama ...
 
+<script>
     // ==========================================
-    // ⚙️ KONFIGURASI PENTING
+    // ⚙️ KONFIGURASI
     // ==========================================
-    // MASUKKAN URL DEPLOYMENT GOOGLE SCRIPT ANDA DISINI (Akhirannya /exec)
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyv0yz4eE-kq5pUIhJMyP52pmX5-dfvpC3GvkBrhqE1qjgXV1mes4gpGu8mpD_OBLnm/exec";
+    // Ganti dengan URL Script Anda jika pakai GitHub Pages (Jika host di GAS, biarkan kosong)
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxB.../exec"; 
 
-    // Konfigurasi Kolom Excel (Sesuaikan Index A=0, B=1, dst)
+    // Konfigurasi Kolom Excel (Index dimulai dari 0: A=0, B=1, C=2...)
     const COL = {
-      BRANCH: 3,         
-      GL_MITRA: 7,       
-      GL_DPD90: 13,      
-      MODAL_MITRA: 8,   
-      MODAL_DPD90: 18    
+      AREA: 2,           // <--- TAMBAHAN BARU: Kolom Area (Cek excel anda, misal Kolom C = 2)
+      BRANCH: 3,         // Kolom Nama Cabang
+      GL_MITRA: 7,       // Kolom Total Mitra GL
+      GL_DPD90: 13,      // Kolom Macet GL
+      MODAL_MITRA: 8,   // Kolom Total Mitra Modal
+      MODAL_DPD90: 18    // Kolom Macet Modal
     };
 
+    // Variabel Global untuk menyimpan data mentah
+    let rawData = []; 
+
     // ==========================================
-    // LOGIC APP (FETCH MODE)
+    // LOGIC UTAMA
     // ==========================================
     
     $(document).ready(function() {
-      console.log("Memulai pengambilan data...");
-      
-      // Menggunakan FETCH, bukan google.script.run
-      fetch(APPS_SCRIPT_URL)
-        .then(response => response.json()) // Ubah text jadi JSON
-        .then(data => {
-            processData(data); // Kirim ke fungsi pemroses
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert("Gagal mengambil data. Pastikan URL Apps Script benar & Deployment di set ke 'Anyone'.");
-            $('#loading').html('<p class="text-danger">Gagal memuat data.</p>');
-        });
+      // Cek apakah host di Google Script atau GitHub
+      if (window.location.hostname.includes("googleusercontent")) {
+        // Mode Hosting di Google Script
+        google.script.run.withSuccessHandler(initDashboard).getData();
+      } else {
+        // Mode Hosting di GitHub/External (Pakai Fetch)
+        fetch(APPS_SCRIPT_URL)
+          .then(res => res.json())
+          .then(data => initDashboard(data))
+          .catch(e => alert("Gagal ambil data: " + e));
+      }
+
+      // Event Listener: Saat Filter Berubah
+      $('#filter-area').on('change', function() {
+        let selectedArea = $(this).val();
+        renderDashboard(selectedArea); // Gambar ulang dashboard
+      });
     });
 
-    function processData(response) {
-      // ... (SISA KODE FUNGSI processData SAMA PERSIS SEPERTI SEBELUMNYA) ...
-      // Copy paste isi function processData dari kode sebelumnya ke sini
+    // Fungsi Inisialisasi Awal
+    function initDashboard(response) {
       if (response.status === 'error') {
-        alert('Error dari Server: ' + response.message);
+        alert('Error: ' + response.message);
         return;
       }
 
-      const rows = response.data;
-      const tableBody = $('#table-body');
+      // 1. Simpan data mentah ke variabel global
+      rawData = response.data;
+
+      // 2. Isi Dropdown Filter Area secara otomatis
+      populateFilterArea();
+
+      // 3. Render Dashboard pertama kali (Tampilkan Semua)
+      $('#loading').hide();
+      $('#main-content').fadeIn();
+      renderDashboard('all');
+    }
+
+    // Fungsi Mengisi Dropdown Area (Ambil nama area unik)
+    function populateFilterArea() {
+      let uniqueAreas = [...new Set(rawData.map(row => row[COL.AREA]))].sort();
       
+      uniqueAreas.forEach(area => {
+        if(area) { // Cek agar tidak ada area kosong
+            $('#filter-area').append(`<option value="${area}">${area}</option>`);
+        }
+      });
+    }
+
+    // Fungsi Utama: Menggambar Ulang Dashboard (KPI, Tabel, Grafik)
+    function renderDashboard(filterValue) {
+      const tableBody = $('#table-body');
+      tableBody.empty(); // Kosongkan tabel sebelum diisi ulang
+      
+      // Hancurkan Chart lama jika ada (agar tidak menumpuk)
+      if (window.chartNPL instanceof Chart) window.chartNPL.destroy();
+      if (window.chartComp instanceof Chart) window.chartComp.destroy();
+      // Hancurkan DataTable lama jika ada
+      if ($.fn.DataTable.isDataTable('#portfolioTable')) {
+          $('#portfolioTable').DataTable().destroy();
+      }
+
+      // --- FILTER DATA ---
+      let filteredRows = rawData;
+      if (filterValue !== 'all') {
+        filteredRows = rawData.filter(row => row[COL.AREA] === filterValue);
+      }
+
+      // --- VARIABEL AGREGAT ---
       let labels = [];
       let dataNplGL = [];
       let dataNplModal = [];
-      
       let totalMitraGL = 0;
       let totalMitraModal = 0;
       let totalMacetGL = 0;
       let totalMacetModal = 0;
 
-      rows.forEach(row => {
+      // --- LOOP DATA TERFILTER ---
+      filteredRows.forEach(row => {
         let branch = row[COL.BRANCH];
         let glMitra = parseNumber(row[COL.GL_MITRA]);
         let glMacet = parseNumber(row[COL.GL_DPD90]);
         let modalMitra = parseNumber(row[COL.MODAL_MITRA]);
         let modalMacet = parseNumber(row[COL.MODAL_DPD90]);
 
+        // Hitung NPL
         let glNpl = (glMitra > 0) ? ((glMacet / glMitra) * 100).toFixed(2) : 0;
         let modalNpl = (modalMitra > 0) ? ((modalMacet / modalMitra) * 100).toFixed(2) : 0;
 
+        // Akumulasi KPI
         totalMitraGL += glMitra;
         totalMitraModal += modalMitra;
         totalMacetGL += glMacet;
         totalMacetModal += modalMacet;
 
+        // Data Chart
         labels.push(branch);
         dataNplGL.push(glNpl);
         dataNplModal.push(modalNpl);
 
+        // Render Tabel HTML
         let html = `
           <tr>
             <td class="fw-bold">${branch}</td>
@@ -252,6 +312,7 @@
         tableBody.append(html);
       });
 
+      // --- UPDATE KPI CARDS ---
       $('#kpi-total-mitra').text(formatRibuan(totalMitraGL + totalMitraModal));
       
       let avgNplGL = (totalMitraGL > 0) ? ((totalMacetGL / totalMitraGL) * 100).toFixed(2) : 0;
@@ -260,19 +321,18 @@
       $('#kpi-npl-gl').text(avgNplGL + "%");
       $('#kpi-npl-modal').text(avgNplModal + "%");
 
-      $('#loading').hide();
-      $('#main-content').fadeIn();
-
+      // --- RE-INIT DATATABLE ---
       $('#portfolioTable').DataTable({
         "pageLength": 10,
         "order": [[ 3, "desc" ]] 
       });
 
+      // --- RENDER CHARTS ---
       renderNplChart(labels, dataNplGL, dataNplModal);
       renderCompositionChart(totalMitraGL, totalMitraModal);
     }
-    
-    // ... (SISA HELPER FUNCTION & CHART FUNCTION SAMA PERSIS) ...
+
+    // --- HELPER FUNCTIONS ---
     function parseNumber(str) {
       if (!str) return 0;
       let cleanStr = str.toString().replace(/\./g, "").replace(/,/g, "."); 
@@ -289,41 +349,25 @@
       return 'text-warning';                    
     }
 
+    // --- CHART FUNCTIONS (DISIMPAN KE WINDOW AGAR BISA DIDESTROY) ---
     function renderNplChart(labels, glData, modalData) {
       const ctx = document.getElementById('nplChart').getContext('2d');
-      new Chart(ctx, {
+      window.chartNPL = new Chart(ctx, { // Simpan ke variabel global window
         type: 'bar',
         data: {
           labels: labels,
           datasets: [
-            {
-              label: 'NPL GL (%)',
-              data: glData,
-              backgroundColor: 'rgba(54, 162, 235, 0.7)',
-              borderColor: 'rgba(54, 162, 235, 1)',
-              borderWidth: 1
-            },
-            {
-              label: 'NPL Modal (%)',
-              data: modalData,
-              backgroundColor: 'rgba(153, 102, 255, 0.7)',
-              borderColor: 'rgba(153, 102, 255, 1)',
-              borderWidth: 1
-            }
+            { label: 'NPL GL (%)', data: glData, backgroundColor: 'rgba(54, 162, 235, 0.7)' },
+            { label: 'NPL Modal (%)', data: modalData, backgroundColor: 'rgba(153, 102, 255, 0.7)' }
           ]
         },
-        options: {
-          responsive: true,
-          scales: {
-            y: { beginAtZero: true }
-          }
-        }
+        options: { responsive: true, maintainAspectRatio: false }
       });
     }
 
     function renderCompositionChart(glTotal, modalTotal) {
       const ctx = document.getElementById('compositionChart').getContext('2d');
-      new Chart(ctx, {
+      window.chartComp = new Chart(ctx, { // Simpan ke variabel global window
         type: 'doughnut',
         data: {
           labels: ['Mitra GL', 'Mitra Modal'],
@@ -333,10 +377,7 @@
             hoverOffset: 4
           }]
         },
-        options: {
-          responsive: true,
-          plugins: { legend: { position: 'bottom' } }
-        }
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
       });
     }
   </script>
