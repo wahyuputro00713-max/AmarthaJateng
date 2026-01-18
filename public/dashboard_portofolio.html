@@ -2,6 +2,10 @@
 <html>
 <head>
   <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard Portofolio</title>
+  
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css" rel="stylesheet">
   
@@ -43,13 +47,13 @@
 
   <div class="container-fluid px-4">
     <div class="row my-4">
-  <div class="col-md-4">
-    <label for="filter-area" class="form-label fw-bold">Pilih Area:</label>
-    <select id="filter-area" class="form-select shadow-sm">
-      <option value="all">Semua Area</option>
-      </select>
-  </div>
-</div>
+      <div class="col-md-4">
+        <label for="filter-area" class="form-label fw-bold">Pilih Area:</label>
+        <select id="filter-area" class="form-select shadow-sm">
+          <option value="all">Semua Area</option>
+        </select>
+      </div>
+    </div>
     
     <div id="loading" class="text-center my-5">
       <div class="spinner-border text-primary" role="status"></div>
@@ -105,12 +109,14 @@
         </div>
       </div>
 
-      <div class="row g-3 mb-4">
+      <div class="row g-3 mb-4 align-items-stretch">
         <div class="col-md-8">
-          <div class="card shadow-sm">
+          <div class="card shadow-sm h-100">
             <div class="card-header bg-white fw-bold">Perbandingan NPL: GL vs Modal per Cabang</div>
             <div class="card-body">
-              <canvas id="nplChart" height="120"></canvas>
+              <div style="position: relative; height: 300px; width: 100%;">
+                <canvas id="nplChart"></canvas>
+              </div>
             </div>
           </div>
         </div>
@@ -118,7 +124,9 @@
           <div class="card shadow-sm h-100">
             <div class="card-header bg-white fw-bold">Komposisi Mitra (Volume)</div>
             <div class="card-body d-flex justify-content-center align-items-center">
-              <canvas id="compositionChart"></canvas>
+              <div style="position: relative; height: 300px; width: 100%;">
+                <canvas id="compositionChart"></canvas>
+              </div>
             </div>
           </div>
         </div>
@@ -170,24 +178,23 @@
   <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
 
   <script>
-// ... kode HTML di atas tetap sama ...
     // ==========================================
     // ⚙️ KONFIGURASI
     // ==========================================
-    // Ganti dengan URL Script Anda jika pakai GitHub Pages (Jika host di GAS, biarkan kosong)
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyv0yz4eE-kq5pUIhJMyP52pmX5-dfvpC3GvkBrhqE1qjgXV1mes4gpGu8mpD_OBLnm/exec"; 
 
     // Konfigurasi Kolom Excel (Index dimulai dari 0: A=0, B=1, C=2...)
+    // Sesuai kode terakhir Anda
     const COL = {
-      AREA: 2,           // <--- TAMBAHAN BARU: Kolom Area (Cek excel anda, misal Kolom C = 2)
-      BRANCH: 3,         // Kolom Nama Cabang
-      GL_MITRA: 7,       // Kolom Total Mitra GL
-      GL_DPD90: 13,      // Kolom Macet GL
-      MODAL_MITRA: 8,   // Kolom Total Mitra Modal
-      MODAL_DPD90: 18    // Kolom Macet Modal
+      AREA: 2,           // Kolom C
+      BRANCH: 3,         // Kolom D
+      GL_MITRA: 7,       // Kolom H
+      GL_DPD90: 13,      // Kolom N
+      MODAL_MITRA: 8,    // Kolom I
+      MODAL_DPD90: 18    // Kolom S
     };
 
-    // Variabel Global untuk menyimpan data mentah
+    // Variabel Global
     let rawData = []; 
 
     // ==========================================
@@ -195,72 +202,73 @@
     // ==========================================
     
     $(document).ready(function() {
-      // Cek apakah host di Google Script atau GitHub
+      // Cek mode hosting (Google Script vs GitHub/External)
       if (window.location.hostname.includes("googleusercontent")) {
-        // Mode Hosting di Google Script
         google.script.run.withSuccessHandler(initDashboard).getData();
       } else {
-        // Mode Hosting di GitHub/External (Pakai Fetch)
         fetch(APPS_SCRIPT_URL)
           .then(res => res.json())
           .then(data => initDashboard(data))
-          .catch(e => alert("Gagal ambil data: " + e));
+          .catch(e => {
+            console.error(e);
+            alert("Gagal ambil data. Cek Console.");
+          });
       }
 
-      // Event Listener: Saat Filter Berubah
+      // Event Listener: Filter Area
       $('#filter-area').on('change', function() {
         let selectedArea = $(this).val();
-        renderDashboard(selectedArea); // Gambar ulang dashboard
+        renderDashboard(selectedArea); 
       });
     });
 
-    // Fungsi Inisialisasi Awal
+    // Inisialisasi
     function initDashboard(response) {
       if (response.status === 'error') {
         alert('Error: ' + response.message);
         return;
       }
 
-      // 1. Simpan data mentah ke variabel global
       rawData = response.data;
-
-      // 2. Isi Dropdown Filter Area secara otomatis
       populateFilterArea();
 
-      // 3. Render Dashboard pertama kali (Tampilkan Semua)
       $('#loading').hide();
       $('#main-content').fadeIn();
       renderDashboard('all');
     }
 
-    // Fungsi Mengisi Dropdown Area (Ambil nama area unik)
+    // Isi Dropdown Area (dengan trim agar bersih dari spasi)
     function populateFilterArea() {
-      let uniqueAreas = [...new Set(rawData.map(row => row[COL.AREA]))].sort();
+      // Ambil area unik, bersihkan spasi (trim), lalu sort
+      let uniqueAreas = [...new Set(rawData.map(row => String(row[COL.AREA]).trim()))].sort();
       
       uniqueAreas.forEach(area => {
-        if(area) { // Cek agar tidak ada area kosong
+        if(area && area !== "undefined" && area !== "") { 
             $('#filter-area').append(`<option value="${area}">${area}</option>`);
         }
       });
     }
 
-    // Fungsi Utama: Menggambar Ulang Dashboard (KPI, Tabel, Grafik)
+    // Render Ulang Dashboard (UPDATED FILTER LOGIC)
     function renderDashboard(filterValue) {
       const tableBody = $('#table-body');
-      tableBody.empty(); // Kosongkan tabel sebelum diisi ulang
       
-      // Hancurkan Chart lama jika ada (agar tidak menumpuk)
-      if (window.chartNPL instanceof Chart) window.chartNPL.destroy();
-      if (window.chartComp instanceof Chart) window.chartComp.destroy();
-      // Hancurkan DataTable lama jika ada
+      // Destroy DataTable lama jika ada
       if ($.fn.DataTable.isDataTable('#portfolioTable')) {
           $('#portfolioTable').DataTable().destroy();
       }
+      
+      tableBody.empty(); 
 
-      // --- FILTER DATA ---
+      // --- LOGIC FILTER (Fix Spasi) ---
       let filteredRows = rawData;
+      
       if (filterValue !== 'all') {
-        filteredRows = rawData.filter(row => row[COL.AREA] === filterValue);
+        filteredRows = rawData.filter(row => {
+            // Trim spasi di data row agar cocok dengan value dropdown
+            let rowArea = String(row[COL.AREA]).trim(); 
+            return rowArea === filterValue;
+        });
       }
 
       // --- VARIABEL AGREGAT ---
@@ -272,7 +280,7 @@
       let totalMacetGL = 0;
       let totalMacetModal = 0;
 
-      // --- LOOP DATA TERFILTER ---
+      // --- LOOP DATA ---
       filteredRows.forEach(row => {
         let branch = row[COL.BRANCH];
         let glMitra = parseNumber(row[COL.GL_MITRA]);
@@ -280,7 +288,7 @@
         let modalMitra = parseNumber(row[COL.MODAL_MITRA]);
         let modalMacet = parseNumber(row[COL.MODAL_DPD90]);
 
-        // Hitung NPL
+        // Hitung NPL (Safe Division)
         let glNpl = (glMitra > 0) ? ((glMacet / glMitra) * 100).toFixed(2) : 0;
         let modalNpl = (modalMitra > 0) ? ((modalMacet / modalMitra) * 100).toFixed(2) : 0;
 
@@ -295,7 +303,7 @@
         dataNplGL.push(glNpl);
         dataNplModal.push(modalNpl);
 
-        // Render Tabel HTML
+        // Render Baris Tabel
         let html = `
           <tr>
             <td class="fw-bold">${branch}</td>
@@ -322,7 +330,7 @@
       // --- RE-INIT DATATABLE ---
       $('#portfolioTable').DataTable({
         "pageLength": 10,
-        "order": [[ 3, "desc" ]] 
+        "order": [[ 3, "desc" ]] // Sort berdasarkan NPL GL
       });
 
       // --- RENDER CHARTS ---
@@ -333,6 +341,7 @@
     // --- HELPER FUNCTIONS ---
     function parseNumber(str) {
       if (!str) return 0;
+      // Hapus titik ribuan, ganti koma desimal jadi titik
       let cleanStr = str.toString().replace(/\./g, "").replace(/,/g, "."); 
       return parseFloat(cleanStr) || 0;
     }
@@ -347,10 +356,12 @@
       return 'text-warning';                    
     }
 
-    // --- CHART FUNCTIONS (DISIMPAN KE WINDOW AGAR BISA DIDESTROY) ---
+    // --- CHART FUNCTIONS (UPDATED) ---
     function renderNplChart(labels, glData, modalData) {
+      if (window.chartNPL instanceof Chart) window.chartNPL.destroy();
+
       const ctx = document.getElementById('nplChart').getContext('2d');
-      window.chartNPL = new Chart(ctx, { // Simpan ke variabel global window
+      window.chartNPL = new Chart(ctx, { 
         type: 'bar',
         data: {
           labels: labels,
@@ -359,13 +370,19 @@
             { label: 'NPL Modal (%)', data: modalData, backgroundColor: 'rgba(153, 102, 255, 0.7)' }
           ]
         },
-        options: { responsive: true, maintainAspectRatio: false }
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false, // Penting: Agar ikut tinggi container
+            scales: { y: { beginAtZero: true } }
+        }
       });
     }
 
     function renderCompositionChart(glTotal, modalTotal) {
+      if (window.chartComp instanceof Chart) window.chartComp.destroy();
+
       const ctx = document.getElementById('compositionChart').getContext('2d');
-      window.chartComp = new Chart(ctx, { // Simpan ke variabel global window
+      window.chartComp = new Chart(ctx, { 
         type: 'doughnut',
         data: {
           labels: ['Mitra GL', 'Mitra Modal'],
@@ -375,7 +392,11 @@
             hoverOffset: 4
           }]
         },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false, // Penting: Agar ikut tinggi container
+            plugins: { legend: { position: 'bottom' } } 
+        }
       });
     }
   </script>
