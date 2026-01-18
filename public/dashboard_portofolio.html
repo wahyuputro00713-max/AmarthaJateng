@@ -8,6 +8,7 @@
   
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   
   <style>
     :root {
@@ -40,8 +41,14 @@
 
   <nav class="navbar navbar-expand-lg mb-4">
     <div class="container-fluid">
-      <a class="navbar-brand" href="#">📊 Dashboard Portofolio Area</a>
-      <span class="text-white">Analysis Tool</span>
+      <div class="d-flex align-items-center gap-3">
+        <a href="index.html" class="btn btn-light btn-sm fw-bold text-purple shadow-sm">
+          <i class="bi bi-arrow-left"></i> Home
+        </a>
+        
+        <a class="navbar-brand" href="#">📊 Dashboard Portofolio Area</a>
+      </div>
+      <span class="text-white d-none d-md-block">Analysis Tool</span>
     </div>
   </nav>
 
@@ -181,10 +188,10 @@
     // ==========================================
     // ⚙️ KONFIGURASI
     // ==========================================
+    // URL Script Anda (dari prompt sebelumnya)
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyv0yz4eE-kq5pUIhJMyP52pmX5-dfvpC3GvkBrhqE1qjgXV1mes4gpGu8mpD_OBLnm/exec"; 
 
     // Konfigurasi Kolom Excel (Index dimulai dari 0: A=0, B=1, C=2...)
-    // Sesuai kode terakhir Anda
     const COL = {
       AREA: 2,           // Kolom C
       BRANCH: 3,         // Kolom D
@@ -202,7 +209,6 @@
     // ==========================================
     
     $(document).ready(function() {
-      // Cek mode hosting (Google Script vs GitHub/External)
       if (window.location.hostname.includes("googleusercontent")) {
         google.script.run.withSuccessHandler(initDashboard).getData();
       } else {
@@ -215,14 +221,12 @@
           });
       }
 
-      // Event Listener: Filter Area
       $('#filter-area').on('change', function() {
         let selectedArea = $(this).val();
         renderDashboard(selectedArea); 
       });
     });
 
-    // Inisialisasi
     function initDashboard(response) {
       if (response.status === 'error') {
         alert('Error: ' + response.message);
@@ -237,9 +241,7 @@
       renderDashboard('all');
     }
 
-    // Isi Dropdown Area (dengan trim agar bersih dari spasi)
     function populateFilterArea() {
-      // Ambil area unik, bersihkan spasi (trim), lalu sort
       let uniqueAreas = [...new Set(rawData.map(row => String(row[COL.AREA]).trim()))].sort();
       
       uniqueAreas.forEach(area => {
@@ -249,29 +251,25 @@
       });
     }
 
-    // Render Ulang Dashboard (UPDATED FILTER LOGIC)
     function renderDashboard(filterValue) {
       const tableBody = $('#table-body');
       
-      // Destroy DataTable lama jika ada
       if ($.fn.DataTable.isDataTable('#portfolioTable')) {
           $('#portfolioTable').DataTable().destroy();
       }
       
       tableBody.empty(); 
 
-      // --- LOGIC FILTER (Fix Spasi) ---
+      // Filter Logic
       let filteredRows = rawData;
-      
       if (filterValue !== 'all') {
         filteredRows = rawData.filter(row => {
-            // Trim spasi di data row agar cocok dengan value dropdown
             let rowArea = String(row[COL.AREA]).trim(); 
             return rowArea === filterValue;
         });
       }
 
-      // --- VARIABEL AGREGAT ---
+      // Variabel Agregat
       let labels = [];
       let dataNplGL = [];
       let dataNplModal = [];
@@ -280,7 +278,7 @@
       let totalMacetGL = 0;
       let totalMacetModal = 0;
 
-      // --- LOOP DATA ---
+      // Loop Data
       filteredRows.forEach(row => {
         let branch = row[COL.BRANCH];
         let glMitra = parseNumber(row[COL.GL_MITRA]);
@@ -288,22 +286,18 @@
         let modalMitra = parseNumber(row[COL.MODAL_MITRA]);
         let modalMacet = parseNumber(row[COL.MODAL_DPD90]);
 
-        // Hitung NPL (Safe Division)
         let glNpl = (glMitra > 0) ? ((glMacet / glMitra) * 100).toFixed(2) : 0;
         let modalNpl = (modalMitra > 0) ? ((modalMacet / modalMitra) * 100).toFixed(2) : 0;
 
-        // Akumulasi KPI
         totalMitraGL += glMitra;
         totalMitraModal += modalMitra;
         totalMacetGL += glMacet;
         totalMacetModal += modalMacet;
 
-        // Data Chart
         labels.push(branch);
         dataNplGL.push(glNpl);
         dataNplModal.push(modalNpl);
 
-        // Render Baris Tabel
         let html = `
           <tr>
             <td class="fw-bold">${branch}</td>
@@ -318,7 +312,7 @@
         tableBody.append(html);
       });
 
-      // --- UPDATE KPI CARDS ---
+      // Update KPI
       $('#kpi-total-mitra').text(formatRibuan(totalMitraGL + totalMitraModal));
       
       let avgNplGL = (totalMitraGL > 0) ? ((totalMacetGL / totalMitraGL) * 100).toFixed(2) : 0;
@@ -327,21 +321,20 @@
       $('#kpi-npl-gl').text(avgNplGL + "%");
       $('#kpi-npl-modal').text(avgNplModal + "%");
 
-      // --- RE-INIT DATATABLE ---
+      // Init DataTable
       $('#portfolioTable').DataTable({
         "pageLength": 10,
-        "order": [[ 3, "desc" ]] // Sort berdasarkan NPL GL
+        "order": [[ 3, "desc" ]] 
       });
 
-      // --- RENDER CHARTS ---
+      // Render Charts
       renderNplChart(labels, dataNplGL, dataNplModal);
       renderCompositionChart(totalMitraGL, totalMitraModal);
     }
 
-    // --- HELPER FUNCTIONS ---
+    // Helper Functions
     function parseNumber(str) {
       if (!str) return 0;
-      // Hapus titik ribuan, ganti koma desimal jadi titik
       let cleanStr = str.toString().replace(/\./g, "").replace(/,/g, "."); 
       return parseFloat(cleanStr) || 0;
     }
@@ -356,7 +349,7 @@
       return 'text-warning';                    
     }
 
-    // --- CHART FUNCTIONS (UPDATED) ---
+    // Chart Functions
     function renderNplChart(labels, glData, modalData) {
       if (window.chartNPL instanceof Chart) window.chartNPL.destroy();
 
@@ -372,7 +365,7 @@
         },
         options: { 
             responsive: true, 
-            maintainAspectRatio: false, // Penting: Agar ikut tinggi container
+            maintainAspectRatio: false, 
             scales: { y: { beginAtZero: true } }
         }
       });
@@ -394,7 +387,7 @@
         },
         options: { 
             responsive: true, 
-            maintainAspectRatio: false, // Penting: Agar ikut tinggi container
+            maintainAspectRatio: false, 
             plugins: { legend: { position: 'bottom' } } 
         }
       });
