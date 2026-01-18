@@ -18,7 +18,7 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 // =========================================================================
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzwVFQEH4w8A8bXMcnEecqQexWv_8UWeAEHRfv2LM5iVfzXhkrJ9wEAP4EKz-IBYrnm/exec"; 
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwtAAy0upuDVhMj2na_7XI9iBP0gzqo0TzcuNQLAW9FzIV9Qu8hXrD8IOx53_5UlrSRUg/exec"; 
 const ADMIN_ID = "17246";
 // =========================================================================
 
@@ -28,7 +28,7 @@ const dataPoints = {
     "Solo": ["Banjarsari", "Gemolong", "Masaran", "Tangen"],
     "Solo 2": ["Gatak", "Jumantono", "Karanganyar", "Nguter", "Pasar Kliwon"],
     "Yogyakarta": ["01 Sleman", "Kalasan", "Ngaglik", "Umbulharjo"],
-    "Yogyakarta 2": ["01 Pandak", "01 Pengasih", "01 Pleret", "Kutoarjo", "Purworejo", "Saptosari"],
+    "Yogyakarta 2": ["01 Pandak", "01 Pangasih", "01 Pleret", "Kutoarjo", "Purworejo", "Saptosari"],
     "Wonogiri": ["Jatisrono", "Ngadirojo", "Ngawen 2", "Pracimantoro", "Wonosari"]
 };
 
