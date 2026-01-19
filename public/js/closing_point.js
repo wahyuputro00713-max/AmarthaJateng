@@ -19,7 +19,7 @@ const db = getDatabase(app);
 
 // =========================================================================
 // PASTIKAN URL INI SAMA DENGAN YANG DI MAJELIS.JS
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzqKG_cKlb-xc-MMwO4Bbpfhvu7D0o5QHKmcx5K5m0hchsqjs1kw69bPAWpn9eeWA9t/exec"; 
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzLrzIVSDuzTKjjEFCMfLLuz4oikSe2-Gv9ByKEdDwubRmAZULe_Wp803DU8Wb8aRmPoQ/exec"; 
 const ADMIN_ID = "17246";
 // =========================================================================
 
