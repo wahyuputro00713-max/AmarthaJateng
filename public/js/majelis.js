@@ -2,6 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebas
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
+// --- KONFIGURASI FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyC8wOUkyZTa4W2hHHGZq_YKnGFqYEGOuH8",
     authDomain: "amarthajatengwebapp.firebaseapp.com",
@@ -16,8 +17,10 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// === PASTIKAN URL INI ADALAH DEPLOYMENT TERBARU DARI CODE.GS DI ATAS ===
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbynQOdD2iePdOg07iDSk-i8vN-tbKgcAPisjkMfBlG07NnDLZbP0N_jxWPxOz0SKxnm/exec";
+// =========================================================================
+// PASTIKAN URL INI ADALAH DEPLOYMENT TERBARU DARI CODE.GS
+const SCRIPT_URL = "hhttps://script.google.com/macros/s/AKfycbynQOdD2iePdOg07iDSk-i8vN-tbKgcAPisjkMfBlG07NnDLZbP0N_jxWPxOz0SKxnm/exec"; 
+// =========================================================================
 
 // State Management
 let globalData = [];
@@ -188,7 +191,7 @@ function fillSelect(el, items) {
     fragment.appendChild(defaultOpt);
     items.forEach(i => {
         const opt = document.createElement('option');
-        const val = i || ""; // Handle null
+        const val = i || ""; 
         opt.value = val;
         opt.textContent = val;
         fragment.appendChild(opt);
@@ -244,7 +247,9 @@ function renderGroupedData(data) {
             const statusBayar = String(m.status || "").toLowerCase();
             const statusKirim = String(m.status_kirim || "").toLowerCase();
             
-            // LOGIK STRICT untuk hitungan
+            // --- PERBAIKAN LOGIKA HITUNGAN STATISTIK ---
+            // Hanya dihitung terkirim jika mengandung kata 'terkirim'
+            // atau 'sudah' TAPI BUKAN 'sudah bayar'
             const isSent = statusKirim.includes('terkirim') || (statusKirim.includes('sudah') && !statusKirim.includes('bayar'));
 
             if(statusBayar === 'telat') countTelat++;
@@ -297,21 +302,22 @@ function renderGroupedData(data) {
     els.majelisContainer.innerHTML = htmlContent;
 }
 
-// 6. HELPER: CREATE ROW HTML
+// 6. HELPER: CREATE ROW HTML (BAGIAN YG DIPERBAIKI)
 function createRowHtml(m) {
     // PROTEKSI DATA: Pakai String(...) || "" agar tidak error undefined
     const rawNamaBP = m.nama_bp || "";
-    // m.mitra atau m.nama_mitra (Code.gs mengembalikan 'mitra' di get_data_modal)
-    const rawMitra = m.mitra || m.nama_mitra || "";
-    // m.cust_no atau m.id_mitra (Code.gs mengembalikan 'cust_no' di get_data_modal)
-    const rawCustNo = m.cust_no || m.id_mitra || "-";
+    // m.mitra adalah key dari Code.gs
+    const rawMitra = m.mitra || "";
+    // m.cust_no adalah key dari Code.gs
+    const rawCustNo = m.cust_no || "-";
     
     const statusBayar = String(m.status || "").toLowerCase();
     const statusKirim = String(m.status_kirim || "").toLowerCase();
     
-    // === FIX LOGIC "TERKIRIM" ===
-    // Hanya dianggap terkirim jika mengandung kata "terkirim" 
-    // ATAU "sudah" tapi BUKAN "sudah bayar"
+    // --- PERBAIKAN UTAMA DI SINI ---
+    // Logika diperketat:
+    // 1. Jika mengandung kata 'terkirim' -> SENT
+    // 2. Jika mengandung kata 'sudah' DAN TIDAK mengandung 'bayar' -> SENT (jaga-jaga input manual)
     const isSent = statusKirim.includes("terkirim") || (statusKirim.includes("sudah") && !statusKirim.includes("bayar"));
     
     const isBll = (m.status_bll === "BLL");
@@ -326,6 +332,7 @@ function createRowHtml(m) {
     
     let actionHtml;
     if(isSent) {
+        // Tombol disabled jika sudah terkirim
         actionHtml = `<button class="btn btn-secondary btn-kirim" disabled><i class="fa-solid fa-check"></i> Terkirim</button>`;
     } else {
         // AMAN DARI ERROR REPLACE
@@ -434,20 +441,19 @@ window.kirimData = async function(btn, namaBP, custNo, namaMitra, selectId) {
         const result = await response.json();
         
         if (result.result === 'success') {
-            // Update UI Lokal
-            // Cari data berdasarkan cust_no
-            const index = globalData.findIndex(item => String(item.cust_no || item.id_mitra) === String(custNo));
+            // Update UI Lokal secara instan
+            const index = globalData.findIndex(item => String(item.cust_no) === String(custNo));
             if (index !== -1) {
                 globalData[index].status_kirim = "Sudah Terkirim"; 
             }
 
-            // Simpan posisi accordion
+            // Simpan posisi accordion agar tidak menutup sendiri
             const openAccordion = document.querySelector('.accordion-collapse.show');
             const openId = openAccordion ? openAccordion.id : null;
 
             renderGroupedData(globalData);
 
-            // Buka kembali accordion
+            // Buka kembali accordion yang sedang aktif
             if (openId) {
                 const elContent = document.getElementById(openId);
                 const btnToggle = document.querySelector(`button[data-bs-target="#${openId}"]`);
