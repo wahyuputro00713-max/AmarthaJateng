@@ -157,7 +157,7 @@ if(els.filterArea) {
                 renderGroupedData(globalData);
                 
                 if(els.filterPoint) els.filterPoint.value = ""; 
-                if(els.filterBP) els.filterBP.value = "";       
+                if(els.filterBP) els.filterBP.value = "";        
                 updatePointDropdown(newArea);
                 updateBPDropdown();
             } catch(e) {
@@ -167,7 +167,7 @@ if(els.filterArea) {
             }
         } else {
             if(els.filterPoint) els.filterPoint.value = ""; 
-            if(els.filterBP) els.filterBP.value = "";       
+            if(els.filterBP) els.filterBP.value = "";        
             updatePointDropdown(els.filterArea.value);
             updateBPDropdown();
         }
@@ -176,7 +176,7 @@ if(els.filterArea) {
 
 if(els.filterPoint) {
     els.filterPoint.addEventListener('change', () => {
-        if(els.filterBP) els.filterBP.value = "";       
+        if(els.filterBP) els.filterBP.value = "";        
         updateBPDropdown();
     });
 }
@@ -188,8 +188,9 @@ function fillSelect(el, items) {
     fragment.appendChild(defaultOpt);
     items.forEach(i => {
         const opt = document.createElement('option');
-        opt.value = i;
-        opt.textContent = i;
+        const val = i || ""; // Handle null
+        opt.value = val;
+        opt.textContent = val;
         fragment.appendChild(opt);
     });
     el.innerHTML = "";
@@ -243,10 +244,13 @@ function renderGroupedData(data) {
             const statusBayar = String(m.status || "").toLowerCase();
             const statusKirim = String(m.status_kirim || "").toLowerCase();
             
+            // LOGIK STRICT untuk hitungan
+            const isSent = statusKirim.includes('terkirim') || (statusKirim.includes('sudah') && !statusKirim.includes('bayar'));
+
             if(statusBayar === 'telat') countTelat++;
             else countBayar++; 
 
-            if(statusKirim.includes('sudah')) countSudahKirim++;
+            if(isSent) countSudahKirim++;
             else countBelumKirim++;
         });
 
@@ -293,17 +297,23 @@ function renderGroupedData(data) {
     els.majelisContainer.innerHTML = htmlContent;
 }
 
-// 6. HELPER: CREATE ROW HTML (BAGIAN YG DIPERBAIKI)
+// 6. HELPER: CREATE ROW HTML
 function createRowHtml(m) {
     // PROTEKSI DATA: Pakai String(...) || "" agar tidak error undefined
     const rawNamaBP = m.nama_bp || "";
-    const rawMitra = m.mitra || "";
-    const rawCustNo = m.cust_no || "-";
+    // m.mitra atau m.nama_mitra (Code.gs mengembalikan 'mitra' di get_data_modal)
+    const rawMitra = m.mitra || m.nama_mitra || "";
+    // m.cust_no atau m.id_mitra (Code.gs mengembalikan 'cust_no' di get_data_modal)
+    const rawCustNo = m.cust_no || m.id_mitra || "-";
     
     const statusBayar = String(m.status || "").toLowerCase();
     const statusKirim = String(m.status_kirim || "").toLowerCase();
     
-    const isSent = statusKirim.includes("sudah");
+    // === FIX LOGIC "TERKIRIM" ===
+    // Hanya dianggap terkirim jika mengandung kata "terkirim" 
+    // ATAU "sudah" tapi BUKAN "sudah bayar"
+    const isSent = statusKirim.includes("terkirim") || (statusKirim.includes("sudah") && !statusKirim.includes("bayar"));
+    
     const isBll = (m.status_bll === "BLL");
     
     const bllBadge = isBll ? '<span class="badge-bll">BLL</span>' : '';
@@ -425,7 +435,8 @@ window.kirimData = async function(btn, namaBP, custNo, namaMitra, selectId) {
         
         if (result.result === 'success') {
             // Update UI Lokal
-            const index = globalData.findIndex(item => String(item.cust_no) === String(custNo));
+            // Cari data berdasarkan cust_no
+            const index = globalData.findIndex(item => String(item.cust_no || item.id_mitra) === String(custNo));
             if (index !== -1) {
                 globalData[index].status_kirim = "Sudah Terkirim"; 
             }
