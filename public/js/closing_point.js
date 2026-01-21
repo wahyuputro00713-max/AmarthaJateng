@@ -18,7 +18,7 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 // =========================================================================
-// PASTIKAN URL INI SAMA DENGAN YANG DI MAJELIS.JS
+// PASTIKAN URL INI SAMA DENGAN YANG DI CODE.GS
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbynQOdD2iePdOg07iDSk-i8vN-tbKgcAPisjkMfBlG07NnDLZbP0N_jxWPxOz0SKxnm/exec"; 
 const ADMIN_ID = "17246";
 // =========================================================================
@@ -55,7 +55,7 @@ const clean = (str) => {
 };
 
 // =================================================================
-// 1. STORAGE MANAGEMENT (LOCAL STORAGE / BROWSER MEMORY)
+// 1. STORAGE MANAGEMENT
 // =================================================================
 
 function getStorageKey() {
@@ -107,7 +107,7 @@ function saveToStorage(id, isChecked, reason, day) {
 }
 
 // =================================================================
-// 2. LOCK SYSTEM (SERVER SIDE - FIREBASE)
+// 2. LOCK SYSTEM (FIREBASE)
 // =================================================================
 
 function setGlobalLock(status) {
@@ -296,8 +296,10 @@ async function fetchRepaymentData(targetPoint) {
 
     try {
         if(container) container.innerHTML = `<div class="empty-state"><div class="spinner-border text-primary" role="status"></div><p>Sinkronisasi Database...</p></div>`;
+        
+        // UPDATE: Ganti action ke get_data_modal agar konsisten dengan Code.gs baru
         const response = await fetch(SCRIPT_URL, {
-            method: 'POST', body: JSON.stringify({ action: "get_majelis" }), 
+            method: 'POST', body: JSON.stringify({ action: "get_data_modal" }), 
             redirect: "follow", headers: { "Content-Type": "text/plain;charset=utf-8" }
         });
         const result = await response.json();
@@ -318,18 +320,10 @@ async function fetchRepaymentData(targetPoint) {
         }
 
     } catch (error) {
+        console.error(error);
         if(container) container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-wifi text-danger"></i><p>Gagal koneksi server.</p></div>`;
         if (btnVal) btnVal.innerHTML = `<i class="fa-solid fa-plug-circle-xmark"></i> Offline`;
     }
-}
-
-function getValue(row, keys) {
-    const rowKeys = Object.keys(row);
-    for (let k of keys) {
-        const found = rowKeys.find(rk => rk.toLowerCase() === k.toLowerCase());
-        if (found) return row[found] || "";
-    }
-    return "";
 }
 
 function setupHeaderFilters() {
@@ -445,29 +439,27 @@ function filterAndRenderData() {
     const todayClean = clean(currentDayName);
 
     allRawData.forEach(row => {
-        const p_hari_clean = clean(getValue(row, ["hari", "day"]));
+        // UPDATE: Akses key langsung sesuai Code.gs
+        const p_hari_clean = clean(row.hari || "");
         if (p_hari_clean !== todayClean) return;
         
-        const p_area_clean = clean(getValue(row, ["area", "region"]));
-        // DISESUAIKAN: Code.gs sekarang mengembalikan key 'point'
-        const p_cabang_clean = clean(getValue(row, ["point", "cabang", "unit"]));
+        const p_area_clean = clean(row.area || "");
+        const p_cabang_clean = clean(row.point || "");
         
         if (filterArea !== "ALL") { const fArea = clean(filterArea); if (!p_area_clean.includes(fArea) && !fArea.includes(p_area_clean)) return; }
         if (filterPoint !== "ALL") { const fPoint = clean(filterPoint); if (!p_cabang_clean.includes(fPoint) && !fPoint.includes(p_cabang_clean)) return; }
 
         matchCount++;
         
-        // DISESUAIKAN: Code.gs sekarang mengembalikan key 'nama_bp'
-        const p_bp = getValue(row, ["nama_bp", "bp", "petugas", "ao"]) || "Tanpa BP";
-        const p_majelis = getValue(row, ["majelis", "group", "kelompok"]) || "Umum";
-        const rawBucket = String(getValue(row, ["bucket", "dpd", "kolek"]) || "0").trim();
-        // DISESUAIKAN: Code.gs sekarang mengembalikan key 'status'
-        const st_bayar = getValue(row, ["status", "status_bayar", "bayar"]) || "Belum";
-        const st_kirim = getValue(row, ["status_kirim", "kirim"]) || "Belum";
-        const alasan_db = getValue(row, ["keterangan", "alasan"]) || "";
-        const p_jenis = getValue(row, ["jenis_pembayaran", "jenis", "type"]) || "-";
-        const st_bll = getValue(row, ["status_bll", "bll", "ket_bll"]) || "-";
-        const val_data_o = getValue(row, ["data_o"]) || "-";
+        // UPDATE: Key Mapping dari Code.gs
+        const p_bp = row.nama_bp || "Tanpa BP";
+        const p_majelis = row.majelis || "Umum";
+        const rawBucket = String(row.dpd || "0").trim();
+        const st_bayar = row.status || "Belum";
+        const st_kirim = row.status_kirim || "Belum";
+        const p_jenis = row.jenis_pembayaran || "-";
+        const st_bll = row.status_bll || "-";
+        const val_data_o = row.data_o || "-";
 
         const isLunas = st_bayar.toLowerCase().includes("lunas") || st_bayar.toLowerCase().includes("bayar");
         const isTerkirim = st_kirim.toLowerCase().includes("terkirim") || st_kirim.toLowerCase().includes("sudah");
@@ -485,13 +477,17 @@ function filterAndRenderData() {
         }
 
         const mitraData = {
-            // DISESUAIKAN: Code.gs sekarang mengembalikan key 'cust_no'
-            id: getValue(row, ["cust_no", "id", "id_mitra", "account_id"]),
-            // DISESUAIKAN: Code.gs sekarang mengembalikan key 'mitra'
-            nama: getValue(row, ["mitra", "nama_mitra", "nama", "client_name"]),
-            status_bayar: st_bayar, status_kirim: st_kirim, jenis_bayar: p_jenis,
-            bucket: rawBucket, alasan: alasan_db, is_lunas: isLunas, is_terkirim: isTerkirim,
-            bp: p_bp, majelis: p_majelis,
+            id: row.cust_no, // Key dari Code.gs
+            nama: row.mitra,
+            status_bayar: st_bayar, 
+            status_kirim: st_kirim, 
+            jenis_bayar: p_jenis,
+            bucket: rawBucket, 
+            alasan: "", // Alasan tidak dari spreadsheet, tapi dari inputan
+            is_lunas: isLunas, 
+            is_terkirim: isTerkirim,
+            bp: p_bp, 
+            majelis: p_majelis,
             status_bll: st_bll,
             data_o: val_data_o 
         };
@@ -550,7 +546,6 @@ function renderAccordion(hierarchy) {
             const mitraList = majelisObj[majName];
             let checkedCount = 0; let hasNewUpdate = false;
             
-            // LOGIC UTAMA: Baca dari Local Storage (draftData)
             mitraList.forEach(m => { 
                 const safeKey = String(m.id).replace(/[.#$/[\]]/g, "_");
                 const saved = draftData[safeKey] || {}; 
@@ -714,7 +709,7 @@ function createMitraCard(mitra) {
 }
 
 // =================================================================
-// 5. USER INTERACTIONS (SAVE TO LOCAL)
+// 5. USER INTERACTIONS
 // =================================================================
 
 window.saveReasonInput = function(id, reason, day) {
@@ -727,7 +722,6 @@ window.saveReasonInput = function(id, reason, day) {
     const currentDay = day !== undefined ? day : (existing.day || "");
     const isChecked = btn && btn.classList.contains('checked');
     
-    // Simpan ke Local Storage
     saveToStorage(id, isChecked, currentReason, currentDay);
 };
 
@@ -761,10 +755,7 @@ window.toggleValidation = function(element, id) {
     const valReason = inputReason ? inputReason.value : "";
     const valDay = daySelect ? daySelect.value : "";
     
-    // Simpan ke Local Storage
     saveToStorage(id, element.classList.contains('checked'), valReason, valDay);
-    
-    // Update UI
     updateMajelisStats(element);
 };
 
@@ -876,8 +867,7 @@ function releaseLockMode() {
         
         const allChecks = document.querySelectorAll('.btn-check-action');
         allChecks.forEach(btn => {
-            if(!btn.getAttribute('onclick')) {
-            } else {
+            if(btn.getAttribute('onclick')) {
                  btn.classList.remove('disabled');
             }
         });
@@ -892,10 +882,6 @@ function updateGlobalValidationStatus() {
     const totalMitra = document.querySelectorAll('.btn-check-action').length;
     const checkedMitra = document.querySelectorAll('.btn-check-action.checked').length;
     
-    // Update Text Counter (Opsional, jika ada elemennya)
-    // const counterEl = document.getElementById('statusCounter');
-    // if(counterEl) counterEl.textContent = `${checkedMitra} / ${totalMitra}`;
-
     const btnValAll = document.getElementById('btnValidateAll');
     if(btnValAll) {
         if (totalMitra > 0 && checkedMitra === totalMitra) {
