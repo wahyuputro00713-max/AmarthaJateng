@@ -19,8 +19,8 @@ const db = getDatabase(app);
 
 // =========================================================================
 // PASTIKAN URL INI ADALAH DEPLOYMENT TERBARU DARI CODE.GS
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyu_trk3LqPP4JPPoGAag3dp3w3hAFHVWSzXhF1wMCrIDf06ZFiEY3bgMQSNAXoMo4HDw/exec"; 
 // =========================================================================
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbynQOdD2iePdOg07iDSk-i8vN-tbKgcAPisjkMfBlG07NnDLZbP0N_jxWPxOz0SKxnm/exec"; 
 
 // State Management
 let globalData = [];
@@ -247,12 +247,17 @@ function renderGroupedData(data) {
             const statusBayar = String(m.status || "").toLowerCase();
             const statusKirim = String(m.status_kirim || "").toLowerCase();
             
-            // --- PERBAIKAN LOGIKA HITUNGAN STATISTIK ---
-            // Hanya dihitung terkirim jika mengandung kata 'terkirim'
-            // atau 'sudah' TAPI BUKAN 'sudah bayar'
-            const isSent = statusKirim.includes('terkirim') || (statusKirim.includes('sudah') && !statusKirim.includes('bayar'));
+            // LOGIKA HITUNG STATISTIK (SAMA DENGAN LOGIKA RENDER ROW)
+            let isSent = false;
+            if (statusKirim.includes("terkirim")) {
+                isSent = true;
+            } else if (statusKirim === "sudah") {
+                isSent = true;
+            } else if (statusKirim.includes("sudah") && !statusKirim.includes("bayar")) {
+                isSent = true;
+            }
 
-            if(statusBayar === 'telat') countTelat++;
+            if(statusBayar.includes('telat')) countTelat++;
             else countBayar++; 
 
             if(isSent) countSudahKirim++;
@@ -302,28 +307,38 @@ function renderGroupedData(data) {
     els.majelisContainer.innerHTML = htmlContent;
 }
 
-// 6. HELPER: CREATE ROW HTML (BAGIAN YG DIPERBAIKI)
+// 6. HELPER: CREATE ROW HTML (BAGIAN PENTING YANG DIPERBAIKI)
 function createRowHtml(m) {
-    // PROTEKSI DATA: Pakai String(...) || "" agar tidak error undefined
+    // Proteksi data (mencegah error undefined)
     const rawNamaBP = m.nama_bp || "";
-    // m.mitra adalah key dari Code.gs
-    const rawMitra = m.mitra || "";
-    // m.cust_no adalah key dari Code.gs
+    const rawMitra = m.mitra || ""; 
     const rawCustNo = m.cust_no || "-";
     
-    const statusBayar = String(m.status || "").toLowerCase();
-    const statusKirim = String(m.status_kirim || "").toLowerCase();
+    // Konversi ke huruf kecil untuk perbandingan yang aman
+    const statusBayar = String(m.status || "").toLowerCase().trim();
+    const statusKirim = String(m.status_kirim || "").toLowerCase().trim();
     
-    // --- PERBAIKAN UTAMA DI SINI ---
-    // Logika diperketat:
-    // 1. Jika mengandung kata 'terkirim' -> SENT
-    // 2. Jika mengandung kata 'sudah' DAN TIDAK mengandung 'bayar' -> SENT (jaga-jaga input manual)
-    const isSent = statusKirim.includes("terkirim") || (statusKirim.includes("sudah") && !statusKirim.includes("bayar"));
+    // --- LOGIKA UTAMA PERBAIKAN ---
+    // Dianggap 'Terkirim' HANYA jika:
+    // 1. Mengandung kata 'terkirim'
+    // 2. ATAU sama persis dengan 'sudah' (tapi BUKAN 'sudah bayar')
+    // 3. Menghindari kata 'sudah' yang merupakan bagian dari 'sudah bayar'
     
+    let isSent = false;
+
+    if (statusKirim.includes("terkirim")) {
+        isSent = true;
+    } else if (statusKirim === "sudah") {
+        isSent = true;
+    } else if (statusKirim.includes("sudah") && !statusKirim.includes("bayar")) {
+        isSent = true;
+    }
+
     const isBll = (m.status_bll === "BLL");
-    
     const bllBadge = isBll ? '<span class="badge-bll">BLL</span>' : '';
-    const badgeClass = statusBayar === "telat" ? "text-danger" : "text-success";
+    
+    // Warna badge status bayar (Lunas/Telat)
+    const badgeClass = statusBayar.includes("telat") ? "text-danger" : "text-success";
     
     const valAngsuran = formatRupiah(m.angsuran);
     const valPartial = formatRupiah(m.partial);
@@ -331,11 +346,12 @@ function createRowHtml(m) {
     const selectId = `payment-${rawCustNo}`;
     
     let actionHtml;
+    
     if(isSent) {
-        // Tombol disabled jika sudah terkirim
+        // Jika SUDAH TERKIRIM -> Tombol Mati (Abu-abu)
         actionHtml = `<button class="btn btn-secondary btn-kirim" disabled><i class="fa-solid fa-check"></i> Terkirim</button>`;
     } else {
-        // AMAN DARI ERROR REPLACE
+        // Jika BELUM TERKIRIM -> Tombol Hidup (Ungu)
         const safeName = String(rawNamaBP).replace(/'/g, "");
         const safeMitra = String(rawMitra).replace(/'/g, "");
         
