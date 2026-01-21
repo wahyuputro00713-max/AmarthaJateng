@@ -17,7 +17,7 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 // === PASTIKAN URL INI ADALAH DEPLOYMENT TERBARU DARI CODE.GS DI ATAS ===
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwXCz4x_Dr6Hvqn3HHMPp-26KibBoCGZj9Uas8qOVzEULOAmgQc0AzKHl7Z-ARc9S_CzA/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbynQOdD2iePdOg07iDSk-i8vN-tbKgcAPisjkMfBlG07NnDLZbP0N_jxWPxOz0SKxnm/exec";
 
 // State Management
 let globalData = [];
