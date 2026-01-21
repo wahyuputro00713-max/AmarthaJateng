@@ -19,7 +19,7 @@ const db = getDatabase(app);
 
 // =========================================================================
 // PASTIKAN URL INI SAMA DENGAN YANG DI CODE.GS
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbynQOdD2iePdOg07iDSk-i8vN-tbKgcAPisjkMfBlG07NnDLZbP0N_jxWPxOz0SKxnm/exec"; 
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyu_trk3LqPP4JPPoGAag3dp3w3hAFHVWSzXhF1wMCrIDf06ZFiEY3bgMQSNAXoMo4HDw/exec"; 
 const ADMIN_ID = "17246";
 // =========================================================================
 
