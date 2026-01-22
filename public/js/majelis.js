@@ -20,7 +20,7 @@ const db = getDatabase(app);
 // =========================================================================
 // PASTIKAN URL INI ADALAH DEPLOYMENT TERBARU DARI CODE.GS (SETELAH NEW DEPLOYMENT)
 // =========================================================================
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwlKJRNFkhyVtMFo3bKo47MISpBl14Dpqw1nQDMVHFNCwAGCn8pTe0nWi8ZSdSUbLei-A/exec"; 
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyHh-X4BIQ91ug77GlG59tOOCfiaW_o5mvrCKwnK6qK6Dh6hbqocY-fnroyWfSozqLm/exec"; 
 
 // State Management
 let globalData = [];
