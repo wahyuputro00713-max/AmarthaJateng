@@ -18,7 +18,7 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 // =========================================================================
-// PASTIKAN URL INI ADALAH DEPLOYMENT TERBARU DARI CODE.GS
+// PASTIKAN URL INI ADALAH DEPLOYMENT TERBARU DARI CODE.GS (SETELAH NEW DEPLOYMENT)
 // =========================================================================
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwlKJRNFkhyVtMFo3bKo47MISpBl14Dpqw1nQDMVHFNCwAGCn8pTe0nWi8ZSdSUbLei-A/exec"; 
 
@@ -201,7 +201,7 @@ function fillSelect(el, items) {
     if(items.includes(current)) el.value = current;
 }
 
-// 5. RENDER DATA
+// 5. RENDER DATA (DENGAN LOGIKA PENGECEKAN STATUS DIPERBAIKI)
 function renderGroupedData(data) {
     const fArea = els.filterArea ? els.filterArea.value.toLowerCase() : "";
     const fPoint = els.filterPoint ? els.filterPoint.value.toLowerCase() : "";
@@ -245,15 +245,11 @@ function renderGroupedData(data) {
 
         mitras.forEach(m => {
             const statusBayar = String(m.status || "").toLowerCase();
-            const statusKirim = String(m.status_kirim || "").toLowerCase();
+            const statusKirim = String(m.status_kirim || "").toLowerCase().trim();
             
-            // LOGIKA HITUNG STATISTIK (SAMA DENGAN LOGIKA RENDER ROW)
             let isSent = false;
-            if (statusKirim.includes("terkirim")) {
-                isSent = true;
-            } else if (statusKirim === "sudah") {
-                isSent = true;
-            } else if (statusKirim.includes("sudah") && !statusKirim.includes("bayar")) {
+            // Anggap terkirim jika eksplisit "Sudah"
+            if (statusKirim === "sudah" || statusKirim === "sudah terkirim") {
                 isSent = true;
             }
 
@@ -307,37 +303,33 @@ function renderGroupedData(data) {
     els.majelisContainer.innerHTML = htmlContent;
 }
 
-// 6. HELPER: CREATE ROW HTML (BAGIAN PENTING YANG DIPERBAIKI)
+// 6. HELPER: CREATE ROW HTML
 function createRowHtml(m) {
-    // Proteksi data (mencegah error undefined)
     const rawNamaBP = m.nama_bp || "";
     const rawMitra = m.mitra || ""; 
     const rawCustNo = m.cust_no || "-";
     
-    // Konversi ke huruf kecil untuk perbandingan yang aman
     const statusBayar = String(m.status || "").toLowerCase().trim();
     const statusKirim = String(m.status_kirim || "").toLowerCase().trim();
     
-    // --- LOGIKA UTAMA PERBAIKAN ---
-    // Dianggap 'Terkirim' HANYA jika:
-    // 1. Mengandung kata 'terkirim'
-    // 2. ATAU sama persis dengan 'sudah' (tapi BUKAN 'sudah bayar')
-    // 3. Menghindari kata 'sudah' yang merupakan bagian dari 'sudah bayar'
-    
     let isSent = false;
 
-    if (statusKirim.includes("terkirim")) {
+    if (statusKirim === "sudah") {
         isSent = true;
-    } else if (statusKirim === "sudah") {
+    } else if (statusKirim === "sudah terkirim") {
         isSent = true;
-    } else if (statusKirim.includes("sudah") && !statusKirim.includes("bayar")) {
+    } 
+    else if (statusKirim === "terkirim") {
         isSent = true;
+    }
+
+    if (statusKirim.includes("belum")) {
+        isSent = false;
     }
 
     const isBll = (m.status_bll === "BLL");
     const bllBadge = isBll ? '<span class="badge-bll">BLL</span>' : '';
     
-    // Warna badge status bayar (Lunas/Telat)
     const badgeClass = statusBayar.includes("telat") ? "text-danger" : "text-success";
     
     const valAngsuran = formatRupiah(m.angsuran);
@@ -348,10 +340,10 @@ function createRowHtml(m) {
     let actionHtml;
     
     if(isSent) {
-        // Jika SUDAH TERKIRIM -> Tombol Mati (Abu-abu)
+        // Tombol Mati
         actionHtml = `<button class="btn btn-secondary btn-kirim" disabled><i class="fa-solid fa-check"></i> Terkirim</button>`;
     } else {
-        // Jika BELUM TERKIRIM -> Tombol Hidup (Ungu)
+        // Tombol Hidup
         const safeName = String(rawNamaBP).replace(/'/g, "");
         const safeMitra = String(rawMitra).replace(/'/g, "");
         
@@ -426,7 +418,7 @@ if(els.btnTampilkan) {
     });
 }
 
-// 7. FUNGSI KIRIM DATA (Input Laporan)
+// 7. FUNGSI KIRIM DATA (Input Laporan) - UPDATE STATE LOKAL
 window.kirimData = async function(btn, namaBP, custNo, namaMitra, selectId) {
     const selectEl = document.getElementById(selectId);
     const jenisBayar = selectEl ? selectEl.value : "Normal";
@@ -457,19 +449,20 @@ window.kirimData = async function(btn, namaBP, custNo, namaMitra, selectId) {
         const result = await response.json();
         
         if (result.result === 'success') {
-            // Update UI Lokal secara instan
+            // Update UI Lokal secara instan agar tombol jadi Terkirim tanpa refresh
             const index = globalData.findIndex(item => String(item.cust_no) === String(custNo));
             if (index !== -1) {
-                globalData[index].status_kirim = "Sudah Terkirim"; 
+                globalData[index].status_kirim = "Sudah"; // Update Status Kirim
+                globalData[index].jenis_pembayaran = jenisBayar; // Update Jenis Pembayaran juga (agar konsisten)
             }
 
-            // Simpan posisi accordion agar tidak menutup sendiri
+            // Simpan posisi accordion
             const openAccordion = document.querySelector('.accordion-collapse.show');
             const openId = openAccordion ? openAccordion.id : null;
 
             renderGroupedData(globalData);
 
-            // Buka kembali accordion yang sedang aktif
+            // Buka kembali accordion
             if (openId) {
                 const elContent = document.getElementById(openId);
                 const btnToggle = document.querySelector(`button[data-bs-target="#${openId}"]`);
