@@ -18,9 +18,9 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 // =========================================================================
-// PASTIKAN URL INI ADALAH DEPLOYMENT TERBARU DARI CODE.GS (SETELAH NEW DEPLOYMENT)
+// PASTIKAN URL INI ADALAH DEPLOYMENT TERBARU DARI CODE.GS (WAJIB NEW DEPLOYMENT)
 // =========================================================================
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyHh-X4BIQ91ug77GlG59tOOCfiaW_o5mvrCKwnK6qK6Dh6hbqocY-fnroyWfSozqLm/exec"; 
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzsaBXHtT-A_fnBn3BkSWqqi5R3V74_zmhkFs2o9iXro61LgLtU5RmRmPsq-su83hkSRQ/exec"; 
 
 // State Management
 let globalData = [];
@@ -201,7 +201,7 @@ function fillSelect(el, items) {
     if(items.includes(current)) el.value = current;
 }
 
-// 5. RENDER DATA (DENGAN LOGIKA PENGECEKAN STATUS DIPERBAIKI)
+// 5. RENDER DATA
 function renderGroupedData(data) {
     const fArea = els.filterArea ? els.filterArea.value.toLowerCase() : "";
     const fPoint = els.filterPoint ? els.filterPoint.value.toLowerCase() : "";
@@ -248,7 +248,6 @@ function renderGroupedData(data) {
             const statusKirim = String(m.status_kirim || "").toLowerCase().trim();
             
             let isSent = false;
-            // Anggap terkirim jika eksplisit "Sudah"
             if (statusKirim === "sudah" || statusKirim === "sudah terkirim") {
                 isSent = true;
             }
@@ -453,7 +452,7 @@ window.kirimData = async function(btn, namaBP, custNo, namaMitra, selectId) {
             const index = globalData.findIndex(item => String(item.cust_no) === String(custNo));
             if (index !== -1) {
                 globalData[index].status_kirim = "Sudah"; // Update Status Kirim
-                globalData[index].jenis_pembayaran = jenisBayar; // Update Jenis Pembayaran juga (agar konsisten)
+                globalData[index].jenis_pembayaran = jenisBayar; // Update Jenis Pembayaran
             }
 
             // Simpan posisi accordion
