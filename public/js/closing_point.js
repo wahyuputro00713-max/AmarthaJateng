@@ -18,7 +18,7 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 // =========================================================================
-// PASTIKAN URL INI SAMA DENGAN YANG DI CODE.GS
+// PASTIKAN URL INI SAMA DENGAN HASIL DEPLOY TERBARU ANDA DI APPS SCRIPT
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxQULUjMJ494zBZ8L-pZJvtXr9vwmpWmEdjkWFchXURoEe5AIriDJCSMEE17sq4MgEi/exec"; 
 const ADMIN_ID = "17246";
 // =========================================================================
@@ -297,10 +297,15 @@ async function fetchRepaymentData(targetPoint) {
     try {
         if(container) container.innerHTML = `<div class="empty-state"><div class="spinner-border text-primary" role="status"></div><p>Sinkronisasi Database...</p></div>`;
         
-        // UPDATE: Ganti action ke get_data_modal agar konsisten dengan Code.gs baru
+        // UPDATE PENTING: Mengirim parameter 'area' untuk filter di server Code.gs
         const response = await fetch(SCRIPT_URL, {
-            method: 'POST', body: JSON.stringify({ action: "get_data_modal" }), 
-            redirect: "follow", headers: { "Content-Type": "text/plain;charset=utf-8" }
+            method: 'POST', 
+            body: JSON.stringify({ 
+                action: "get_data_modal",
+                area: userProfile.area || "" // Kirim area agar server bisa filter
+            }), 
+            redirect: "follow", 
+            headers: { "Content-Type": "text/plain;charset=utf-8" }
         });
         const result = await response.json();
         
@@ -406,7 +411,7 @@ function updatePointDropdownOptions(fixedArea = null) {
 }
 
 // =================================================================
-// 4. RENDER DATA & UI
+// 4. RENDER DATA & UI (UPDATED: Tanggal Bayar Terakhir)
 // =================================================================
 
 function filterAndRenderData() {
@@ -439,7 +444,6 @@ function filterAndRenderData() {
     const todayClean = clean(currentDayName);
 
     allRawData.forEach(row => {
-        // UPDATE: Akses key langsung sesuai Code.gs
         const p_hari_clean = clean(row.hari || "");
         if (p_hari_clean !== todayClean) return;
         
@@ -451,15 +455,16 @@ function filterAndRenderData() {
 
         matchCount++;
         
-        // UPDATE: Key Mapping dari Code.gs
         const p_bp = row.nama_bp || "Tanpa BP";
         const p_majelis = row.majelis || "Umum";
-        const rawBucket = String(row.dpd || "0").trim();
+        const rawBucket = String(row.dpd_bucket || row.dpd || "0").trim();
         const st_bayar = row.status || "Belum";
         const st_kirim = row.status_kirim || "Belum";
         const p_jenis = row.jenis_pembayaran || "-";
         const st_bll = row.status_bll || "-";
         const val_data_o = row.data_o || "-";
+        // --- AMBIL DATA TANGGAL BAYAR TERAKHIR ---
+        const val_last_pay = row.last_payment_date || "-"; 
 
         const isLunas = st_bayar.toLowerCase().includes("lunas") || st_bayar.toLowerCase().includes("bayar");
         const isTerkirim = st_kirim.toLowerCase().includes("terkirim") || st_kirim.toLowerCase().includes("sudah");
@@ -477,19 +482,20 @@ function filterAndRenderData() {
         }
 
         const mitraData = {
-            id: row.cust_no, // Key dari Code.gs
+            id: row.cust_no, 
             nama: row.mitra,
             status_bayar: st_bayar, 
             status_kirim: st_kirim, 
             jenis_bayar: p_jenis,
             bucket: rawBucket, 
-            alasan: "", // Alasan tidak dari spreadsheet, tapi dari inputan
+            alasan: "", 
             is_lunas: isLunas, 
             is_terkirim: isTerkirim,
             bp: p_bp, 
             majelis: p_majelis,
             status_bll: st_bll,
-            data_o: val_data_o 
+            data_o: val_data_o,
+            tgl_bayar_terakhir: val_last_pay // Masukkan ke object
         };
         globalMitraList.push(mitraData);
         
@@ -647,6 +653,21 @@ function createMitraCard(mitra) {
         badgeDataO = `<span class="badge-pill badge-warning"><i class="fa-regular fa-calendar me-1"></i>${labelTgl}</span>`;
     }
 
+    // --- LOGIKA BADGE TANGGAL BAYAR TERAKHIR (BARU) ---
+    let badgeLastPay = "";
+    if (mitra.tgl_bayar_terakhir && mitra.tgl_bayar_terakhir !== "-" && mitra.tgl_bayar_terakhir !== "" && String(mitra.tgl_bayar_terakhir).toLowerCase() !== "null") {
+        let labelTglBayar = mitra.tgl_bayar_terakhir;
+        try {
+            const dateObj = new Date(mitra.tgl_bayar_terakhir);
+            if (!isNaN(dateObj)) {
+                labelTglBayar = `${String(dateObj.getDate()).padStart(2,'0')}/${String(dateObj.getMonth()+1).padStart(2,'0')}`;
+            }
+        } catch(e){}
+        // Tampilkan badge hijau
+        badgeLastPay = `<span class="badge-pill badge-success" title="Terakhir Bayar"><i class="fa-solid fa-clock-rotate-left me-1"></i>${labelTglBayar}</span>`;
+    }
+    // -----------------------------------------------------
+
     let inputHtml = "";
     if (isJB) {
         inputHtml = `
@@ -684,7 +705,7 @@ function createMitraCard(mitra) {
                     <span class="mitra-name me-2">${mitra.nama}</span>
                     <span class="mitra-id">${mitra.id}</span>
                     ${badgeDataO}
-                </div>
+                    ${badgeLastPay} </div>
                 
                 <div class="mb-2">
                     <span class="badge-pill ${badgeBayarClass}">${mitra.status_bayar}</span>
