@@ -200,7 +200,7 @@ function fillSelect(el, items) {
     if(items.includes(current)) el.value = current;
 }
 
-// 5. RENDER UI UTAMA
+// 5. RENDER UI UTAMA (DIPERBAIKI: Handle Tanda Petik)
 function renderGroupedData(data) {
     const fArea = els.filterArea ? els.filterArea.value.toLowerCase() : "";
     const fPoint = els.filterPoint ? els.filterPoint.value.toLowerCase() : "";
@@ -243,6 +243,11 @@ function renderGroupedData(data) {
         // ID Unik untuk Majelis
         const safeMajelisId = majelis.replace(/[^a-zA-Z0-9]/g, '_') + index;
         
+        // --- FIX PENTING: MENGAMANKAN TANDA PETIK PADA NAMA ---
+        // Mengubah tanda petik (') menjadi escaped quote (\') agar HTML onclick tidak error
+        const safeNamaMajelis = majelis.replace(/'/g, "\\'");
+        const safeNamaBP = bpName.replace(/'/g, "\\'");
+        
         let countBayar = 0, countTelat = 0, countSudahKirim = 0, countBelumKirim = 0;
 
         mitras.forEach(m => {
@@ -272,7 +277,7 @@ function renderGroupedData(data) {
                         *Lengkapi pembayaran semua mitra untuk mengirim
                     </small>
                     <button class="btn btn-success" id="btn-kirim-${safeMajelisId}" disabled 
-                        onclick="window.kirimSekaligus('${safeMajelisId}', '${majelis}', '${bpName}')">
+                        onclick="window.kirimSekaligus('${safeMajelisId}', '${safeNamaMajelis}', '${safeNamaBP}')">
                         <i class="fa-solid fa-paper-plane me-2"></i> Kirim Laporan Majelis
                     </button>
                 </div>
@@ -527,7 +532,7 @@ window.kirimSekaligus = async function(majelisId, namaMajelis, namaBP) {
             action: "input_laporan",
             jenisLaporan: "ClosingModal",
             idKaryawan: userProfile.idKaryawan || "Unknown",
-            namaBP: namaBP,
+            namaBP: namaBP, // Sekarang aman dari tanda petik
             customerNumber: custNo,
             jenisPembayaran: jenisBayar
         };
