@@ -18,7 +18,7 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 // =========================================================================
-// PASTIKAN URL INI ADALAH DEPLOYMENT TERBARU DARI CODE.GS
+// URL DEPLOYMENT GOOGLE APPS SCRIPT
 // =========================================================================
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz7lbSgTnp8OZ2QdOIv8_gfx40heiUXSXF9sfIGf2deyVDTEznkv6lq47NRK4ddIUiF/exec"; 
 
@@ -95,7 +95,7 @@ async function fetchMainData(reqArea) {
     }
 }
 
-// 4. Filters & Dropdown
+// 4. Filters & Dropdown Logic
 function initializeFilters() {
     populateFilters(globalData);
 
@@ -146,7 +146,6 @@ function updateBPDropdown() {
     fillSelect(els.filterBP, bps);
 }
 
-// Event Listeners Filter
 if(els.filterArea) {
     els.filterArea.addEventListener('change', async () => {
         const newArea = els.filterArea.value;
@@ -201,7 +200,7 @@ function fillSelect(el, items) {
     if(items.includes(current)) el.value = current;
 }
 
-// 5. RENDER DATA (LOGIKA BARU)
+// 5. RENDER UI UTAMA
 function renderGroupedData(data) {
     const fArea = els.filterArea ? els.filterArea.value.toLowerCase() : "";
     const fPoint = els.filterPoint ? els.filterPoint.value.toLowerCase() : "";
@@ -241,7 +240,7 @@ function renderGroupedData(data) {
         const mitras = grouped[majelis];
         const bpName = mitras[0].nama_bp || "-";
         
-        // Buat ID unik untuk majelis ini agar selector tidak bentrok
+        // ID Unik untuk Majelis
         const safeMajelisId = majelis.replace(/[^a-zA-Z0-9]/g, '_') + index;
         
         let countBayar = 0, countTelat = 0, countSudahKirim = 0, countBelumKirim = 0;
@@ -262,16 +261,15 @@ function renderGroupedData(data) {
             else countBelumKirim++;
         });
 
-        // Generate baris HTML dengan ID Majelis yang diteruskan
         const rowsHtml = mitras.map(m => createRowHtml(m, safeMajelisId)).join('');
 
-        // --- UPDATE 1: Tombol Kirim Majelis (Hanya muncul jika masih ada yang belum dikirim) ---
+        // Tombol Kirim Majelis (Hanya muncul jika ada yg belum dikirim)
         let btnKirimMajelisHtml = '';
         if (countBelumKirim > 0) {
             btnKirimMajelisHtml = `
                 <div class="p-3 border-top bg-light d-flex justify-content-end align-items-center gap-2">
                     <small class="text-muted fst-italic me-2" id="msg-${safeMajelisId}" style="font-size: 11px;">
-                        *Pilih jenis bayar & centang SEMUA mitra untuk mengirim
+                        *Lengkapi pembayaran semua mitra untuk mengirim
                     </small>
                     <button class="btn btn-success" id="btn-kirim-${safeMajelisId}" disabled 
                         onclick="window.kirimSekaligus('${safeMajelisId}', '${majelis}', '${bpName}')">
@@ -282,7 +280,7 @@ function renderGroupedData(data) {
         } else {
             btnKirimMajelisHtml = `
                 <div class="p-3 border-top bg-light text-center">
-                    <span class="badge bg-success"><i class="fa-solid fa-check-double"></i> Laporan Majelis Selesai</span>
+                    <span class="badge bg-success"><i class="fa-solid fa-check-double"></i> Laporan Selesai</span>
                 </div>
             `;
         }
@@ -329,7 +327,7 @@ function renderGroupedData(data) {
     els.majelisContainer.innerHTML = htmlContent;
 }
 
-// 6. HELPER: CREATE ROW HTML (LOGIKA BARU)
+// 6. HELPER: CREATE ROW HTML
 function createRowHtml(m, majelisId) {
     const rawNamaBP = m.nama_bp || "";
     const rawMitra = m.mitra || ""; 
@@ -357,9 +355,8 @@ function createRowHtml(m, majelisId) {
     let inputControlHtml;
     let checkboxHtml;
 
-    // --- UPDATE 2: Logika Tombol & Checkbox ---
     if(isSent) {
-        // Jika sudah terkirim: Tampilkan centang hijau statis, Dropdown mati
+        // SUDAH TERKIRIM
         checkboxHtml = `<i class="fa-solid fa-check-circle text-success fs-5"></i>`;
         inputControlHtml = `
             <div class="text-end">
@@ -367,11 +364,8 @@ function createRowHtml(m, majelisId) {
             </div>
         `;
     } else {
-        // Jika belum terkirim:
-        // 1. Checkbox DISABLED default-nya.
-        // 2. Dropdown default KOSONG ("").
-        // User harus pilih dropdown dulu -> baru checkbox aktif & auto centang.
-        
+        // BELUM TERKIRIM
+        // Checkbox DISABLED sampai dropdown dipilih
         checkboxHtml = `
             <input type="checkbox" class="form-check-input chk-mitra-${majelisId}" 
                 id="${checkId}" 
@@ -448,44 +442,40 @@ if(els.btnTampilkan) {
 }
 
 // =========================================================================
-// INTERAKSI UI BARU (HANDLE CHECKBOX & KIRIM MAJELIS)
+// LOGIKA INTERAKSI & PENGIRIMAN DATA (ANTI-GAGAL)
 // =========================================================================
 
-// 1. Saat dropdown pembayaran dipilih
+// 1. Dropdown Changed -> Aktifkan Checkbox
 window.handleJnsBayarChange = function(selectEl, checkId, majelisId) {
     const checkbox = document.getElementById(checkId);
     if (!checkbox) return;
 
-    // Jika user memilih sesuatu (value tidak kosong) -> Aktifkan checkbox & Auto centang
     if (selectEl.value !== "") {
         checkbox.disabled = false;
-        checkbox.checked = true; 
+        checkbox.checked = true; // Auto centang
     } else {
         checkbox.checked = false;
         checkbox.disabled = true;
     }
-
-    // Cek validasi seluruh majelis
+    // Validasi ulang tombol kirim
     window.handleCheckChange(majelisId);
 };
 
-// 2. Saat checkbox dicentang/uncheck manual
+// 2. Checkbox Changed -> Validasi Tombol Kirim
 window.handleCheckChange = function(majelisId) {
     const btnKirim = document.getElementById(`btn-kirim-${majelisId}`);
     const msg = document.getElementById(`msg-${majelisId}`);
     
-    // Ambil semua checkbox AKTIF (yang belum terkirim) di majelis ini
+    // Ambil semua checkbox AKTIF (belum terkirim)
     const allCheckboxes = document.querySelectorAll(`.chk-mitra-${majelisId}`);
     const total = allCheckboxes.length;
     
-    // Hitung berapa yang dicentang
     let checkedCount = 0;
     allCheckboxes.forEach(chk => {
         if (chk.checked) checkedCount++;
     });
 
-    // Syarat: Semua checkbox yang ada harus dicentang
-    // Artinya: Semua mitra dalam majelis harus sudah dipilih jenis bayarnya dan dicentang
+    // Syarat: SEMUA harus dicentang
     if (total > 0 && checkedCount === total) {
         btnKirim.disabled = false;
         msg.classList.remove('text-muted');
@@ -499,20 +489,17 @@ window.handleCheckChange = function(majelisId) {
     }
 };
 
-// 3. Fungsi Kirim Sekaligus (Bulk Send)
+// 3. FUNGSI KIRIM SEKALIGUS (SEQUENTIAL & RETRY)
+// Ini kunci agar server tidak penuh/error
 window.kirimSekaligus = async function(majelisId, namaMajelis, namaBP) {
-    // Ambil semua checkbox yang dicentang di grup ini
     const checkboxes = document.querySelectorAll(`.chk-mitra-${majelisId}:checked`);
     
     if (checkboxes.length === 0) return;
     if (!confirm(`Kirim data ${checkboxes.length} mitra di majelis ${namaMajelis}?`)) return;
 
     const btn = document.getElementById(`btn-kirim-${majelisId}`);
-    const originalBtnContent = btn.innerHTML;
-    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Mengirim...`;
-    btn.disabled = true;
     
-    // Disable semua input saat proses kirim
+    // Matikan semua input biar user tidak ubah-ubah saat proses
     checkboxes.forEach(chk => {
         chk.disabled = true;
         const custNo = chk.getAttribute('data-custno');
@@ -520,14 +507,19 @@ window.kirimSekaligus = async function(majelisId, namaMajelis, namaBP) {
         if(select) select.disabled = true;
     });
 
-    // Kumpulkan Promise Request
-    const requests = [];
-    
-    checkboxes.forEach(chk => {
+    let successCount = 0;
+    let failCount = 0;
+    const failedNames = [];
+
+    // LOOPING ANTRIAN (Satu per satu)
+    for (let i = 0; i < checkboxes.length; i++) {
+        const chk = checkboxes[i];
         const custNo = chk.getAttribute('data-custno');
         const namaMitra = chk.getAttribute('data-mitra');
         
-        // Ambil value dropdown terkait
+        // Update UI Text Tombol
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Mengirim ${i + 1} dari ${checkboxes.length}...`;
+
         const selectEl = document.getElementById(`payment-${custNo}`);
         const jenisBayar = selectEl ? selectEl.value : "Normal";
 
@@ -540,72 +532,70 @@ window.kirimSekaligus = async function(majelisId, namaMajelis, namaBP) {
             jenisPembayaran: jenisBayar
         };
 
-        // Fetch request per mitra
-        const req = fetch(SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify(payload),
-            headers: { "Content-Type": "text/plain;charset=utf-8" }
-        }).then(async (response) => {
-            const result = await response.json();
-            if (result.result === 'success') {
-                return { status: 'ok', custNo: custNo, jenisBayar: jenisBayar };
-            } else {
-                return { status: 'fail', mitra: namaMitra, error: result.error };
-            }
-        }).catch(err => {
-            return { status: 'fail', mitra: namaMitra, error: err.message };
-        });
+        // Kirim dengan Retry System
+        const isSuccess = await sendWithRetry(payload, namaMitra);
 
-        requests.push(req);
-    });
-
-    try {
-        // Tunggu semua request selesai
-        const results = await Promise.all(requests);
-        
-        const failed = results.filter(r => r.status === 'fail');
-        const success = results.filter(r => r.status === 'ok');
-
-        // Update Global Data Lokal untuk yang sukses
-        success.forEach(s => {
-            const idx = globalData.findIndex(item => String(item.cust_no) === String(s.custNo));
+        if (isSuccess) {
+            successCount++;
+            // Update Data Lokal
+            const idx = globalData.findIndex(item => String(item.cust_no) === String(custNo));
             if (idx !== -1) {
                 globalData[idx].status_kirim = "Sudah";
-                globalData[idx].jenis_pembayaran = s.jenisBayar;
+                globalData[idx].jenis_pembayaran = jenisBayar;
             }
-        });
-
-        if (failed.length > 0) {
-            alert(`Berhasil: ${success.length}\nGagal: ${failed.length}\nCek koneksi dan coba lagi.`);
+        } else {
+            failCount++;
+            failedNames.push(namaMitra);
         }
 
-        // Render ulang UI
-        renderGroupedData(globalData);
-        
-        // Buka kembali accordion yang sedang aktif
-        setTimeout(() => {
-           const accItem = document.getElementById(`acc-item-${majelisId}`);
-           if(accItem) {
-               const collapseDiv = accItem.querySelector('.accordion-collapse');
-               const btnToggle = accItem.querySelector('.accordion-button');
-               if(collapseDiv) collapseDiv.classList.add('show');
-               if(btnToggle) btnToggle.classList.remove('collapsed');
-           }
-        }, 100);
+        // Jeda Napas 300ms agar server aman
+        await new Promise(r => setTimeout(r, 300)); 
+    }
 
-    } catch (error) {
-        console.error(error);
-        alert("Terjadi kesalahan sistem saat pengiriman massal.");
-        btn.innerHTML = originalBtnContent;
-        btn.disabled = false;
-        
-        // Enable kembali input agar bisa dicoba ulang
-        checkboxes.forEach(chk => {
-            chk.disabled = false;
-            const custNo = chk.getAttribute('data-custno');
-            const select = document.getElementById(`payment-${custNo}`);
-            if(select) select.disabled = false;
-        });
-        window.handleCheckChange(majelisId);
+    // SELESAI
+    renderGroupedData(globalData);
+
+    // Buka kembali Accordion
+    setTimeout(() => {
+        const accItem = document.getElementById(`acc-item-${majelisId}`);
+        if(accItem) {
+            const collapseDiv = accItem.querySelector('.accordion-collapse');
+            const btnToggle = accItem.querySelector('.accordion-button');
+            if(collapseDiv) collapseDiv.classList.add('show');
+            if(btnToggle) btnToggle.classList.remove('collapsed');
+            
+            // Scroll ke tombol
+            const newBtn = document.getElementById(`btn-kirim-${majelisId}`);
+            if(newBtn && failCount > 0) newBtn.scrollIntoView({behavior: "smooth", block: "center"});
+        }
+    }, 100);
+
+    if (failCount > 0) {
+        alert(`Selesai.\nSukses: ${successCount}\nGagal: ${failCount}\n\nGagal pada: \n- ${failedNames.join('\n- ')}\n\nSilakan coba kirim ulang yang gagal.`);
     }
 };
+
+// 4. HELPER RETRY MECHANISM
+async function sendWithRetry(payload, namaMitra, maxRetries = 3) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            const response = await fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify(payload),
+                headers: { "Content-Type": "text/plain;charset=utf-8" }
+            });
+            const result = await response.json();
+            
+            if (result.result === 'success') {
+                return true; // Berhasil
+            } else {
+                throw new Error(result.error || "Server menolak");
+            }
+        } catch (error) {
+            console.warn(`Gagal kirim ${namaMitra} (Percobaan ${attempt}):`, error);
+            if (attempt === maxRetries) return false;
+            // Tunggu 1.5 detik sebelum retry
+            await new Promise(r => setTimeout(r, 1500));
+        }
+    }
+}
