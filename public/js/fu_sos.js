@@ -82,16 +82,13 @@ function filterData() {
         const matchArea = (selectedArea === "all" || item.area === selectedArea);
         const matchPoint = (selectedPoint === "all" || item.point === selectedPoint);
         
-        // Opsional: Jika ingin menyembunyikan yang sudah di-FU, tambahkan logika ini:
-        // const notYetFu = item.status_fu !== "Sudah";
-        // return matchArea && matchPoint && notYetFu;
-        
         return matchArea && matchPoint;
     });
 
     renderData(filtered);
 }
 
+// --- BAGIAN UTAMA YANG DIPERBAIKI ---
 function renderData(data) {
     const container = document.getElementById("dataList");
     container.innerHTML = "";
@@ -103,10 +100,12 @@ function renderData(data) {
     }
 
     data.forEach(item => {
+        // Format Nomor HP
         let rawHp = item.no_hp.replace(/[^0-9]/g, '');
         if (rawHp.startsWith('0')) rawHp = '62' + rawHp.substring(1);
 
-        const pesan = `Salam Sehat Ibu Calon mitra Amartha. Apakah benar ini ibu ${item.nama_mitra}. Selamat ibu berkesempatan mendapatkan modal dari PT Amartha Mikro Fintek dengan membentuk Kelompok Minimal 6 Orang. Jika bersedia membuat kelompok Silahkan balas WA ini. Terimakasih Jika berminat silahkan klik link berikut https://play.google.com/store/apps/details?id=com.amarthaplus.amarthabeyond atau bisa hubungin cabang Berikut ${item.point} dan petugas Amartha Berikut ${item.nama_bp}`;
+        // Generate Pesan Dinamis (Anti-Blokir)
+        const pesan = generateDynamicMessage(item);
         const waLink = `https://wa.me/${rawHp}?text=${encodeURIComponent(pesan)}`;
 
         // Cek status FU
@@ -134,11 +133,75 @@ function renderData(data) {
     });
 }
 
-// Fungsi Baru: Menangani Klik Follow Up
+/**
+ * FUNGSI GENERATOR PESAN DINAMIS
+ * Fungsi ini mengacak kata-kata agar pesan tidak terdeteksi sebagai broadcast massal.
+ */
+function generateDynamicMessage(item) {
+    // 1. Variasi Salam Berdasarkan Waktu
+    const jam = new Date().getHours();
+    let salamWaktu = "Pagi";
+    if (jam >= 10 && jam < 15) salamWaktu = "Siang";
+    else if (jam >= 15 && jam < 18) salamWaktu = "Sore";
+    else if (jam >= 18) salamWaktu = "Malam";
+
+    const listSalam = [
+        `Selamat ${salamWaktu} Ibu,`,
+        `Halo Ibu, selamat ${salamWaktu}.`,
+        `Assalamualaikum Ibu,`,
+        `Salam sejahtera Bu,`,
+        `Permisi Ibu, selamat ${salamWaktu}.`
+    ];
+
+    // 2. Variasi Pembuka
+    const listPembuka = [
+        `Apa benar ini nomor Ibu ${item.nama_mitra}?`,
+        `Mohon maaf mengganggu waktunya, apakah benar dengan Ibu ${item.nama_mitra}?`,
+        `Saya ingin konfirmasi, benar ini dengan Ibu ${item.nama_mitra}?`,
+        `Semoga Ibu ${item.nama_mitra} sehat selalu ya.`
+    ];
+
+    // 3. Variasi Isi Pesan (Inti sama, kalimat beda)
+    const listIsi = [
+        `Selamat! Ibu terpilih mendapatkan kesempatan pengajuan modal usaha dari PT Amartha (sistem kelompok min. 6 orang).`,
+        `Kami dari Amartha menginfokan bahwa Ibu berpeluang mendapatkan modal usaha dengan membentuk kelompok minimal 6 orang.`,
+        `Ibu masuk dalam daftar prioritas kami untuk bantuan modal usaha Amartha. Syaratnya cukup bentuk kelompok 6 orang.`,
+        `Ada kabar baik, Ibu bisa ajukan modal usaha di Amartha sekarang. Caranya mudah, cukup buat kelompok 6 orang.`
+    ];
+
+    // 4. Variasi Kalimat Penutup/Call to Action
+    const listCTA = [
+        `Jika Ibu bersedia, silakan balas WA ini ya.`,
+        `Bila berminat, mohon respon pesan ini Bu.`,
+        `Silakan balas pesan ini jika Ibu tertarik mengambil kesempatannya.`,
+        `Info lebih lanjut bisa balas chat ini ya Bu.`
+    ];
+
+    // 5. Variasi Link (Link sama, pengantar beda)
+    // Link dipecah agar tidak selalu menjadi preview image yang sama persis
+    const linkApp = "https://play.google.com/store/apps/details?id=com.amarthaplus.amarthabeyond";
+    const listLink = [
+        `Detail aplikasi bisa dilihat disini: ${linkApp}`,
+        `Download aplikasi resmi kami: ${linkApp}`,
+        `Klik link berikut untuk info aplikasi: ${linkApp}`
+    ];
+
+    // 6. Footer & ID Unik (PENTING untuk anti-spam)
+    // Random ID membuat setiap pesan memiliki "sidik jari" berbeda bagi sistem WA
+    const randomID = Math.floor(Math.random() * 10000);
+    const footer = `\nPetugas: ${item.nama_bp} (${item.point})\nRef ID: #${randomID}`;
+
+    // Fungsi pengacak array
+    const acak = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+    // Gabungkan semua komponen
+    return `${acak(listSalam)} ${acak(listPembuka)}\n\n${acak(listIsi)} ${acak(listCTA)}\n\n${acak(listLink)}\n${footer}`;
+}
+
 async function handleFollowUp(nama, hp, link, btnElement, alreadyFu) {
-    // 1. Jika sudah di-FU sebelumnya, buka WA saja, jangan update lagi (atau blok jika mau)
+    // 1. Jika sudah di-FU sebelumnya, buka WA saja, jangan update database
     if (alreadyFu) {
-        // Opsional: alert("Mitra ini sudah di-follow up.");
+        window.open(link, '_blank');
         return; 
     }
 
@@ -172,9 +235,12 @@ async function handleFollowUp(nama, hp, link, btnElement, alreadyFu) {
             btnElement.innerText = "Gagal Update";
             btnElement.style.backgroundColor = "red";
             console.error(result.message);
+            // Re-enable button jika gagal, agar bisa dicoba lagi
+            btnElement.disabled = false;
         }
     } catch (e) {
         console.error("Error updating status:", e);
         btnElement.innerText = "Error";
+        btnElement.disabled = false;
     }
 }
