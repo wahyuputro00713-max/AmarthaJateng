@@ -25,6 +25,7 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz7lbSgTnp8OZ2QdOIv8
 // State Management
 let globalData = [];
 let userProfile = { idKaryawan: "", area: "", point: "" };
+let isTransactionActive = false; // LOCKING VARIABLE: Mencegah kirim barengan
 
 // DOM Elements
 const els = {
@@ -159,7 +160,7 @@ if(els.filterArea) {
                 renderGroupedData(globalData);
                 
                 if(els.filterPoint) els.filterPoint.value = ""; 
-                if(els.filterBP) els.filterBP.value = "";       
+                if(els.filterBP) els.filterBP.value = "";        
                 updatePointDropdown(newArea);
                 updateBPDropdown();
             } catch(e) {
@@ -169,7 +170,7 @@ if(els.filterArea) {
             }
         } else {
             if(els.filterPoint) els.filterPoint.value = ""; 
-            if(els.filterBP) els.filterBP.value = "";       
+            if(els.filterBP) els.filterBP.value = "";        
             updatePointDropdown(els.filterArea.value);
             updateBPDropdown();
         }
@@ -178,7 +179,7 @@ if(els.filterArea) {
 
 if(els.filterPoint) {
     els.filterPoint.addEventListener('change', () => {
-        if(els.filterBP) els.filterBP.value = "";        
+        if(els.filterBP) els.filterBP.value = "";         
         updateBPDropdown();
     });
 }
@@ -200,7 +201,7 @@ function fillSelect(el, items) {
     if(items.includes(current)) el.value = current;
 }
 
-// 5. RENDER UI UTAMA (DIPERBAIKI: Handle Tanda Petik)
+// 5. RENDER UI UTAMA
 function renderGroupedData(data) {
     const fArea = els.filterArea ? els.filterArea.value.toLowerCase() : "";
     const fPoint = els.filterPoint ? els.filterPoint.value.toLowerCase() : "";
@@ -240,12 +241,7 @@ function renderGroupedData(data) {
         const mitras = grouped[majelis];
         const bpName = mitras[0].nama_bp || "-";
         
-        // ID Unik untuk Majelis
-        const safeMajelisId = majelis.replace(/[^a-zA-Z0-9]/g, '_') + index;
-        
-        // --- FIX PENTING: MENGAMANKAN TANDA PETIK PADA NAMA ---
-        // Mengubah tanda petik (') menjadi escaped quote (\') agar HTML onclick tidak error
-        const safeNamaMajelis = majelis.replace(/'/g, "\\'");
+        // Escape string untuk nama majelis & BP (cegah error petik satu)
         const safeNamaBP = bpName.replace(/'/g, "\\'");
         
         let countBayar = 0, countTelat = 0, countSudahKirim = 0, countBelumKirim = 0;
@@ -254,10 +250,7 @@ function renderGroupedData(data) {
             const statusBayar = String(m.status || "").toLowerCase();
             const statusKirim = String(m.status_kirim || "").toLowerCase().trim();
             
-            let isSent = false;
-            if (statusKirim === "sudah" || statusKirim === "sudah terkirim" || statusKirim === "terkirim") {
-                isSent = true;
-            }
+            let isSent = (statusKirim === "sudah" || statusKirim === "sudah terkirim" || statusKirim === "terkirim");
 
             if(statusBayar.includes('telat')) countTelat++;
             else countBayar++; 
@@ -266,32 +259,10 @@ function renderGroupedData(data) {
             else countBelumKirim++;
         });
 
-        const rowsHtml = mitras.map(m => createRowHtml(m, safeMajelisId)).join('');
-
-        // Tombol Kirim Majelis (Hanya muncul jika ada yg belum dikirim)
-        let btnKirimMajelisHtml = '';
-        if (countBelumKirim > 0) {
-            btnKirimMajelisHtml = `
-                <div class="p-3 border-top bg-light d-flex justify-content-end align-items-center gap-2">
-                    <small class="text-muted fst-italic me-2" id="msg-${safeMajelisId}" style="font-size: 11px;">
-                        *Lengkapi pembayaran semua mitra untuk mengirim
-                    </small>
-                    <button class="btn btn-success" id="btn-kirim-${safeMajelisId}" disabled 
-                        onclick="window.kirimSekaligus('${safeMajelisId}', '${safeNamaMajelis}', '${safeNamaBP}')">
-                        <i class="fa-solid fa-paper-plane me-2"></i> Kirim Laporan Majelis
-                    </button>
-                </div>
-            `;
-        } else {
-            btnKirimMajelisHtml = `
-                <div class="p-3 border-top bg-light text-center">
-                    <span class="badge bg-success"><i class="fa-solid fa-check-double"></i> Laporan Selesai</span>
-                </div>
-            `;
-        }
+        const rowsHtml = mitras.map(m => createRowHtml(m, safeNamaBP)).join('');
 
         return `
-            <div class="accordion-item" id="acc-item-${safeMajelisId}">
+            <div class="accordion-item">
                 <h2 class="accordion-header" id="heading${index}">
                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse${index}">
                         <div class="d-flex flex-column w-100">
@@ -303,7 +274,7 @@ function renderGroupedData(data) {
                             <div class="stats-row">
                                 <span class="mini-stat stat-bayar"><i class="fa-solid fa-check-circle"></i> Bayar: ${countBayar}</span>
                                 <span class="mini-stat stat-telat"><i class="fa-solid fa-circle-xmark"></i> Telat: ${countTelat}</span>
-                                <span class="mini-stat stat-sent"><i class="fa-solid fa-paper-plane"></i> Terkirim: ${countSudahKirim}</span>
+                                <span class="mini-stat stat-sent"><i class="fa-solid fa-paper-plane"></i> Selesai: ${countSudahKirim}</span>
                                 ${(countBelumKirim > 0) ? `<span class="mini-stat stat-unsent"><i class="fa-regular fa-clock"></i> Belum: ${countBelumKirim}</span>` : ''}
                             </div>
                         </div>
@@ -311,19 +282,18 @@ function renderGroupedData(data) {
                 </h2>
                 <div id="collapse${index}" class="accordion-collapse collapse" data-bs-parent="#majelisContainer">
                     <div class="accordion-body p-0">
-                        <table class="table table-striped table-mitra mb-0 w-100" id="table-${safeMajelisId}">
+                        <table class="table table-striped table-mitra mb-0 w-100">
                             <thead class="bg-light">
                                 <tr>
-                                    <th class="ps-3 text-center" style="width: 40px;"><i class="fa-solid fa-check"></i></th>
+                                    <th class="ps-3" style="width: 10px;">#</th>
                                     <th>Mitra</th>
                                     <th>Tagihan</th>
-                                    <th class="text-end pe-3">Input Bayar</th>
+                                    <th class="text-end pe-3">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>${rowsHtml}</tbody>
                         </table>
-                        ${btnKirimMajelisHtml}
-                    </div>
+                        </div>
                 </div>
             </div>
         `;
@@ -332,19 +302,18 @@ function renderGroupedData(data) {
     els.majelisContainer.innerHTML = htmlContent;
 }
 
-// 6. HELPER: CREATE ROW HTML
-function createRowHtml(m, majelisId) {
-    const rawNamaBP = m.nama_bp || "";
+// 6. HELPER: CREATE ROW HTML (Update: Tombol Kirim Per Baris)
+function createRowHtml(m, safeNamaBP) {
     const rawMitra = m.mitra || ""; 
     const rawCustNo = m.cust_no || "-";
+    
+    // Amankan string untuk parameter fungsi onclick
+    const safeMitra = rawMitra.replace(/'/g, "\\'");
     
     const statusBayar = String(m.status || "").toLowerCase().trim();
     const statusKirim = String(m.status_kirim || "").toLowerCase().trim();
     
-    let isSent = false;
-    if (statusKirim === "sudah" || statusKirim === "sudah terkirim" || statusKirim === "terkirim") {
-        isSent = true;
-    }
+    let isSent = (statusKirim === "sudah" || statusKirim === "sudah terkirim" || statusKirim === "terkirim");
 
     const isBll = (m.status_bll === "BLL");
     const bllBadge = isBll ? '<span class="badge-bll">BLL</span>' : '';
@@ -352,64 +321,65 @@ function createRowHtml(m, majelisId) {
     
     const valAngsuran = formatRupiah(m.angsuran);
     const valPartial = formatRupiah(m.partial);
-    const valSudahBayar = formatAngkaSaja(m.data_p);
 
-    const selectId = `payment-${rawCustNo}`;
-    const checkId = `check-${rawCustNo}`;
+    const selectId = `select-${rawCustNo}`;
+    const btnId = `btn-${rawCustNo}`;
+    const rowId = `row-wrapper-${rawCustNo}`; // ID untuk wrapper aksi
     
-    let inputControlHtml;
-    let checkboxHtml;
+    // LOGIKA TAMPILAN AKSI
+    let actionHtml;
 
     if(isSent) {
-        // SUDAH TERKIRIM
-        checkboxHtml = `<i class="fa-solid fa-check-circle text-success fs-5"></i>`;
-        inputControlHtml = `
-            <div class="text-end">
-                <span class="badge bg-secondary">Terkirim (${m.jenis_pembayaran || "-"})</span>
-            </div>
+        // Jika SUDAH terkirim -> Tampilkan Badge Selesai
+        actionHtml = `
+            <span class="badge bg-success rounded-pill">
+                <i class="fa-solid fa-check"></i> Terkirim
+            </span>
+            <div style="font-size: 9px; color: #666; margin-top:2px;">${m.jenis_pembayaran || "Normal"}</div>
         `;
     } else {
-        // BELUM TERKIRIM
-        // Checkbox DISABLED sampai dropdown dipilih
-        checkboxHtml = `
-            <input type="checkbox" class="form-check-input chk-mitra-${majelisId}" 
-                id="${checkId}" 
-                data-custno="${rawCustNo}" 
-                data-mitra="${rawMitra}"
-                disabled
-                onchange="window.handleCheckChange('${majelisId}')">
-        `;
-
-        inputControlHtml = `
-            <select id="${selectId}" class="form-select form-select-sm ms-auto" 
-                style="width: 110px; font-size: 11px;"
-                onchange="window.handleJnsBayarChange(this, '${checkId}', '${majelisId}')">
-                <option value="" selected disabled>-- Pilih --</option>
-                <option value="Normal">Normal</option>
-                <option value="PAR">PAR</option>
-                <option value="Partial">Partial</option>
-                <option value="Par Payment">Par Payment</option>
-                <option value="JB">JB</option> 
-            </select>
+        // Jika BELUM terkirim -> Tampilkan Dropdown + Tombol Kirim Kecil
+        actionHtml = `
+            <div class="d-flex justify-content-end align-items-center gap-1" id="${rowId}">
+                <select id="${selectId}" class="form-select form-select-sm" 
+                    style="width: 90px; font-size: 11px;"
+                    onchange="window.enableSendButton('${btnId}', this)">
+                    <option value="" selected disabled>Pilih...</option>
+                    <option value="Normal">Normal</option>
+                    <option value="PAR">PAR</option>
+                    <option value="Partial">Partial</option>
+                    <option value="Par Payment">Par Pay</option>
+                    <option value="JB">JB</option> 
+                </select>
+                <button id="${btnId}" class="btn btn-primary btn-sm px-2 py-1" disabled
+                    onclick="window.kirimPerMitra('${rawCustNo}', '${safeMitra}', '${safeNamaBP}', '${selectId}', '${btnId}', '${rowId}')">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </button>
+            </div>
         `;
     }
 
+    // Indikator Status (Kiri)
+    let statusIcon = isSent 
+        ? `<i class="fa-solid fa-circle-check text-success"></i>` 
+        : `<i class="fa-regular fa-circle text-muted"></i>`;
+
     return `
         <tr>
-            <td class="ps-3 align-middle text-center">
-                ${checkboxHtml}
+            <td class="ps-3 align-middle text-center" style="font-size: 12px;">
+                ${statusIcon}
             </td>
-            <td>
+            <td class="align-middle">
                 <span class="mitra-name">${rawMitra} ${bllBadge}</span>
                 <div style="font-size: 10px;" class="text-muted"><i class="fa-regular fa-id-card me-1"></i>${rawCustNo}</div>
-                <div class="${badgeClass} fw-bold" style="font-size: 10px;">Status: ${m.status || "-"}</div>
+                <div class="${badgeClass} fw-bold" style="font-size: 10px;">${m.status || "-"}</div>
             </td>
-            <td>
+            <td class="align-middle">
                 <div class="nominal-text">${valAngsuran}</div>
-                ${valPartial !== '-' ? `<div class="nominal-text text-danger" style="font-size:9px">Partial: ${valPartial}</div>` : ''}
+                ${valPartial !== '-' ? `<div class="nominal-text text-danger" style="font-size:9px">Part: ${valPartial}</div>` : ''}
             </td>
             <td class="text-end align-middle pe-3">
-                ${inputControlHtml}
+                ${actionHtml}
             </td>
         </tr>
     `;
@@ -447,160 +417,102 @@ if(els.btnTampilkan) {
 }
 
 // =========================================================================
-// LOGIKA INTERAKSI & PENGIRIMAN DATA (ANTI-GAGAL)
+// LOGIKA BARU: KIRIM PER MITRA (SEQUENTIAL LOCKING)
 // =========================================================================
 
-// 1. Dropdown Changed -> Aktifkan Checkbox
-window.handleJnsBayarChange = function(selectEl, checkId, majelisId) {
-    const checkbox = document.getElementById(checkId);
-    if (!checkbox) return;
-
-    if (selectEl.value !== "") {
-        checkbox.disabled = false;
-        checkbox.checked = true; // Auto centang
-    } else {
-        checkbox.checked = false;
-        checkbox.disabled = true;
+// 1. Enable Button saat Dropdown Dipilih
+window.enableSendButton = function(btnId, selectEl) {
+    const btn = document.getElementById(btnId);
+    if(btn) {
+        if(selectEl.value !== "") {
+            btn.disabled = false;
+        } else {
+            btn.disabled = true;
+        }
     }
-    // Validasi ulang tombol kirim
-    window.handleCheckChange(majelisId);
-};
+}
 
-// 2. Checkbox Changed -> Validasi Tombol Kirim
-window.handleCheckChange = function(majelisId) {
-    const btnKirim = document.getElementById(`btn-kirim-${majelisId}`);
-    const msg = document.getElementById(`msg-${majelisId}`);
-    
-    // Ambil semua checkbox AKTIF (belum terkirim)
-    const allCheckboxes = document.querySelectorAll(`.chk-mitra-${majelisId}`);
-    const total = allCheckboxes.length;
-    
-    let checkedCount = 0;
-    allCheckboxes.forEach(chk => {
-        if (chk.checked) checkedCount++;
-    });
-
-    // Syarat: SEMUA harus dicentang
-    if (total > 0 && checkedCount === total) {
-        btnKirim.disabled = false;
-        msg.classList.remove('text-muted');
-        msg.classList.add('text-success', 'fw-bold');
-        msg.innerText = "Siap dikirim!";
-    } else {
-        btnKirim.disabled = true;
-        msg.classList.remove('text-success', 'fw-bold');
-        msg.classList.add('text-muted');
-        msg.innerText = `*Lengkapi pembayaran semua mitra (${checkedCount}/${total}) untuk mengirim`;
+// 2. FUNGSI KIRIM SATU PER SATU DENGAN LOCKING
+window.kirimPerMitra = async function(custNo, namaMitra, namaBP, selectId, btnId, rowId) {
+    // CEK LOCK: Jika sedang ada transaksi berjalan, tolak request baru
+    if (isTransactionActive) {
+        alert("⚠️ Sedang mengirim data lain. Mohon tunggu sampai selesai satu per satu.");
+        return;
     }
-};
 
-// 3. FUNGSI KIRIM SEKALIGUS (SEQUENTIAL & RETRY)
-// Ini kunci agar server tidak penuh/error
-window.kirimSekaligus = async function(majelisId, namaMajelis, namaBP) {
-    const checkboxes = document.querySelectorAll(`.chk-mitra-${majelisId}:checked`);
+    const selectEl = document.getElementById(selectId);
+    const jnsBayar = selectEl ? selectEl.value : "";
+    const btn = document.getElementById(btnId);
+
+    if (!jnsBayar) {
+        alert("Pilih jenis pembayaran dulu!");
+        return;
+    }
+
+    // KONFIRMASI (Opsional, agar tidak salah pencet)
+    if (!confirm(`Kirim data untuk ${namaMitra} sebagai ${jnsBayar}?`)) return;
+
+    // --- MULAI LOCKING ---
+    isTransactionActive = true; 
     
-    if (checkboxes.length === 0) return;
-    if (!confirm(`Kirim data ${checkboxes.length} mitra di majelis ${namaMajelis}?`)) return;
+    // Update UI Button jadi Loading
+    const originalBtnContent = btn.innerHTML;
+    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
+    btn.disabled = true;
+    selectEl.disabled = true;
 
-    const btn = document.getElementById(`btn-kirim-${majelisId}`);
-    
-    // Matikan semua input biar user tidak ubah-ubah saat proses
-    checkboxes.forEach(chk => {
-        chk.disabled = true;
-        const custNo = chk.getAttribute('data-custno');
-        const select = document.getElementById(`payment-${custNo}`);
-        if(select) select.disabled = true;
-    });
-
-    let successCount = 0;
-    let failCount = 0;
-    const failedNames = [];
-
-    // LOOPING ANTRIAN (Satu per satu)
-    for (let i = 0; i < checkboxes.length; i++) {
-        const chk = checkboxes[i];
-        const custNo = chk.getAttribute('data-custno');
-        const namaMitra = chk.getAttribute('data-mitra');
-        
-        // Update UI Text Tombol
-        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Mengirim ${i + 1} dari ${checkboxes.length}...`;
-
-        const selectEl = document.getElementById(`payment-${custNo}`);
-        const jenisBayar = selectEl ? selectEl.value : "Normal";
-
+    try {
         const payload = {
             action: "input_laporan",
             jenisLaporan: "ClosingModal",
             idKaryawan: userProfile.idKaryawan || "Unknown",
-            namaBP: namaBP, // Sekarang aman dari tanda petik
+            namaBP: namaBP,
             customerNumber: custNo,
-            jenisPembayaran: jenisBayar
+            jenisPembayaran: jnsBayar
         };
 
-        // Kirim dengan Retry System
-        const isSuccess = await sendWithRetry(payload, namaMitra);
+        // Kirim ke Google Script
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+            headers: { "Content-Type": "text/plain;charset=utf-8" }
+        });
 
-        if (isSuccess) {
-            successCount++;
-            // Update Data Lokal
+        const result = await response.json();
+
+        if (result.result === 'success') {
+            // SUKSES: Update Data Lokal
             const idx = globalData.findIndex(item => String(item.cust_no) === String(custNo));
             if (idx !== -1) {
                 globalData[idx].status_kirim = "Sudah";
-                globalData[idx].jenis_pembayaran = jenisBayar;
+                globalData[idx].jenis_pembayaran = jnsBayar;
+            }
+
+            // SUKSES: Ubah Tampilan Baris Menjadi "Terkirim"
+            const wrapper = document.getElementById(rowId);
+            if (wrapper) {
+                wrapper.parentElement.innerHTML = `
+                    <span class="badge bg-success rounded-pill animate__animated animate__fadeIn">
+                        <i class="fa-solid fa-check"></i> Terkirim
+                    </span>
+                    <div style="font-size: 9px; color: #666; margin-top:2px;">${jnsBayar}</div>
+                `;
             }
         } else {
-            failCount++;
-            failedNames.push(namaMitra);
+            throw new Error(result.error || "Gagal menyimpan");
         }
 
-        // Jeda Napas 300ms agar server aman
-        await new Promise(r => setTimeout(r, 300)); 
-    }
-
-    // SELESAI
-    renderGroupedData(globalData);
-
-    // Buka kembali Accordion
-    setTimeout(() => {
-        const accItem = document.getElementById(`acc-item-${majelisId}`);
-        if(accItem) {
-            const collapseDiv = accItem.querySelector('.accordion-collapse');
-            const btnToggle = accItem.querySelector('.accordion-button');
-            if(collapseDiv) collapseDiv.classList.add('show');
-            if(btnToggle) btnToggle.classList.remove('collapsed');
-            
-            // Scroll ke tombol
-            const newBtn = document.getElementById(`btn-kirim-${majelisId}`);
-            if(newBtn && failCount > 0) newBtn.scrollIntoView({behavior: "smooth", block: "center"});
-        }
-    }, 100);
-
-    if (failCount > 0) {
-        alert(`Selesai.\nSukses: ${successCount}\nGagal: ${failCount}\n\nGagal pada: \n- ${failedNames.join('\n- ')}\n\nSilakan coba kirim ulang yang gagal.`);
+    } catch (error) {
+        console.error(error);
+        alert(`Gagal mengirim data ${namaMitra}. Silakan coba lagi.\nError: ${error.message}`);
+        
+        // KEMBALIKAN TOMBOL JIKA GAGAL
+        btn.innerHTML = originalBtnContent;
+        btn.disabled = false;
+        selectEl.disabled = false;
+    } finally {
+        // --- LEPAS LOCKING ---
+        // Apapun yang terjadi (sukses/gagal), kunci harus dibuka agar bisa kirim yang lain
+        isTransactionActive = false;
     }
 };
-
-// 4. HELPER RETRY MECHANISM
-async function sendWithRetry(payload, namaMitra, maxRetries = 3) {
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-            const response = await fetch(SCRIPT_URL, {
-                method: 'POST',
-                body: JSON.stringify(payload),
-                headers: { "Content-Type": "text/plain;charset=utf-8" }
-            });
-            const result = await response.json();
-            
-            if (result.result === 'success') {
-                return true; // Berhasil
-            } else {
-                throw new Error(result.error || "Server menolak");
-            }
-        } catch (error) {
-            console.warn(`Gagal kirim ${namaMitra} (Percobaan ${attempt}):`, error);
-            if (attempt === maxRetries) return false;
-            // Tunggu 1.5 detik sebelum retry
-            await new Promise(r => setTimeout(r, 1500));
-        }
-    }
-}
