@@ -16,7 +16,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; // Pastikan Worker ini meneruskan request ke Apps Script Anda
+const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev";
 const ADMIN_ID = "17246";
 
 const userNameSpan = document.getElementById('userName');
@@ -24,7 +24,7 @@ const logoutBtn = document.getElementById('logoutBtn');
 const btnAdmin = document.getElementById('btnAdmin'); 
 const closingMenuBtn = document.getElementById('closingMenuBtn');
 
-// --- FITUR AUTO LOGOUT ---
+// --- AUTO LOGOUT ---
 let idleTime = 0;
 const IDLE_LIMIT = 5; 
 function timerIncrement() {
@@ -43,11 +43,9 @@ window.onload = function() {
     window.onmousemove = resetTimer; window.onmousedown = resetTimer; window.ontouchstart = resetTimer; 
     window.onclick = resetTimer; window.onkeypress = resetTimer; window.addEventListener('scroll', resetTimer, true); 
 
-    // LOAD GRAFIK AREA SETELAH HALAMAN SIAP
     loadAreaProgressChart();
 };
 
-// --- HELPER TIME ---
 function getLocalTodayDate() {
     const d = new Date();
     const year = d.getFullYear();
@@ -68,15 +66,26 @@ async function checkAbsensiStatus(uid) {
         const snapshot = await get(absensiRef);
         const btnAbsen = document.getElementById('btnAbsen');
         if (!btnAbsen) return;
+        
+        // Selector baru untuk teks di card absensi
         const textEl = btnAbsen.querySelector('.menu-text');
+        const iconEl = btnAbsen.querySelector('.widget-icon');
+        const labelEl = btnAbsen.querySelector('.widget-label');
+
         if (snapshot.exists()) {
-            btnAbsen.style.pointerEvents = "none"; btnAbsen.style.opacity = "0.5"; btnAbsen.style.filter = "grayscale(100%)"; 
-            if (textEl) { textEl.innerText = "Sudah Absen"; textEl.style.fontWeight = "bold"; textEl.style.color = "#666"; }
+            // Style: Sudah Absen
+            btnAbsen.style.pointerEvents = "none"; 
+            if (textEl) { textEl.innerText = "Sudah Absen"; textEl.style.color = "#2e7d32"; } // Hijau
+            if (iconEl) { iconEl.innerHTML = '<i class="fa-solid fa-check"></i>'; iconEl.style.background = "#e8f5e9"; iconEl.style.color = "#2e7d32"; }
+            if (labelEl) labelEl.innerText = "Terima Kasih";
         } else {
             const jamSekarang = getCurrentTimeWIB();
             if (jamSekarang > "08:15") {
-                btnAbsen.style.pointerEvents = "none"; btnAbsen.style.opacity = "0.5"; btnAbsen.style.filter = "grayscale(100%)"; 
-                if (textEl) { textEl.innerText = "Absen Tutup"; textEl.style.fontWeight = "bold"; textEl.style.color = "#666"; }
+                // Style: Terlambat/Tutup
+                btnAbsen.style.pointerEvents = "none";
+                btnAbsen.style.opacity = "0.7";
+                if (textEl) { textEl.innerText = "Absen Tutup"; textEl.style.color = "#c62828"; }
+                if (iconEl) { iconEl.style.background = "#ffebee"; iconEl.style.color = "#c62828"; }
             }
         }
     } catch (error) { console.error("Gagal cek absensi:", error); }
@@ -93,12 +102,20 @@ onAuthStateChanged(auth, (user) => {
             if (snapshot.exists()) {
                 const data = snapshot.val();
                 const realName = data.nama || data.idKaryawan || user.email;
-                if (userNameSpan) userNameSpan.textContent = realName;
+                if (userNameSpan) {
+                    userNameSpan.textContent = realName;
+                    userNameSpan.classList.remove('skeleton-text'); // Hapus efek loading
+                }
+                
                 if (String(data.idKaryawan).trim() === ADMIN_ID && btnAdmin) btnAdmin.classList.remove('d-none');
+                
                 const userJabatan = data.jabatan || ""; 
                 if (["RM", "AM", "BM"].includes(userJabatan.toUpperCase()) && closingMenuBtn) closingMenuBtn.classList.remove('d-none');
             } else {
-                if (userNameSpan) userNameSpan.textContent = user.email;
+                if (userNameSpan) {
+                    userNameSpan.textContent = user.email;
+                    userNameSpan.classList.remove('skeleton-text');
+                }
             }
         }).catch(err => console.log("Gagal load profil:", err));
     } else {
@@ -112,7 +129,7 @@ if (logoutBtn) {
     });
 }
 
-// --- FUNGSI UPDATE JAM REPAYMENT ---
+// --- UPDATE JAM REPAYMENT ---
 async function loadRepaymentInfo() {
     const labelUpdate = document.getElementById('repaymentUpdateVal');
     if (!labelUpdate) return;
@@ -139,15 +156,15 @@ function formatJamOnly(val) {
     } catch (e) { return ""; }
 }
 
-// --- FUNGSI LEADERBOARD ---
+// --- LEADERBOARD (Updated Selectors) ---
 async function loadLeaderboard() {
     try {
-        setLoadingState();
+        // Data masih 'Memuat...' (Skeleton active by CSS default)
         const response = await fetch(SCRIPT_URL, {
             method: 'POST', body: JSON.stringify({ action: "get_leaderboard" }), headers: { "Content-Type": "text/plain;charset=utf-8" }
         });
         const result = await response.json();
-        if (result.result !== "success" || !result.data || result.data.length === 0) { showErrorState("Belum Ada Data"); return; }
+        if (result.result !== "success" || !result.data || result.data.length === 0) { return; }
 
         const top3 = result.data;
         let usersMap = {};
@@ -164,76 +181,63 @@ async function loadLeaderboard() {
         updatePodium(".rank-1", top3[0], usersMap);
         updatePodium(".rank-2", top3[1], usersMap);
         updatePodium(".rank-3", top3[2], usersMap);
-    } catch (error) { showErrorState("Gagal Koneksi"); }
+    } catch (error) { console.error("Err Leaderboard", error); }
 }
 
-function setLoadingState() {
-    [".rank-1", ".rank-2", ".rank-3"].forEach(sel => {
-        const c = document.querySelector(sel);
-        if(c) {
-            if(c.querySelector('.bp-name')) c.querySelector('.bp-name').textContent = "Memuat...";
-            if(c.querySelector('.bp-amount')) c.querySelector('.bp-amount').textContent = "-";
-        }
-    });
-}
-function showErrorState(msg) {
-    const c = document.querySelector(".rank-1");
-    if(c) c.querySelector('.bp-name').innerHTML = `<span style="color:red; font-size:10px;">${msg}</span>`;
-}
 function updatePodium(sel, data, usersMap) {
     const c = document.querySelector(sel); if (!c) return;
+    // Hapus kelas skeleton
+    const txtName = c.querySelector('.p-name');
+    const txtAmt = c.querySelector('.p-amount');
+    const img = c.querySelector('.avatar-img');
+    
+    if(txtName) txtName.classList.remove('skeleton-text');
+    if(txtAmt) txtAmt.classList.remove('skeleton-text');
+    if(img) img.classList.remove('skeleton-img');
+
     if (data && data.idKaryawan) {
         const id = String(data.idKaryawan).trim();
         const p = usersMap[id];
         const name = p ? p.nama : `ID: ${data.idKaryawan}`;
         const photo = (p && p.foto) ? p.foto : `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`;
         
-        c.querySelector('.bp-name').textContent = name;
-        c.querySelector('.bp-point').textContent = data.point || "-";
-        c.querySelector('.bp-amount').textContent = formatJuta(data.amount);
-        c.querySelector('.avatar-img').src = photo;
+        if(txtName) txtName.textContent = name;
+        if(txtAmt) txtAmt.textContent = formatJuta(data.amount);
+        if(img) img.src = photo;
     } else {
-        c.querySelector('.bp-name').textContent = "-";
-        c.querySelector('.bp-amount').textContent = "";
+        if(txtName) txtName.textContent = "-";
     }
 }
+
 function formatJuta(n) {
     if (!n) return "Rp 0";
     let num = Number(String(n).replace(/[^0-9.-]+/g,""));
     if (isNaN(num)) return "Rp 0";
-    if (num >= 1e9) return "Rp " + (num / 1e9).toFixed(1) + "M";
-    else if (num >= 1e6) return "Rp " + (num / 1e6).toFixed(1) + "jt";
-    else if (num >= 1e3) return "Rp " + (num / 1e3).toFixed(0) + "rb";
-    else return "Rp " + num.toLocaleString('id-ID');
+    if (num >= 1e9) return (num / 1e9).toFixed(1) + "M";
+    else if (num >= 1e6) return (num / 1e6).toFixed(1) + "jt";
+    else return (num / 1e3).toFixed(0) + "rb";
 }
 
-// --- FUNGSI CHART AREA PROGRESS (UPDATED: LABEL DI LUAR + FORMAT RIBUAN) ---
+// --- CHART (No Change in Logic, just sizing) ---
 async function loadAreaProgressChart() {
     const ctxCanvas = document.getElementById('areaProgressChart');
     if (!ctxCanvas) return;
 
     try {
         const response = await fetch(SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: "get_area_progress" }),
-            headers: { "Content-Type": "text/plain;charset=utf-8" }
+            method: 'POST', body: JSON.stringify({ action: "get_area_progress" }), headers: { "Content-Type": "text/plain;charset=utf-8" }
         });
 
         const result = await response.json();
-        if (result.result !== "success" || !result.data || result.data.length === 0) {
-            console.warn("Data Area Progress kosong/gagal."); return;
-        }
+        if (result.result !== "success" || !result.data || result.data.length === 0) return;
 
         const areaData = result.data;
         const labels = areaData.map(d => d.area);
         
-        // Hitung Persentase
         const dailyPrc = areaData.map(d => d.plan > 0 ? ((d.progress / d.plan) * 100).toFixed(1) : 0);
         const achievePrc = areaData.map(d => d.target > 0 ? ((d.achievement / d.target) * 100).toFixed(1) : 0);
 
         if (window.myAreaChart) window.myAreaChart.destroy();
-
-        // Register Plugin
         Chart.register(ChartDataLabels);
 
         window.myAreaChart = new Chart(ctxCanvas.getContext('2d'), {
@@ -242,18 +246,18 @@ async function loadAreaProgressChart() {
                 labels: labels,
                 datasets: [
                     {
-                        label: 'Harian (Prog / Plan)',
+                        label: 'Harian',
                         data: dailyPrc,
-                        backgroundColor: 'rgba(54, 162, 235, 0.8)', // Biru
-                        borderColor: 'rgba(54, 162, 235, 1)',
+                        backgroundColor: 'rgba(142, 38, 212, 0.7)', // Purple theme
+                        borderColor: 'rgba(142, 38, 212, 1)',
                         borderWidth: 1,
                         barPercentage: 0.7, categoryPercentage: 0.8
                     },
                     {
-                        label: 'Pencapaian (Ach / Tgt)',
+                        label: 'Pencapaian',
                         data: achievePrc,
-                        backgroundColor: 'rgba(75, 192, 192, 0.8)', // Hijau Teal
-                        borderColor: 'rgba(75, 192, 192, 1)',
+                        backgroundColor: 'rgba(255, 179, 0, 0.7)', // Amber theme
+                        borderColor: 'rgba(255, 179, 0, 1)',
                         borderWidth: 1,
                         barPercentage: 0.7, categoryPercentage: 0.8
                     }
@@ -263,19 +267,13 @@ async function loadAreaProgressChart() {
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
-                layout: { 
-                    padding: { right: 80 } // Tambah padding kanan agar text panjang tidak terpotong
-                }, 
+                layout: { padding: { right: 50 } }, 
                 plugins: {
-                    legend: { position: 'top', labels: { font: { size: 10 }, boxWidth: 10 } },
+                    legend: { position: 'top', labels: { font: { size: 10 }, boxWidth: 10, usePointStyle: true } },
                     tooltip: {
                         callbacks: {
                             label: function(ctx) {
-                                // Tooltip dengan format ribuan
-                                let lbl = ctx.dataset.label || '';
-                                if (lbl.includes('(')) lbl = lbl.split('(')[0].trim() + ': ';
-                                lbl += ctx.parsed.x + '%';
-                                
+                                let lbl = ctx.dataset.label + ': ' + ctx.parsed.x + '%';
                                 const item = areaData[ctx.dataIndex];
                                 if (ctx.datasetIndex === 0) lbl += ` (${formatRibuan(item.progress)}/${formatRibuan(item.plan)})`;
                                 else lbl += ` (${formatRibuan(item.achievement)}/${formatRibuan(item.target)})`;
@@ -283,34 +281,16 @@ async function loadAreaProgressChart() {
                             }
                         }
                     },
-                    // KONFIGURASI LABEL ANGKA DI LUAR BATANG
                     datalabels: {
-                        color: 'black', // Text hitam karena background putih (di luar batang)
-                        anchor: 'end',  // Posisi di ujung batang
-                        align: 'end',   // Menjorok ke luar (ke kanan)
-                        offset: 4,      // Jarak dari batang
+                        color: '#444',
+                        anchor: 'end', align: 'end', offset: 4,
                         font: { weight: 'bold', size: 9 },
-                        formatter: function(value, context) {
-                            const index = context.dataIndex;
-                            const item = areaData[index];
-
-                            // FORMAT RIBUAN DITERAPKAN DI SINI (TITIK)
-                            if (context.datasetIndex === 0) {
-                                return `${formatRibuan(item.progress)} / ${formatRibuan(item.plan)}`;
-                            } else {
-                                return `${formatRibuan(item.achievement)} / ${formatRibuan(item.target)}`;
-                            }
-                        }
+                        formatter: function(value) { return value + "%"; }
                     }
                 },
                 scales: {
-                    x: { 
-                        beginAtZero: true, 
-                        // Tambah max value visual agar batang 100% tidak mentok kanan & nabrak text
-                        suggestedMax: 130, 
-                        ticks: { callback: v => v + "%", font: { size: 9 } } 
-                    },
-                    y: { ticks: { font: { size: 10, weight: 'bold' } } }
+                    x: { beginAtZero: true, suggestedMax: 120, grid: { display: false }, ticks: { display: false } },
+                    y: { grid: { display: false }, ticks: { font: { size: 10, weight: '500' } } }
                 }
             }
         });
