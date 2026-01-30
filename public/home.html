@@ -3,98 +3,178 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Data Majelis - Amartha Jateng</title>
+    <title>Dashboard - Amartha</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-    
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap-grid.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <link rel="stylesheet" href="css/majelis.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+
+    <link href="styles/home.css" rel="stylesheet">
+    <link rel="icon" type="image/png" href="assets/amarthalogo.png">
 </head>
 <body>
 
-    <div id="loadingOverlay" class="d-none position-fixed top-0 start-0 w-100 h-100 d-flex flex-column justify-content-center align-items-center" style="z-index: 9999;">
-        <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;"></div>
-        <p class="text-muted fw-bold small">Memproses Data...</p>
-    </div>
-
-    <header class="navbar-modern">
-        <div class="container nav-content">
-            <a href="home.html" class="btn-back-glass">
-                <i class="fa-solid fa-arrow-left"></i>
-            </a>
-            <h1 class="page-title">Data Majelis</h1>
+    <header class="dashboard-header">
+        <div class="header-content">
+            <div class="user-info">
+                <span class="greeting">Selamat Bekerja,</span>
+                <h2 id="userName" class="skeleton-text">Memuat...</h2>
+            </div>
+            <div class="header-actions">
+                <a href="admin_user.html" id="btnAdmin" class="btn-glass d-none">
+                    <i class="fa-solid fa-users-gear"></i>
+                </a>
+                
+                <button class="btn-glass" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <img src="assets/amarthalogo.png" class="header-avatar" alt="User">
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4 mt-2">
+                    <li><h6 class="dropdown-header">Menu Akun</h6></li>
+                    <li><a class="dropdown-item" href="profil.html"><i class="fa-regular fa-user me-2"></i> Profil Saya</a></li>
+                    <li><a class="dropdown-item d-none" id="closingMenuBtn" href="closing_point.html"><i class="fa-solid fa-clipboard-check me-2"></i> Closing Point</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><button class="dropdown-item text-danger" id="logoutBtn"><i class="fa-solid fa-power-off me-2"></i> Keluar</button></li>
+                </ul>
+            </div>
         </div>
     </header>
 
-    <div class="filter-container">
-        <div class="glass-card">
-            <div class="row g-3">
-                <div class="col-6">
-                    <label class="form-label-sm">Area</label>
-                    <select id="filterArea" class="form-select-modern w-100">
-                        <option value="">Semua Area</option>
-                    </select>
+    <div class="content-wrapper">
+        
+        <a href="absensi.html" id="btnAbsen" class="hero-widget">
+            <div class="widget-icon">
+                <i class="fa-solid fa-fingerprint"></i>
+            </div>
+            <div class="widget-info">
+                <span class="widget-label">Status Absensi</span>
+                <h4 class="menu-text">Masuk Sekarang</h4>
+            </div>
+            <div class="widget-arrow">
+                <i class="fa-solid fa-chevron-right"></i>
+            </div>
+        </a>
+
+        <div class="section-title">
+            Top Performance <span class="badge bg-warning text-dark ms-2">Live</span>
+        </div>
+        <div class="leaderboard-card">
+            <div class="podium-container">
+                <div class="podium-item rank-2">
+                    <div class="avatar-wrapper">
+                        <img src="" class="avatar-img skeleton-img" alt="2nd">
+                        <div class="rank-badge">#2</div>
+                    </div>
+                    <div class="podium-base">
+                        <div class="p-name text-truncate skeleton-text">...</div>
+                        <div class="p-amount skeleton-text">-</div>
+                    </div>
                 </div>
-                <div class="col-6">
-                    <label class="form-label-sm">Hari</label>
-                    <select id="filterHari" class="form-select-modern w-100">
-                        <option value="">Semua Hari</option>
-                        <option value="Senin">Senin</option>
-                        <option value="Selasa">Selasa</option>
-                        <option value="Rabu">Rabu</option>
-                        <option value="Kamis">Kamis</option>
-                        <option value="Jumat">Jumat</option>
-                    </select>
+                <div class="podium-item rank-1">
+                    <div class="crown-icon"><i class="fa-solid fa-crown"></i></div>
+                    <div class="avatar-wrapper">
+                        <img src="" class="avatar-img skeleton-img" alt="1st">
+                        <div class="rank-badge">#1</div>
+                    </div>
+                    <div class="podium-base">
+                        <div class="p-name text-truncate skeleton-text">...</div>
+                        <div class="p-amount fw-bold skeleton-text">-</div>
+                    </div>
                 </div>
-                <div class="col-6">
-                    <label class="form-label-sm">Point</label>
-                    <select id="filterPoint" class="form-select-modern w-100">
-                        <option value="">Semua</option>
-                    </select>
-                </div>
-                <div class="col-6">
-                    <label class="form-label-sm">Nama BP</label>
-                    <select id="filterBP" class="form-select-modern w-100">
-                        <option value="">Semua</option>
-                    </select>
-                </div>
-                <div class="col-12 mt-4">
-                    <button id="btnTampilkan" class="btn-primary-modern w-100">
-                        <i class="fa-solid fa-filter me-2"></i>Tampilkan Data
-                    </button>
+                <div class="podium-item rank-3">
+                    <div class="avatar-wrapper">
+                        <img src="" class="avatar-img skeleton-img" alt="3rd">
+                        <div class="rank-badge">#3</div>
+                    </div>
+                    <div class="podium-base">
+                        <div class="p-name text-truncate skeleton-text">...</div>
+                        <div class="p-amount skeleton-text">-</div>
+                    </div>
                 </div>
             </div>
+            <div class="text-center mt-3">
+                <a href="#" class="btn-link-sm">Lihat Peringkat Lengkap ></a>
+            </div>
         </div>
+
+        <div class="section-title">Menu Pekerjaan</div>
+        <div class="horizontal-scroll-wrapper">
+            
+            <a href="majelis.html" class="app-card highlight-card">
+                <div class="card-icon"><i class="fa-solid fa-money-check-dollar"></i></div>
+                <div class="card-meta">
+                    <span class="card-title">Repayment</span>
+                    <span class="card-subtitle">Upd: <b id="repaymentUpdateVal">...</b></span>
+                </div>
+            </a>
+            
+            <a href="daily_collection.html" class="app-card">
+                <div class="card-icon"><i class="fa-solid fa-calendar-day"></i></div>
+                <span class="card-title">Daily Coll.</span>
+            </a>
+
+            <a href="report_validasi.html" class="app-card">
+                <div class="card-icon"><i class="fa-solid fa-clipboard-check"></i></div>
+                <span class="card-title">Validasi</span>
+            </a>
+
+            <a href="report_sosialisasi.html" class="app-card">
+                <div class="card-icon"><i class="fa-solid fa-users-rectangle"></i></div>
+                <span class="card-title">Sosialisasi</span>
+            </a>
+
+            <a href="report_celengan.html" class="app-card">
+                <div class="card-icon"><i class="fa-solid fa-piggy-bank"></i></div>
+                <span class="card-title">Celengan</span>
+            </a>
+
+            <a href="dashboard_portofolio.html" class="app-card">
+                <div class="card-icon"><i class="fa-solid fa-chart-line"></i></div>
+                <span class="card-title">Portofolio</span>
+            </a>
+            
+            <div style="min-width: 10px;"></div>
+        </div>
+
+        <div class="chart-container-modern">
+            <div class="chart-header">
+                <div class="chart-title"><i class="fa-solid fa-chart-simple me-2"></i>Progres Area</div>
+            </div>
+            <div class="chart-body">
+                <canvas id="areaProgressChart"></canvas>
+            </div>
+        </div>
+
+        <div class="footer-spacer"></div>
     </div>
 
-    <div class="stats-scroll-wrapper">
-        <div class="stat-pill">
-            <i class="fa-solid fa-users-rectangle"></i>
-            <span id="totalMajelis">0 Majelis</span>
+    <div class="fab-wrapper" id="fabMenu">
+        <div class="fab-overlay" onclick="toggleFab()"></div>
+        <div class="fab-list">
+            <a href="fu_sos.html" class="fab-action">
+                <span class="fab-text">Quest FU SOS</span>
+                <div class="fab-icon-small"><i class="fa-solid fa-scroll"></i></div>
+            </a>
+            <a href="perform_bp.html" class="fab-action">
+                <span class="fab-text">Perform BP</span>
+                <div class="fab-icon-small"><i class="fa-solid fa-chart-pie"></i></div>
+            </a>
+            <a href="link_penting.html" class="fab-action">
+                <span class="fab-text">Link Penting</span>
+                <div class="fab-icon-small"><i class="fa-solid fa-link"></i></div>
+            </a>
         </div>
-        <div class="stat-pill">
-            <i class="fa-solid fa-user-group"></i>
-            <span id="totalMitra">0 Mitra</span>
-        </div>
-    </div>
-
-    <div id="majelisContainer" class="majelis-list-container">
-        </div>
-
-    <div id="emptyState" class="text-center py-5 d-none">
-        <div style="font-size: 3rem; color: #cbd5e1; margin-bottom: 1rem;">
-            <i class="fa-solid fa-magnifying-glass-location"></i>
-        </div>
-        <h5 class="fw-bold text-secondary">Data Tidak Ditemukan</h5>
-        <p class="text-muted small px-4">Silakan sesuaikan filter di atas dan klik tombol Tampilkan.</p>
+        <button class="fab-trigger" onclick="toggleFab()">
+            <i class="fa-solid fa-plus"></i>
+        </button>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script type="module" src="js/majelis.js"></script>
-
+    <script type="module" src="./js/home.js"></script>
+    <script>
+        function toggleFab(){
+            document.getElementById('fabMenu').classList.toggle('active');
+        }
+    </script>
 </body>
 </html>
