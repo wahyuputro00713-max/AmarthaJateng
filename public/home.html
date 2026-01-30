@@ -3,252 +3,153 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dashboard - Amartha</title>
+    <title>Amartha Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
-
     <link href="styles/home.css" rel="stylesheet">
-    <link rel="icon" type="image/png" href="assets/amarthalogo.png">
-    <style>
-        /* --- CSS KHUSUS LEADERBOARD & HOME --- */
-        .leaderboard-section {
-            background: white;
-            border-radius: 15px;
-            padding: 20px 15px;
-            margin-bottom: 25px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-            text-align: center;
-        }
-        .leaderboard-title {
-            font-size: 14px;
-            font-weight: bold;
-            color: #6c757d;
-            margin-bottom: 25px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        .podium-container { display: flex; justify-content: center; align-items: flex-end; gap: 10px; }
-        .podium-card { display: flex; flex-direction: column; align-items: center; position: relative; }
-        
-        /* CONTAINER LINGKARAN FOTO */
-        .avatar-ring { 
-            position: relative; z-index: 10; 
-            background: white; padding: 3px; 
-            margin-bottom: -18px; 
-            border-radius: 50%; 
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1); 
-            overflow: hidden; /* Pastikan foto tidak keluar lingkaran */
-        }
-
-        /* FIX: CSS UNTUK SEMUA GAMBAR PROFILE AGAR TIDAK BOCOR/BESAR */
-        .avatar-img { 
-            width: 100%; 
-            height: 100%; 
-            border-radius: 50%; 
-            object-fit: cover; 
-            background: #eee; 
-            display: block;
-        }
-
-        /* KHUSUS JUARA 1 */
-        .rank-1 { width: 38%; z-index: 5; }
-        .rank-1 .avatar-ring { width: 75px; height: 75px; border: 3px solid #FFD700; } 
-        .rank-1 .crown { position: absolute; top: -28px; color: #FFD700; font-size: 26px; animation: bounce 2s infinite; z-index: 11; }
-        .rank-1 .podium-box { background: linear-gradient(to bottom, #FFD700, #FDB931); width: 100%; height: 145px; border-radius: 12px 12px 0 0; display: flex; flex-direction: column; justify-content: flex-end; color: white; padding-bottom: 10px; box-shadow: 0 4px 10px rgba(253, 185, 49, 0.4); }
-
-        /* JUARA 2 */
-        .rank-2 { width: 30%; }
-        .rank-2 .avatar-ring { width: 55px; height: 55px; border: 3px solid #C0C0C0; }
-        .rank-2 .podium-box { background: linear-gradient(to bottom, #C0C0C0, #9aa0a6); width: 100%; height: 125px; border-radius: 10px 10px 0 0; display: flex; flex-direction: column; justify-content: flex-end; color: white; padding-bottom: 10px; }
-
-        /* JUARA 3 */
-        .rank-3 { width: 30%; }
-        .rank-3 .avatar-ring { width: 55px; height: 55px; border: 3px solid #CD7F32; }
-        .rank-3 .podium-box { background: linear-gradient(to bottom, #CD7F32, #a05a2c); width: 100%; height: 110px; border-radius: 10px 10px 0 0; display: flex; flex-direction: column; justify-content: flex-end; color: white; padding-bottom: 10px; }
-
-        /* Text Styling */
-        .bp-name { font-size: 10px; font-weight: bold; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 95%; align-self: center; margin-top: 25px; }
-        .bp-point { font-size: 9px; opacity: 0.9; margin-bottom: 1px; } 
-        .bp-amount { font-size: 9px; opacity: 1.0; font-weight: 700; margin-bottom: 4px; }
-        
-        .rank-badge { font-size: 8px; font-weight: bold; padding: 2px 6px; border-radius: 10px; background: rgba(255, 255, 255, 0.25); align-self: center; margin-top: auto; }
-        .rank-1 .rank-badge { background: white; color: #FDB931; }
-
-        @keyframes bounce { 0%, 20%, 50%, 80%, 100% {transform: translateY(0);} 40% {transform: translateY(-5px);} 60% {transform: translateY(-3px);} }
-        .snowflake { position: fixed; top: -10px; z-index: 99999; color: #dbeeff; text-shadow: 0 0 5px rgba(0,0,0,0.1); user-select: none; pointer-events: none; cursor: default; animation-name: fall; animation-timing-function: linear; animation-iteration-count: infinite; } @keyframes fall { to { transform: translateY(105vh); } }
-        
-        .hero-header { position: relative; overflow: hidden; padding-bottom: 70px; } 
-        #fireworksCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-bottom-left-radius: 25px; border-bottom-right-radius: 25px; } 
-        .hero-header .top-bar { position: relative; z-index: 50; display: flex; justify-content: space-between; align-items: center; } 
-        .hero-header .user-welcome { position: relative; z-index: 20; }
-
-        /* FAB & MENU */
-        .fab-container { position: fixed; bottom: 30px; right: 20px; z-index: 9999; display: flex; flex-direction: column-reverse; align-items: center; gap: 15px; } 
-        .fab-main { width: 60px; height: 60px; background: linear-gradient(135deg, #9b59b6, #8e44ad); border-radius: 50%; color: white; display: flex; justify-content: center; align-items: center; font-size: 24px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); border: none; cursor: pointer; transition: transform 0.3s, background 0.3s; } 
-        .fab-container.active .fab-main { transform: rotate(45deg); background: #c0392b; } 
-        .fab-item { width: 50px; height: 50px; background: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; color: #8e44ad; text-decoration: none; box-shadow: 0 4px 10px rgba(0,0,0,0.2); font-size: 20px; opacity: 0; transform: translateY(20px) scale(0.8); pointer-events: none; transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55); position: relative; } 
-        .fab-item:hover { background: #f3e5f5; color: #6a1b9a; } 
-        .fab-label { position: absolute; right: 60px; background: rgba(0,0,0,0.8); color: white; padding: 4px 10px; border-radius: 5px; font-size: 12px; font-weight: bold; white-space: nowrap; opacity: 0; transition: opacity 0.3s; pointer-events: none; } 
-        .fab-container.active .fab-item { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; } 
-        .fab-container.active .fab-item:hover .fab-label { opacity: 1; } 
-        .fab-container.active .fab-item:nth-child(2) { transition-delay: 0.05s; } 
-        .fab-container.active .fab-item:nth-child(3) { transition-delay: 0.1s; } 
-        .fab-container.active .fab-item:nth-child(4) { transition-delay: 0.15s; } 
-        .fab-container.active .fab-item:nth-child(5) { transition-delay: 0.2s; } 
-
-        .header-actions { display: flex; align-items: center; position: relative; } 
-        .expanded-menu-items { display: flex; align-items: center; gap: 10px; position: absolute; right: 50px; top: 0; opacity: 0; transform: translateX(20px) scale(0.8); pointer-events: none; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); } 
-        .expanded-menu-items.show { opacity: 1; transform: translateX(0) scale(1); pointer-events: auto; } 
-        .brand-logo { height: 35px; width: auto; margin-right: 8px; vertical-align: middle; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.1)); } 
-        .main-container { position: relative; z-index: 10; margin-top: -60px; padding-top: 0; } 
-        .card-absensi { margin-top: 0; margin-bottom: 20px; position: relative; z-index: 15; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
-    </style>
 </head>
 <body>
 
-   <header class="hero-header">
+    <header class="hero-header">
         <canvas id="fireworksCanvas"></canvas>
         <div class="top-bar">
             <div class="brand-text">
-                <img src="assets/amarthalogo.png" alt="Amartha Logo" class="brand-logo">
-                Amartha
+                <img src="assets/amarthalogo.png" alt="Logo" class="brand-logo">
+                <span>Amartha</span>
             </div>
             <div class="header-actions">
                 <div id="expandedMenu" class="expanded-menu-items">
-                    <a href="admin_user.html" id="btnAdmin" class="btn-icon-glass d-none" style="background: rgba(255,255,0,0.2); color: #fff176;" title="Admin">
-                        <i class="fa-solid fa-users-gear"></i>
-                    </a>
-                    <a href="closing_point.html" id="closingMenuBtn" class="btn-icon-glass d-none" title="Closing Point">
-                        <i class="fa-solid fa-clipboard-check"></i>
-                    </a>
-                    <a href="profil.html" class="btn-icon-glass" title="Profil">
-                        <i class="fa-regular fa-user"></i>
-                    </a>
-                    <button id="logoutBtn" class="btn-icon-glass bg-danger border-0" title="Keluar">
-                        <i class="fa-solid fa-power-off"></i>
-                    </button>
+                    <a href="admin_user.html" id="btnAdmin" class="action-pill d-none"><i class="fa-solid fa-users-gear"></i></a>
+                    <a href="closing_point.html" id="closingMenuBtn" class="action-pill d-none"><i class="fa-solid fa-clipboard-check"></i></a>
+                    <button id="logoutBtn" class="action-pill logout"><i class="fa-solid fa-power-off"></i></button>
                 </div>
-                <button class="btn-icon-glass" onclick="toggleHeaderMenu()" id="btnHeaderMenu" style="z-index: 100;">
-                    <i class="fa-solid fa-layer-group"></i> 
+                <button class="btn-menu-toggle" onclick="toggleHeaderMenu()" id="btnHeaderMenu">
+                    <i class="fa-solid fa-ellipsis-vertical"></i>
                 </button>
             </div>
         </div>
-        <div class="user-welcome"><p>Selamat Bekerja,</p><h2 id="userName">Loading...</h2></div>
+        <div class="user-welcome">
+            <p>Halo, Selamat Bekerja</p>
+            <h2 id="userName">Memuat Nama...</h2>
+        </div>
     </header>
 
     <div class="main-container">
-        <a href="absensi.html" id="btnAbsen" class="card-absensi">
+        <a href="absensi.html" id="btnAbsen" class="quick-action-card">
             <div class="d-flex align-items-center">
-                <div class="icon-absensi"><i class="fa-solid fa-fingerprint"></i></div>
-                <div class="text-absensi"><h5>Absensi Harian</h5><span class="menu-text">Masuk</span></div>
+                <div class="quick-icon"><i class="fa-solid fa-fingerprint"></i></div>
+                <div>
+                    <span class="status-label">Status Presensi</span>
+                    <h5 id="statusAbsenText">Masuk Sekarang</h5>
+                </div>
             </div>
-            <i class="fa-solid fa-chevron-right text-muted"></i>
+            <i class="fa-solid fa-arrow-right-long"></i>
         </a>
 
-        <div class="leaderboard-section">
-            <div class="leaderboard-title"><i class="fa-solid fa-trophy text-warning me-2"></i>Top Disbursement</div>
-            <div class="podium-container">
-                <div class="podium-card rank-2">
-                    <div class="avatar-ring"><img src="" class="avatar-img" alt="Juara 2"></div>
-                    <div class="podium-box">
-                        <div class="bp-name">-</div>
-                        <div class="bp-point">-</div>
-                        <div class="bp-amount">-</div>
-                        <div class="rank-badge">JUARA 2</div>
-                    </div>
-                </div>
-                <div class="podium-card rank-1">
-                    <i class="fa-solid fa-crown crown"></i>
-                    <div class="avatar-ring"><img src="" class="avatar-img" alt="Juara 1"></div>
-                    <div class="podium-box">
-                        <div class="bp-name">-</div>
-                        <div class="bp-point">-</div>
-                        <div class="bp-amount">-</div>
-                        <div class="rank-badge">JUARA 1</div>
-                    </div>
-                </div>
-                <div class="podium-card rank-3">
-                    <div class="avatar-ring"><img src="" class="avatar-img" alt="Juara 3"></div>
-                    <div class="podium-box">
-                        <div class="bp-name">-</div>
-                        <div class="bp-point">-</div>
-                        <div class="bp-amount">-</div>
-                        <div class="rank-badge">JUARA 3</div>
-                    </div>
-                </div>
+        <div class="stats-grid mb-4">
+            <div class="stat-small-card">
+                <span class="label">Update Repayment</span>
+                <div class="value" id="repaymentUpdateVal">...</div>
             </div>
-            <div class="mt-3">
-                <a href="#" style="font-size: 11px; text-decoration: none; color: #8e26d4;">Lihat Peringkat Lengkap ></a>
+            <div class="stat-small-card">
+                <span class="label">Target Area</span>
+                <div class="value">Active</div>
             </div>
         </div>
 
-        <span class="section-label">Menu Laporan</span>
-        <div class="menu-grid">
-           <a href="majelis.html" class="menu-card">
-                <div class="menu-icon" style="background: #9b59b6; color: white;">
-                    <i class="fa-solid fa-money-check-dollar"></i>
-                </div>
-                <div class="menu-title">
-                    Tugas Repayment
-                    <div style="margin-top: 5px; font-size: 9px; color: #d35400; font-weight: normal;">
-                        Update: <span id="repaymentUpdateVal" class="fw-bold">...</span>
+        <section class="modern-section">
+            <div class="section-header">
+                <h3><i class="fa-solid fa-crown text-warning"></i> Top Disbursement</h3>
+                <a href="#">Lihat Semua</a>
+            </div>
+            <div class="podium-wrapper">
+                <div class="podium-item rank-2">
+                    <div class="avatar-box"><img src="" class="avatar-img" alt="2"></div>
+                    <div class="podium-base">
+                        <span class="name">-</span>
+                        <span class="amount">-</span>
                     </div>
                 </div>
-            </a>
-
-            <a href="daily_collection.html" class="menu-card">
-                <div class="menu-icon" style="background: #9b59b6; color: white;">
-                    <i class="fa-solid fa-calendar-day"></i>
+                <div class="podium-item rank-1">
+                    <div class="avatar-box">
+                        <i class="fa-solid fa-crown crown-icon"></i>
+                        <img src="" class="avatar-img" alt="1">
+                    </div>
+                    <div class="podium-base">
+                        <span class="name">-</span>
+                        <span class="amount">-</span>
+                    </div>
                 </div>
-                <div class="menu-title">Daily<br>Collection</div>
-            </a>
-            <a href="report_validasi.html" class="menu-card">
-                <div class="menu-icon" style="background: #9b59b6; color: white;"><i class="fa-solid fa-clipboard-check"></i></div>
-                <div class="menu-title">Validasi<br>Lapangan</div>
-            </a>
-            <a href="report_sosialisasi.html" class="menu-card">
-                <div class="menu-icon" style="background: #9b59b6; color: white;"><i class="fa-solid fa-users-rectangle"></i></div>
-                <div class="menu-title">Laporan<br>Sosialisasi</div>
-            </a>
-            <a href="report_celengan.html" class="menu-card">
-                <div class="menu-icon" style="background: #9b59b6; color: white;"><i class="fa-solid fa-piggy-bank"></i></div>
-                <div class="menu-title">Laporan<br>Celengan</div>
-            </a>
-            <a href="dashboard_portofolio.html" class="menu-card">
-                <div class="menu-icon" style="background: #9b59b6; color: white;"><i class="fa-solid fa-chart-line"></i></div>
-                <div class="menu-title">Dashboard<br>Portofolio</div>
-            </a>
-        </div>
-
-        <div class="leaderboard-section" style="margin-top: 25px; margin-bottom: 80px;">
-            <div class="leaderboard-title">
-                <i class="fa-solid fa-chart-bar text-info me-2"></i>Progres Harian Area
+                <div class="podium-item rank-3">
+                    <div class="avatar-box"><img src="" class="avatar-img" alt="3"></div>
+                    <div class="podium-base">
+                        <span class="name">-</span>
+                        <span class="amount">-</span>
+                    </div>
+                </div>
             </div>
-            <div style="position: relative; height: 400px; width: 100%;">
+        </section>
+
+        <section class="modern-section mt-4">
+            <div class="section-header"><h3>Menu Laporan</h3></div>
+            <div class="menu-grid-new">
+                <a href="majelis.html" class="menu-item-new">
+                    <div class="m-icon bg-purple"><i class="fa-solid fa-money-check-dollar"></i></div>
+                    <span>Repayment</span>
+                </a>
+                <a href="daily_collection.html" class="menu-item-new">
+                    <div class="m-icon bg-blue"><i class="fa-solid fa-calendar-day"></i></div>
+                    <span>Collection</span>
+                </a>
+                <a href="report_validasi.html" class="menu-item-new">
+                    <div class="m-icon bg-teal"><i class="fa-solid fa-clipboard-check"></i></div>
+                    <span>Validasi</span>
+                </a>
+                <a href="report_sosialisasi.html" class="menu-item-new">
+                    <div class="m-icon bg-orange"><i class="fa-solid fa-users-rectangle"></i></div>
+                    <span>Sosialisasi</span>
+                </a>
+                <a href="report_celengan.html" class="menu-item-new">
+                    <div class="m-icon bg-pink"><i class="fa-solid fa-piggy-bank"></i></div>
+                    <span>Celengan</span>
+                </a>
+                <a href="dashboard_portofolio.html" class="menu-item-new">
+                    <div class="m-icon bg-indigo"><i class="fa-solid fa-chart-line"></i></div>
+                    <span>Portofolio</span>
+                </a>
+            </div>
+        </section>
+
+        <section class="chart-card mt-4 mb-5">
+            <div class="section-header"><h3><i class="fa-solid fa-chart-simple"></i> Progres Area</h3></div>
+            <div class="chart-container">
                 <canvas id="areaProgressChart"></canvas>
             </div>
-        </div>
+        </section>
 
-        <div class="footer-info">&copy; 2025 Amartha Regional Jawa Tengah 1</div>
+        <footer class="footer-info">
+            <p>&copy; 2026 Amartha Regional Jateng 1</p>
+        </footer>
     </div>
 
-    <div class="fab-container" id="fabMenu">
-        <button class="fab-main" onclick="toggleFab()"><i class="fa-solid fa-plus"></i></button>
-        <a href="fu_sos.html" class="fab-item"><span class="fab-label">Quest FU SOS</span><i class="fa-solid fa-scroll"></i></a>
-        <a href="#" class="fab-item"><span class="fab-label">Perform Point</span><i class="fa-solid fa-map-location-dot"></i></a>
-        <a href="perform_bp.html" class="fab-item"><span class="fab-label">Perform BP</span><i class="fa-solid fa-chart-line"></i></a>
-        <a href="link_penting.html" class="fab-item"><span class="fab-label">Link Penting</span><i class="fa-solid fa-link"></i></a>
+    <div class="bottom-nav">
+        <a href="home.html" class="nav-link active"><i class="fa-solid fa-house"></i><span>Home</span></a>
+        <a href="perform_bp.html" class="nav-link"><i class="fa-solid fa-chart-pie"></i><span>Perform</span></a>
+        <button class="nav-link btn-plus" onclick="toggleFab()"><i class="fa-solid fa-plus"></i></button>
+        <a href="link_penting.html" class="nav-link"><i class="fa-solid fa-link"></i><span>Links</span></a>
+        <a href="profil.html" class="nav-link"><i class="fa-solid fa-user-circle"></i><span>Profil</span></a>
+    </div>
+
+    <div class="fab-overlay" id="fabMenu">
+        <div class="fab-options">
+            <a href="fu_sos.html">Quest FU SOS <i class="fa-solid fa-scroll"></i></a>
+            <a href="#">Perform Point <i class="fa-solid fa-map-location"></i></a>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script type="module" src="./js/home.js"></script>
-    <script>
-    function toggleFab(){const a=document.getElementById('fabMenu');a.classList.toggle('active');const b=a.querySelector('.fab-main i');if(a.classList.contains('active')){b.classList.remove('fa-plus');b.classList.add('fa-times')}else{b.classList.remove('fa-times');b.classList.add('fa-plus')}}
-    function toggleHeaderMenu(){document.getElementById('expandedMenu').classList.toggle('show')}
-    window.addEventListener('click',function(e){const a=document.getElementById('btnHeaderMenu');const b=document.getElementById('expandedMenu');if(a&&b&&!a.contains(e.target)&&!b.contains(e.target)){b.classList.remove('show')}});
-    </script>
 </body>
 </html>
