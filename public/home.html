@@ -3,153 +3,175 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Amartha Dashboard</title>
+    <title>Dashboard - Amartha</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+
     <link href="styles/home.css" rel="stylesheet">
+    <link rel="icon" type="image/png" href="assets/amarthalogo.png">
 </head>
 <body>
 
-    <header class="hero-header">
-        <canvas id="fireworksCanvas"></canvas>
-        <div class="top-bar">
-            <div class="brand-text">
-                <img src="assets/amarthalogo.png" alt="Logo" class="brand-logo">
-                <span>Amartha</span>
+    <header class="dashboard-header">
+        <div class="header-content">
+            <div class="user-info">
+                <span class="greeting">Selamat Bekerja,</span>
+                <h2 id="userName" class="skeleton-text">Memuat...</h2>
             </div>
             <div class="header-actions">
-                <div id="expandedMenu" class="expanded-menu-items">
-                    <a href="admin_user.html" id="btnAdmin" class="action-pill d-none"><i class="fa-solid fa-users-gear"></i></a>
-                    <a href="closing_point.html" id="closingMenuBtn" class="action-pill d-none"><i class="fa-solid fa-clipboard-check"></i></a>
-                    <button id="logoutBtn" class="action-pill logout"><i class="fa-solid fa-power-off"></i></button>
-                </div>
-                <button class="btn-menu-toggle" onclick="toggleHeaderMenu()" id="btnHeaderMenu">
-                    <i class="fa-solid fa-ellipsis-vertical"></i>
+                <a href="admin_user.html" id="btnAdmin" class="btn-glass d-none">
+                    <i class="fa-solid fa-users-gear"></i>
+                </a>
+                
+                <button class="btn-glass" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <img src="assets/amarthalogo.png" class="header-avatar" alt="User">
                 </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4 mt-2">
+                    <li><h6 class="dropdown-header">Menu Akun</h6></li>
+                    <li><a class="dropdown-item" href="profil.html"><i class="fa-regular fa-user me-2"></i> Profil Saya</a></li>
+                    <li><a class="dropdown-item d-none" id="closingMenuBtn" href="closing_point.html"><i class="fa-solid fa-clipboard-check me-2"></i> Closing Point</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><button class="dropdown-item text-danger" id="logoutBtn"><i class="fa-solid fa-power-off me-2"></i> Keluar</button></li>
+                </ul>
             </div>
-        </div>
-        <div class="user-welcome">
-            <p>Halo, Selamat Bekerja</p>
-            <h2 id="userName">Memuat Nama...</h2>
         </div>
     </header>
 
-    <div class="main-container">
-        <a href="absensi.html" id="btnAbsen" class="quick-action-card">
-            <div class="d-flex align-items-center">
-                <div class="quick-icon"><i class="fa-solid fa-fingerprint"></i></div>
-                <div>
-                    <span class="status-label">Status Presensi</span>
-                    <h5 id="statusAbsenText">Masuk Sekarang</h5>
-                </div>
+    <div class="content-wrapper">
+        
+        <a href="absensi.html" id="btnAbsen" class="hero-widget">
+            <div class="widget-icon">
+                <i class="fa-solid fa-fingerprint"></i>
             </div>
-            <i class="fa-solid fa-arrow-right-long"></i>
+            <div class="widget-info">
+                <span class="widget-label">Status Absensi</span>
+                <h4 class="menu-text">Masuk Sekarang</h4>
+            </div>
+            <div class="widget-arrow">
+                <i class="fa-solid fa-chevron-right"></i>
+            </div>
         </a>
 
-        <div class="stats-grid mb-4">
-            <div class="stat-small-card">
-                <span class="label">Update Repayment</span>
-                <div class="value" id="repaymentUpdateVal">...</div>
-            </div>
-            <div class="stat-small-card">
-                <span class="label">Target Area</span>
-                <div class="value">Active</div>
-            </div>
+        <div class="section-title">
+            Top Performance <span class="badge bg-warning text-dark ms-2">Live</span>
         </div>
-
-        <section class="modern-section">
-            <div class="section-header">
-                <h3><i class="fa-solid fa-crown text-warning"></i> Top Disbursement</h3>
-                <a href="#">Lihat Semua</a>
-            </div>
-            <div class="podium-wrapper">
+        <div class="leaderboard-card">
+            <div class="podium-container">
                 <div class="podium-item rank-2">
-                    <div class="avatar-box"><img src="" class="avatar-img" alt="2"></div>
+                    <div class="avatar-wrapper">
+                        <img src="" class="avatar-img skeleton-img" alt="2nd">
+                        <div class="rank-badge">#2</div>
+                    </div>
                     <div class="podium-base">
-                        <span class="name">-</span>
-                        <span class="amount">-</span>
+                        <div class="p-name text-truncate skeleton-text">...</div>
+                        <div class="p-amount skeleton-text">-</div>
                     </div>
                 </div>
                 <div class="podium-item rank-1">
-                    <div class="avatar-box">
-                        <i class="fa-solid fa-crown crown-icon"></i>
-                        <img src="" class="avatar-img" alt="1">
+                    <div class="crown-icon"><i class="fa-solid fa-crown"></i></div>
+                    <div class="avatar-wrapper">
+                        <img src="" class="avatar-img skeleton-img" alt="1st">
+                        <div class="rank-badge">#1</div>
                     </div>
                     <div class="podium-base">
-                        <span class="name">-</span>
-                        <span class="amount">-</span>
+                        <div class="p-name text-truncate skeleton-text">...</div>
+                        <div class="p-amount fw-bold skeleton-text">-</div>
                     </div>
                 </div>
                 <div class="podium-item rank-3">
-                    <div class="avatar-box"><img src="" class="avatar-img" alt="3"></div>
+                    <div class="avatar-wrapper">
+                        <img src="" class="avatar-img skeleton-img" alt="3rd">
+                        <div class="rank-badge">#3</div>
+                    </div>
                     <div class="podium-base">
-                        <span class="name">-</span>
-                        <span class="amount">-</span>
+                        <div class="p-name text-truncate skeleton-text">...</div>
+                        <div class="p-amount skeleton-text">-</div>
                     </div>
                 </div>
             </div>
-        </section>
-
-        <section class="modern-section mt-4">
-            <div class="section-header"><h3>Menu Laporan</h3></div>
-            <div class="menu-grid-new">
-                <a href="majelis.html" class="menu-item-new">
-                    <div class="m-icon bg-purple"><i class="fa-solid fa-money-check-dollar"></i></div>
-                    <span>Repayment</span>
-                </a>
-                <a href="daily_collection.html" class="menu-item-new">
-                    <div class="m-icon bg-blue"><i class="fa-solid fa-calendar-day"></i></div>
-                    <span>Collection</span>
-                </a>
-                <a href="report_validasi.html" class="menu-item-new">
-                    <div class="m-icon bg-teal"><i class="fa-solid fa-clipboard-check"></i></div>
-                    <span>Validasi</span>
-                </a>
-                <a href="report_sosialisasi.html" class="menu-item-new">
-                    <div class="m-icon bg-orange"><i class="fa-solid fa-users-rectangle"></i></div>
-                    <span>Sosialisasi</span>
-                </a>
-                <a href="report_celengan.html" class="menu-item-new">
-                    <div class="m-icon bg-pink"><i class="fa-solid fa-piggy-bank"></i></div>
-                    <span>Celengan</span>
-                </a>
-                <a href="dashboard_portofolio.html" class="menu-item-new">
-                    <div class="m-icon bg-indigo"><i class="fa-solid fa-chart-line"></i></div>
-                    <span>Portofolio</span>
-                </a>
+            <div class="text-center mt-3">
+                <a href="#" class="btn-link-sm">Lihat Peringkat Lengkap</a>
             </div>
-        </section>
+        </div>
 
-        <section class="chart-card mt-4 mb-5">
-            <div class="section-header"><h3><i class="fa-solid fa-chart-simple"></i> Progres Area</h3></div>
-            <div class="chart-container">
+        <div class="section-title">Menu Pekerjaan</div>
+        <div class="modern-grid">
+            <a href="majelis.html" class="app-card highlight-card">
+                <div class="card-icon"><i class="fa-solid fa-money-check-dollar"></i></div>
+                <div class="card-meta">
+                    <span class="card-title">Repayment</span>
+                    <span class="card-subtitle">Upd: <b id="repaymentUpdateVal">...</b></span>
+                </div>
+            </a>
+            
+            <a href="daily_collection.html" class="app-card">
+                <div class="card-icon"><i class="fa-solid fa-calendar-day"></i></div>
+                <span class="card-title">Daily Coll.</span>
+            </a>
+
+            <a href="report_validasi.html" class="app-card">
+                <div class="card-icon"><i class="fa-solid fa-clipboard-check"></i></div>
+                <span class="card-title">Validasi</span>
+            </a>
+
+            <a href="report_sosialisasi.html" class="app-card">
+                <div class="card-icon"><i class="fa-solid fa-users-rectangle"></i></div>
+                <span class="card-title">Sosialisasi</span>
+            </a>
+
+            <a href="report_celengan.html" class="app-card">
+                <div class="card-icon"><i class="fa-solid fa-piggy-bank"></i></div>
+                <span class="card-title">Celengan</span>
+            </a>
+
+            <a href="dashboard_portofolio.html" class="app-card">
+                <div class="card-icon"><i class="fa-solid fa-chart-line"></i></div>
+                <span class="card-title">Portofolio</span>
+            </a>
+        </div>
+
+        <div class="chart-container-modern">
+            <div class="chart-header">
+                <div class="chart-title"><i class="fa-solid fa-chart-simple me-2"></i>Progres Area</div>
+            </div>
+            <div class="chart-body">
                 <canvas id="areaProgressChart"></canvas>
             </div>
-        </section>
-
-        <footer class="footer-info">
-            <p>&copy; 2026 Amartha Regional Jateng 1</p>
-        </footer>
-    </div>
-
-    <div class="bottom-nav">
-        <a href="home.html" class="nav-link active"><i class="fa-solid fa-house"></i><span>Home</span></a>
-        <a href="perform_bp.html" class="nav-link"><i class="fa-solid fa-chart-pie"></i><span>Perform</span></a>
-        <button class="nav-link btn-plus" onclick="toggleFab()"><i class="fa-solid fa-plus"></i></button>
-        <a href="link_penting.html" class="nav-link"><i class="fa-solid fa-link"></i><span>Links</span></a>
-        <a href="profil.html" class="nav-link"><i class="fa-solid fa-user-circle"></i><span>Profil</span></a>
-    </div>
-
-    <div class="fab-overlay" id="fabMenu">
-        <div class="fab-options">
-            <a href="fu_sos.html">Quest FU SOS <i class="fa-solid fa-scroll"></i></a>
-            <a href="#">Perform Point <i class="fa-solid fa-map-location"></i></a>
         </div>
+
+        <div class="footer-spacer"></div>
+    </div>
+
+    <div class="fab-wrapper" id="fabMenu">
+        <div class="fab-overlay" onclick="toggleFab()"></div>
+        <div class="fab-list">
+            <a href="fu_sos.html" class="fab-action">
+                <span class="fab-text">Quest FU SOS</span>
+                <div class="fab-icon-small"><i class="fa-solid fa-scroll"></i></div>
+            </a>
+            <a href="perform_bp.html" class="fab-action">
+                <span class="fab-text">Perform BP</span>
+                <div class="fab-icon-small"><i class="fa-solid fa-chart-pie"></i></div>
+            </a>
+            <a href="link_penting.html" class="fab-action">
+                <span class="fab-text">Link Penting</span>
+                <div class="fab-icon-small"><i class="fa-solid fa-link"></i></div>
+            </a>
+        </div>
+        <button class="fab-trigger" onclick="toggleFab()">
+            <i class="fa-solid fa-plus"></i>
+        </button>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script type="module" src="./js/home.js"></script>
+    <script>
+        function toggleFab(){
+            document.getElementById('fabMenu').classList.toggle('active');
+        }
+    </script>
 </body>
 </html>
