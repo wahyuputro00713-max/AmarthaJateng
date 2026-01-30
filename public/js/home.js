@@ -295,3 +295,37 @@ async function loadAreaProgressChart() {
 }
 
 function formatRibuan(n) { return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."); }
+// --- TAMBAHKAN INI DI js/home.js (Paling Bawah) ---
+
+// Fitur Drag-to-Scroll untuk Desktop/Laptop
+const slider = document.querySelector('.horizontal-scroll-wrapper');
+let isDown = false;
+let startX;
+let scrollLeft;
+
+if (slider) {
+    slider.addEventListener('mousedown', (e) => {
+        isDown = true;
+        slider.classList.add('active'); // Ubah kursor jadi menggenggam
+        startX = e.pageX - slider.offsetLeft;
+        scrollLeft = slider.scrollLeft;
+    });
+
+    slider.addEventListener('mouseleave', () => {
+        isDown = false;
+        slider.classList.remove('active');
+    });
+
+    slider.addEventListener('mouseup', () => {
+        isDown = false;
+        slider.classList.remove('active');
+    });
+
+    slider.addEventListener('mousemove', (e) => {
+        if (!isDown) return; // Stop jika mouse tidak ditekan
+        e.preventDefault();  // Mencegah seleksi teks
+        const x = e.pageX - slider.offsetLeft;
+        const walk = (x - startX) * 2; // Kecepatan scroll (dikali 2 biar ngebut dikit)
+        slider.scrollLeft = scrollLeft - walk;
+    });
+}
