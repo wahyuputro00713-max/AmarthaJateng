@@ -67,7 +67,6 @@ async function checkAbsensiStatus(uid) {
         const btnAbsen = document.getElementById('btnAbsen');
         if (!btnAbsen) return;
         
-        // Selector baru untuk teks di card absensi
         const textEl = btnAbsen.querySelector('.menu-text');
         const iconEl = btnAbsen.querySelector('.widget-icon');
         const labelEl = btnAbsen.querySelector('.widget-label');
@@ -75,7 +74,7 @@ async function checkAbsensiStatus(uid) {
         if (snapshot.exists()) {
             // Style: Sudah Absen
             btnAbsen.style.pointerEvents = "none"; 
-            if (textEl) { textEl.innerText = "Sudah Absen"; textEl.style.color = "#2e7d32"; } // Hijau
+            if (textEl) { textEl.innerText = "Sudah Absen"; textEl.style.color = "#2e7d32"; } 
             if (iconEl) { iconEl.innerHTML = '<i class="fa-solid fa-check"></i>'; iconEl.style.background = "#e8f5e9"; iconEl.style.color = "#2e7d32"; }
             if (labelEl) labelEl.innerText = "Terima Kasih";
         } else {
@@ -104,7 +103,7 @@ onAuthStateChanged(auth, (user) => {
                 const realName = data.nama || data.idKaryawan || user.email;
                 if (userNameSpan) {
                     userNameSpan.textContent = realName;
-                    userNameSpan.classList.remove('skeleton-text'); // Hapus efek loading
+                    userNameSpan.classList.remove('skeleton-text'); 
                 }
                 
                 if (String(data.idKaryawan).trim() === ADMIN_ID && btnAdmin) btnAdmin.classList.remove('d-none');
@@ -156,10 +155,9 @@ function formatJamOnly(val) {
     } catch (e) { return ""; }
 }
 
-// --- LEADERBOARD (Updated Selectors) ---
+// --- LEADERBOARD ---
 async function loadLeaderboard() {
     try {
-        // Data masih 'Memuat...' (Skeleton active by CSS default)
         const response = await fetch(SCRIPT_URL, {
             method: 'POST', body: JSON.stringify({ action: "get_leaderboard" }), headers: { "Content-Type": "text/plain;charset=utf-8" }
         });
@@ -186,7 +184,6 @@ async function loadLeaderboard() {
 
 function updatePodium(sel, data, usersMap) {
     const c = document.querySelector(sel); if (!c) return;
-    // Hapus kelas skeleton
     const txtName = c.querySelector('.p-name');
     const txtAmt = c.querySelector('.p-amount');
     const img = c.querySelector('.avatar-img');
@@ -218,7 +215,7 @@ function formatJuta(n) {
     else return (num / 1e3).toFixed(0) + "rb";
 }
 
-// --- CHART (No Change in Logic, just sizing) ---
+// --- CHART ---
 async function loadAreaProgressChart() {
     const ctxCanvas = document.getElementById('areaProgressChart');
     if (!ctxCanvas) return;
@@ -248,7 +245,7 @@ async function loadAreaProgressChart() {
                     {
                         label: 'Harian',
                         data: dailyPrc,
-                        backgroundColor: 'rgba(142, 38, 212, 0.7)', // Purple theme
+                        backgroundColor: 'rgba(142, 38, 212, 0.7)',
                         borderColor: 'rgba(142, 38, 212, 1)',
                         borderWidth: 1,
                         barPercentage: 0.7, categoryPercentage: 0.8
@@ -256,7 +253,7 @@ async function loadAreaProgressChart() {
                     {
                         label: 'Pencapaian',
                         data: achievePrc,
-                        backgroundColor: 'rgba(255, 179, 0, 0.7)', // Amber theme
+                        backgroundColor: 'rgba(255, 179, 0, 0.7)',
                         borderColor: 'rgba(255, 179, 0, 1)',
                         borderWidth: 1,
                         barPercentage: 0.7, categoryPercentage: 0.8
