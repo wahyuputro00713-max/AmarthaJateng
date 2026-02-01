@@ -18,14 +18,14 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 // =========================================================================
-// URL DEPLOYMENT GOOGLE APPS SCRIPT
+// URL DEPLOYMENT GOOGLE APPS SCRIPT (Pastikan URL ini hasil Deploy terbaru)
 // =========================================================================
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz7lbSgTnp8OZ2QdOIv8_gfx40heiUXSXF9sfIGf2deyVDTEznkv6lq47NRK4ddIUiF/exec";
 
 // State Management
 let globalData = [];
 let userProfile = { idKaryawan: "", area: "", point: "" };
-let isTransactionActive = false; // LOCKING VARIABLE: Mencegah kirim barengan
+let isTransactionActive = false; // LOCKING VARIABLE
 
 // DOM Elements
 const els = {
@@ -47,6 +47,7 @@ onAuthStateChanged(auth, async (user) => {
         showLoading(true);
         try {
             userProfile = await fetchUserProfile(user.uid);
+            // Default load data based on profile area
             globalData = await fetchMainData(userProfile.area);
             initializeFilters();
             renderGroupedData(globalData);
@@ -240,13 +241,14 @@ function renderGroupedData(data) {
     const htmlContent = majelisKeys.map((majelis, index) => {
         const mitras = grouped[majelis];
         const bpName = mitras[0].nama_bp || "-";
-
-        // Escape string untuk nama majelis & BP (cegah error petik satu)
+        
         const safeNamaBP = bpName.replace(/'/g, "\\'");
 
         let countBayar = 0, countTelat = 0, countSudahKirim = 0, countBelumKirim = 0;
 
         mitras.forEach(m => {
+            // PERBAIKAN LOGIKA: Jika status kosong, anggap sebagai "Lancar/Bayar"
+            // Karena jika kosong, logic include('telat') akan false -> masuk countBayar
             const statusBayar = String(m.status || "").toLowerCase();
             const statusKirim = String(m.status_kirim || "").toLowerCase().trim();
 
@@ -302,35 +304,42 @@ function renderGroupedData(data) {
     els.majelisContainer.innerHTML = htmlContent;
 }
 
-// 6. HELPER: CREATE ROW HTML (Update: Tombol Kirim Per Baris)
+// 6. HELPER: CREATE ROW HTML
 function createRowHtml(m, safeNamaBP) {
     const rawMitra = m.mitra || "";
     const rawCustNo = m.cust_no || "-";
 
-    // Amankan string untuk parameter fungsi onclick
     const safeMitra = rawMitra.replace(/'/g, "\\'");
 
-    const statusBayar = String(m.status || "").toLowerCase().trim();
-    const statusKirim = String(m.status_kirim || "").toLowerCase().trim();
+    // === PERBAIKAN UTAMA ===
+    // 1. Ambil raw status
+    const rawStatus = String(m.status || "").trim();
+    const statusLower = rawStatus.toLowerCase();
+    
+    // 2. Tentukan Teks untuk ditampilkan
+    // Jika data kosong, tampilkan "Lancar" agar user tidak bingung melihat tanda "-"
+    const displayStatus = (rawStatus === "" || rawStatus === "-") ? "Lancar" : rawStatus;
 
+    const statusKirim = String(m.status_kirim || "").toLowerCase().trim();
     let isSent = (statusKirim === "sudah" || statusKirim === "sudah terkirim" || statusKirim === "terkirim");
 
     const isBll = (m.status_bll === "BLL");
     const bllBadge = isBll ? '<span class="badge-bll">BLL</span>' : '';
-    const badgeClass = statusBayar.includes("telat") ? "text-danger" : "text-success";
+    
+    // 3. Logic Warna Badge
+    // Jika mengandung kata "telat", warna merah. Selain itu (termasuk "Lancar") hijau.
+    const badgeClass = statusLower.includes("telat") ? "text-danger" : "text-success";
 
     const valAngsuran = formatRupiah(m.angsuran);
     const valPartial = formatRupiah(m.partial);
 
     const selectId = `select-${rawCustNo}`;
     const btnId = `btn-${rawCustNo}`;
-    const rowId = `row-wrapper-${rawCustNo}`; // ID untuk wrapper aksi
+    const rowId = `row-wrapper-${rawCustNo}`;
 
-    // LOGIKA TAMPILAN AKSI
     let actionHtml;
 
     if (isSent) {
-        // Jika SUDAH terkirim -> Tampilkan Badge Selesai
         actionHtml = `
             <span class="badge bg-success rounded-pill">
                 <i class="fa-solid fa-check"></i> Terkirim
@@ -338,7 +347,6 @@ function createRowHtml(m, safeNamaBP) {
             <div style="font-size: 9px; color: #666; margin-top:2px;">${m.jenis_pembayaran || "Normal"}</div>
         `;
     } else {
-        // Jika BELUM terkirim -> Tampilkan Dropdown + Tombol Kirim Kecil
         actionHtml = `
             <div class="d-flex justify-content-end align-items-center gap-1" id="${rowId}">
                 <select id="${selectId}" class="form-select form-select-sm" 
@@ -359,9 +367,8 @@ function createRowHtml(m, safeNamaBP) {
         `;
     }
 
-    // Indikator Status (Kiri)
-    let statusIcon = isSent
-        ? `<i class="fa-solid fa-circle-check text-success"></i>`
+    let statusIcon = isSent 
+        ? `<i class="fa-solid fa-circle-check text-success"></i>` 
         : `<i class="fa-regular fa-circle text-muted"></i>`;
 
     return `
@@ -372,7 +379,7 @@ function createRowHtml(m, safeNamaBP) {
             <td class="align-middle">
                 <span class="mitra-name">${rawMitra} ${bllBadge}</span>
                 <div style="font-size: 10px;" class="text-muted"><i class="fa-regular fa-id-card me-1"></i>${rawCustNo}</div>
-                <div class="${badgeClass} fw-bold" style="font-size: 10px;">${m.status || "-"}</div>
+                <div class="${badgeClass} fw-bold" style="font-size: 10px;">${displayStatus}</div>
             </td>
             <td class="align-middle">
                 <div class="nominal-text">${valAngsuran}</div>
@@ -420,7 +427,6 @@ if (els.btnTampilkan) {
 // LOGIKA BARU: KIRIM PER MITRA (SEQUENTIAL LOCKING)
 // =========================================================================
 
-// 1. Enable Button saat Dropdown Dipilih
 window.enableSendButton = function(btnId, selectEl) {
     const btn = document.getElementById(btnId);
     if (btn) {
@@ -432,9 +438,7 @@ window.enableSendButton = function(btnId, selectEl) {
     }
 }
 
-// 2. FUNGSI KIRIM SATU PER SATU DENGAN LOCKING
 window.kirimPerMitra = async function(custNo, namaMitra, namaBP, selectId, btnId, rowId) {
-    // CEK LOCK: Jika sedang ada transaksi berjalan, tolak request baru
     if (isTransactionActive) {
         alert("⚠️ Sedang mengirim data lain. Mohon tunggu sampai selesai satu per satu.");
         return;
@@ -449,13 +453,10 @@ window.kirimPerMitra = async function(custNo, namaMitra, namaBP, selectId, btnId
         return;
     }
 
-    // KONFIRMASI (Opsional, agar tidak salah pencet)
     if (!confirm(`Kirim data untuk ${namaMitra} sebagai ${jnsBayar}?`)) return;
 
-    // --- MULAI LOCKING ---
     isTransactionActive = true;
 
-    // Update UI Button jadi Loading
     const originalBtnContent = btn.innerHTML;
     btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
     btn.disabled = true;
@@ -471,7 +472,6 @@ window.kirimPerMitra = async function(custNo, namaMitra, namaBP, selectId, btnId
             jenisPembayaran: jnsBayar
         };
 
-        // Kirim ke Google Script
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify(payload),
@@ -481,14 +481,12 @@ window.kirimPerMitra = async function(custNo, namaMitra, namaBP, selectId, btnId
         const result = await response.json();
 
         if (result.result === 'success') {
-            // SUKSES: Update Data Lokal
             const idx = globalData.findIndex(item => String(item.cust_no) === String(custNo));
             if (idx !== -1) {
                 globalData[idx].status_kirim = "Sudah";
                 globalData[idx].jenis_pembayaran = jnsBayar;
             }
 
-            // SUKSES: Ubah Tampilan Baris Menjadi "Terkirim"
             const wrapper = document.getElementById(rowId);
             if (wrapper) {
                 wrapper.parentElement.innerHTML = `
@@ -505,14 +503,10 @@ window.kirimPerMitra = async function(custNo, namaMitra, namaBP, selectId, btnId
     } catch (error) {
         console.error(error);
         alert(`Gagal mengirim data ${namaMitra}. Silakan coba lagi.\nError: ${error.message}`);
-
-        // KEMBALIKAN TOMBOL JIKA GAGAL
         btn.innerHTML = originalBtnContent;
         btn.disabled = false;
         selectEl.disabled = false;
     } finally {
-        // --- LEPAS LOCKING ---
-        // Apapun yang terjadi (sukses/gagal), kunci harus dibuka agar bisa kirim yang lain
         isTransactionActive = false;
     }
 };
