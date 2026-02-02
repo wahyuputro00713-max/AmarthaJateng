@@ -6,76 +6,230 @@
     <title>Report Validasi - Amartha Jateng</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    
     <style>
-        :root { --primary-purple: #8e26d4; --dark-purple: #701eb0; --bg-light: #f5f7fa; }
-        body { background-color: var(--bg-light); font-family: 'Segoe UI', sans-serif; padding-top: 80px; padding-bottom: 40px; }
-        .navbar { background: linear-gradient(90deg, var(--primary-purple), var(--dark-purple)); box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .form-card { border: none; border-radius: 15px; background: white; padding: 25px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .btn-purple { background-color: var(--primary-purple); color: white; border: none; font-weight: bold; }
-        .btn-purple:hover { background-color: var(--dark-purple); color: white; }
-        #loadingOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 9999; align-items: center; justify-content: center; flex-direction: column; }
-        
-        /* Style untuk Preview Banyak Gambar */
-        .preview-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            justify-content: center;
-            margin-top: 15px;
+        :root { 
+            --primary-purple: #8e26d4; 
+            --dark-purple: #6a1b9a; 
+            --light-bg: #f3f4f6;
+            --surface: #ffffff;
         }
-        .preview-img {
-            width: 100px;
-            height: 100px;
+
+        body { 
+            background-color: var(--light-bg); 
+            font-family: 'Poppins', sans-serif; 
+            padding-bottom: 100px; /* Space for bottom button */
+        }
+
+        /* Modern Header */
+        .header-bg {
+            background: linear-gradient(135deg, var(--dark-purple), var(--primary-purple));
+            padding: 20px 0 40px;
+            border-radius: 0 0 25px 25px;
+            color: white;
+            margin-bottom: -30px;
+            position: relative;
+            z-index: 1;
+            box-shadow: 0 4px 15px rgba(142, 38, 212, 0.3);
+        }
+
+        .back-btn {
+            color: white;
+            font-size: 1.2rem;
+            text-decoration: none;
+            transition: transform 0.2s;
+        }
+        .back-btn:active { transform: scale(0.9); }
+
+        /* Card Container */
+        .main-card {
+            background: var(--surface);
+            border-radius: 20px;
+            border: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            padding: 25px;
+            position: relative;
+            z-index: 2;
+        }
+
+        /* Inputs */
+        .form-floating > .form-control, 
+        .form-floating > .form-select {
+            border-radius: 12px;
+            border: 1px solid #e0e0e0;
+            background-color: #fcfcfc;
+        }
+        .form-floating > .form-control:focus, 
+        .form-floating > .form-select:focus {
+            border-color: var(--primary-purple);
+            box-shadow: 0 0 0 4px rgba(142, 38, 212, 0.1);
+        }
+
+        /* Section Title */
+        .section-title {
+            font-size: 0.9rem;
+            color: #888;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 25px 0 15px;
+            border-left: 4px solid var(--primary-purple);
+            padding-left: 10px;
+        }
+
+        /* Upload Area */
+        .upload-area {
+            border: 2px dashed #d1d5db;
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #fafafa;
+        }
+        .upload-area:hover, .upload-area.active {
+            border-color: var(--primary-purple);
+            background: #fdf4ff;
+        }
+        .upload-icon {
+            font-size: 2rem;
+            color: var(--primary-purple);
+            margin-bottom: 10px;
+        }
+
+        /* Photo Preview Grid */
+        .photo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 12px;
+            margin-top: 20px;
+        }
+        .photo-item {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            animation: popIn 0.3s ease;
+        }
+        .photo-item img {
+            width: 100%;
+            height: 100%;
             object-fit: cover;
-            border-radius: 8px;
-            border: 1px solid #ddd;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .delete-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(255, 59, 48, 0.9);
+            color: white;
+            border: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 12px;
+            transition: transform 0.2s;
+        }
+        .delete-btn:active { transform: scale(0.9); }
+
+        /* Bottom Action Bar */
+        .bottom-action {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: white;
+            padding: 15px 20px;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.05);
+            z-index: 100;
+            display: flex;
+            gap: 10px;
+        }
+        .btn-submit {
+            background: var(--primary-purple);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            padding: 12px;
+            width: 100%;
+            box-shadow: 0 4px 10px rgba(142, 38, 212, 0.3);
+            transition: background 0.3s;
+        }
+        .btn-submit:hover { background: var(--dark-purple); }
+
+        /* Loading Overlay */
+        #loadingOverlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.95);
+            z-index: 9999;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
         }
     </style>
 </head>
 <body>
 
     <div id="loadingOverlay">
-        <div class="spinner-border text-primary" role="status"></div>
-        <p class="mt-2 fw-bold text-primary">Mengupload Data & Foto...</p>
-        <p class="small text-muted">Mohon tunggu, jangan tutup halaman.</p>
+        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div>
+        <h5 class="mt-3 fw-bold text-dark" id="loadingText">Memproses Data...</h5>
+        <p class="text-muted small">Mohon jangan tutup halaman ini.</p>
     </div>
 
-    <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
-        <div class="container">
-            <a class="navbar-brand fw-bold" href="home.html">
-                <i class="fa-solid fa-chevron-left me-2"></i> Report Validasi
-            </a>
+    <div class="header-bg">
+        <div class="container d-flex align-items-center">
+            <a href="home.html" class="back-btn me-3"><i class="fa-solid fa-arrow-left"></i></a>
+            <div>
+                <h4 class="m-0 fw-bold">Form Validasi</h4>
+                <small class="opacity-75">Input data laporan harian</small>
+            </div>
         </div>
-    </nav>
+    </div>
 
     <div class="container">
         <form id="validasiForm">
-
-            <div class="form-card">
-                <h5 class="mb-4 text-purple fw-bold"><i class="fa-solid fa-list-check me-2"></i>Input Data Validasi</h5>
-
-                <div class="mb-3">
-                    <label class="form-label">Tanggal</label>
-                    <input type="date" class="form-control" id="tanggalInput" required readonly>
+            <div class="main-card">
+                
+                <div class="section-title">Informasi Dasar</div>
+                
+                <div class="form-floating mb-3">
+                    <input type="date" class="form-control" id="tanggalInput" readonly>
+                    <label>Tanggal Laporan</label>
                 </div>
 
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Regional</label>
-                        <input type="text" class="form-control bg-light" id="regionalInput" readonly placeholder="Memuat...">
+                <div class="row g-2">
+                    <div class="col-6">
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="regionalInput" readonly placeholder="-">
+                            <label>Regional</label>
+                        </div>
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Nama Karyawan</label>
-                        <input type="text" class="form-control bg-light" id="namaKaryawan" readonly placeholder="Memuat...">
-                        <input type="hidden" id="idKaryawan">
+                    <div class="col-6">
+                        <div class="form-floating mb-3">
+                            <input type="text" class="form-control" id="namaKaryawan" readonly placeholder="-">
+                            <label>Nama Anda</label>
+                            <input type="hidden" id="idKaryawan">
+                        </div>
                     </div>
                 </div>
 
-                <div class="mb-3">
-                    <label class="form-label">Area</label>
+                <div class="form-floating mb-3">
                     <select class="form-select" id="areaSelect" required>
-                        <option value="" selected disabled>Pilih Area...</option>
+                        <option value="" selected disabled>Pilih Area</option>
                         <option value="Klaten">Klaten</option>
                         <option value="Magelang">Magelang</option>
                         <option value="Solo">Solo</option>
@@ -84,60 +238,66 @@
                         <option value="Yogyakarta">Yogyakarta</option>
                         <option value="Yogyakarta 2">Yogyakarta 2</option>
                     </select>
+                    <label>Area Kerja</label>
                 </div>
 
-                <div class="mb-3">
-                    <label class="form-label">Point</label>
+                <div class="form-floating mb-3">
                     <select class="form-select" id="pointSelect" required disabled>
-                        <option value="" selected disabled>Pilih Area Terlebih Dahulu</option>
+                        <option value="" selected disabled>Pilih Area dulu</option>
                     </select>
+                    <label>Titik Point</label>
                 </div>
 
-                <hr class="my-4">
+                <div class="section-title">Detail Validasi</div>
 
-                <div class="mb-3">
-                    <label class="form-label">Jumlah Mitra Validasi</label>
-                    <input type="number" class="form-control" id="jmlMitraVal" placeholder="0" required>
+                <div class="form-floating mb-3">
+                    <input type="number" class="form-control" id="jmlMitraVal" placeholder="0" inputmode="numeric" required>
+                    <label>Jumlah Mitra Validasi</label>
                 </div>
 
-                <div class="mb-3">
-                    <label class="form-label">Amount Val (Rp)</label>
-                    <input type="text" class="form-control rupiah-input" id="amountValDisplay" placeholder="Rp 0" required>
-                    <input type="hidden" id="amountValReal">
+                <div class="form-floating mb-3">
+                    <input type="text" class="form-control rupiah-input" id="amountValDisplay" placeholder="Rp 0" inputmode="numeric" required>
+                    <label>Nominal Validasi (Rp)</label>
                 </div>
 
-                <div class="mb-3">
-                    <label class="form-label">Jumlah Mitra Pengajuan Modal</label>
-                    <input type="number" class="form-control" id="jmlMitraModal" placeholder="0" required>
+                <div class="form-floating mb-3">
+                    <input type="number" class="form-control" id="jmlMitraModal" placeholder="0" inputmode="numeric" required>
+                    <label>Jml Mitra Pengajuan Modal</label>
                 </div>
 
-                <div class="mb-3">
-                    <label class="form-label">Amount Modal (Rp)</label>
-                    <input type="text" class="form-control rupiah-input" id="amountModalDisplay" placeholder="Rp 0" required>
-                    <input type="hidden" id="amountModalReal">
+                <div class="form-floating mb-3">
+                    <input type="text" class="form-control rupiah-input" id="amountModalDisplay" placeholder="Rp 0" inputmode="numeric" required>
+                    <label>Nominal Modal (Rp)</label>
                 </div>
 
-                <div class="mb-3">
-                    <label class="form-label">Tenor</label>
+                <div class="form-floating mb-3">
                     <select class="form-select" id="tenorSelect" required>
                         <option value="Short">Short</option>
                         <option value="Full">Full</option>
                     </select>
-                </div>
-                
-                <div class="mb-4">
-                    <label class="form-label fw-bold">Foto Validasi (Bisa Banyak)</label>
-                    <input type="file" class="form-control" id="fotoInput" accept="image/*" multiple required>
-                    <div class="form-text small text-muted">Klik untuk memilih dari galeri. Tahan lama untuk pilih banyak.</div>
-                    <div id="previewContainer" class="preview-container"></div>
+                    <label>Jenis Tenor</label>
                 </div>
 
-                <div class="d-grid gap-2">
-                    <button type="submit" class="btn btn-purple btn-lg shadow-sm">
-                        <i class="fa-solid fa-paper-plane me-2"></i> Submit Data
-                    </button>
-                    <a href="home.html" class="btn btn-outline-secondary">Kembali</a>
+                <div class="section-title">Dokumentasi</div>
+                
+                <input type="file" id="fotoInput" accept="image/*" multiple style="display: none;">
+                
+                <div class="upload-area" id="triggerUpload">
+                    <i class="fa-solid fa-camera upload-icon"></i>
+                    <h6 class="fw-bold mb-1">Tambah Foto</h6>
+                    <small class="text-muted">Klik untuk ambil foto atau pilih dari galeri</small>
                 </div>
+
+                <div id="previewContainer" class="photo-grid">
+                    </div>
+
+            </div>
+            
+            <div class="bottom-action">
+                <a href="home.html" class="btn btn-outline-secondary px-3" style="border-radius: 12px;"><i class="fa-solid fa-times"></i></a>
+                <button type="submit" class="btn-submit">
+                    <i class="fa-solid fa-paper-plane me-2"></i> Kirim Laporan
+                </button>
             </div>
         </form>
     </div>
