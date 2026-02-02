@@ -22,7 +22,7 @@ const db = getDatabase(app);
 const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; 
 
 // 2. URL BARU (Khusus untuk Capaian BP)
-// [PENTING] Ganti tulisan di bawah ini dengan URL Web App Script BP Anda yang baru!
+// [PENTING] Pastikan ini adalah URL dari Deployment TERBARU Code.gs Anda
 const SCRIPT_URL_BP = "https://script.google.com/macros/s/AKfycbzbfr4VW1-Atl1TzEo5sy4WnAGFT1agQl-shtGLTmFQNa6JZByvrUlTKo9h0-4YN7P7ww/exec"; 
 
 const ADMIN_ID = "17246";
@@ -124,13 +124,12 @@ onAuthStateChanged(auth, (user) => {
                 }
 
                 // 2. Cek Performance Chart (KHUSUS BP)
-                // Pastikan jabatan di database Firebase tertulis "BP"
                 if (userJabatan === "BP") {
                     const bpContainer = document.getElementById('bpSectionContainer');
                     if(bpContainer) bpContainer.classList.remove('d-none'); // Munculkan section
                     
                     if (data.idKaryawan) {
-                        loadBpPerformance(data.idKaryawan); // Load data pakai URL BARU
+                        loadBpPerformance(data.idKaryawan); // Load data
                     } else {
                         // Kalau BP tapi gak ada ID Karyawan
                         const loader = document.getElementById('bpLoader');
@@ -139,7 +138,7 @@ onAuthStateChanged(auth, (user) => {
                         if(errorEl) errorEl.classList.remove('d-none');
                     }
                 } else {
-                    console.log("User bukan BP, menu performance disembunyikan. Jabatan:", userJabatan);
+                    console.log("User bukan BP, menu performance hidden.");
                 }
 
             } else {
@@ -160,7 +159,7 @@ if (logoutBtn) {
     });
 }
 
-// --- UPDATE JAM REPAYMENT (Pakai SCRIPT_URL Lama) ---
+// --- UPDATE JAM REPAYMENT ---
 async function loadRepaymentInfo() {
     const labelUpdate = document.getElementById('repaymentUpdateVal');
     if (!labelUpdate) return;
@@ -187,7 +186,7 @@ function formatJamOnly(val) {
     } catch (e) { return ""; }
 }
 
-// --- LEADERBOARD (Pakai SCRIPT_URL Lama) ---
+// --- LEADERBOARD ---
 async function loadLeaderboard() {
     try {
         const response = await fetch(SCRIPT_URL, {
@@ -247,7 +246,7 @@ function formatJuta(n) {
     else return (num / 1e3).toFixed(0) + "rb";
 }
 
-// --- CHART PROGRES AREA (Pakai SCRIPT_URL Lama) ---
+// --- CHART PROGRES AREA ---
 async function loadAreaProgressChart() {
     const ctxCanvas = document.getElementById('areaProgressChart');
     if (!ctxCanvas) return;
@@ -328,17 +327,17 @@ async function loadAreaProgressChart() {
 
 function formatRibuan(n) { return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."); }
 
-// --- FITUR PERFORMANCE BP (Pakai SCRIPT_URL_BP BARU) ---
+// --- FITUR PERFORMANCE BP (Updated 2 Kartu) ---
 async function loadBpPerformance(idKaryawan) {
     const loader = document.getElementById('bpLoader');
     const content = document.getElementById('bpContent');
     const errorEl = document.getElementById('bpError');
-    const ctx = document.getElementById('bpPerformanceChart');
+    const ctx1 = document.getElementById('bpPerformanceChart');
+    const ctx2 = document.getElementById('bpUserRepeatChart'); // CHART KE-2
 
-    if (!ctx) return;
+    if (!ctx1 || !ctx2) return;
 
     try {
-        // [PENTING] Menggunakan URL Script yang berbeda
         const response = await fetch(SCRIPT_URL_BP, {
             method: 'POST',
             body: JSON.stringify({ action: "get_bp_performance", idKaryawan: idKaryawan }),
@@ -347,11 +346,21 @@ async function loadBpPerformance(idKaryawan) {
 
         const result = await response.json();
         
+        // Debugging di Console untuk cek data
+        console.log("BP Perf Data:", result);
+
         if(loader) loader.classList.add('d-none');
 
         if (result.result === "success" && result.data) {
             if(content) content.classList.remove('d-none');
-            renderBpChart(ctx, result.data);
+            
+            // Render Kartu 1 (Amount, NoA, Weekly)
+            renderBpChart1(ctx1, result.data);
+            
+            // Render Kartu 2 (User, Repeat) - INI YANG PENTING
+            renderBpChart2(ctx2, result.data);
+            
+            // Update Teks Angka
             updateBpInfoText(result.data);
         } else {
             if(errorEl) errorEl.classList.remove('d-none');
@@ -365,7 +374,7 @@ async function loadBpPerformance(idKaryawan) {
 }
 
 function updateBpInfoText(data) {
-    // Helper format angka
+    // Helper format
     const fmtJuta = (n) => {
         let val = Number(n);
         if(isNaN(val)) return "0";
@@ -373,110 +382,115 @@ function updateBpInfoText(data) {
         if(val >= 1e6) return (val/1e6).toFixed(1) + " Jt";
         return val.toLocaleString('id-ID');
     };
-    
     const fmtNum = (n) => Number(n).toLocaleString('id-ID');
 
-    // Update Text Amount
+    // KARTU 1 (Update Teks)
     document.getElementById('txtAmountAct').innerText = "Rp " + fmtJuta(data.amount.actual);
-    document.getElementById('txtAmountTgt').innerText = "Target: Rp " + fmtJuta(data.amount.target);
-
-    // Update Text NoA
+    document.getElementById('txtAmountTgt').innerText = "Tgt: Rp " + fmtJuta(data.amount.target);
     document.getElementById('txtNoaAct').innerText = fmtNum(data.noa.actual);
-    document.getElementById('txtNoaTgt').innerText = "Target: " + fmtNum(data.noa.target);
-
-    // Update Text Weekly
+    document.getElementById('txtNoaTgt').innerText = "Tgt: " + fmtNum(data.noa.target);
     document.getElementById('txtWeeklyAct').innerText = fmtNum(data.weekly.actual);
-    document.getElementById('txtWeeklyTgt').innerText = "Target: " + fmtNum(data.weekly.target);
+    document.getElementById('txtWeeklyTgt').innerText = "Tgt: " + fmtNum(data.weekly.target);
+
+    // KARTU 2 (Update Teks) - Pastikan bagian ini ada!
+    if(data.user && data.repeat) {
+        document.getElementById('txtUserAct').innerText = fmtNum(data.user.actual);
+        document.getElementById('txtUserTgt').innerText = "Tgt: " + fmtNum(data.user.target);
+        document.getElementById('txtRepeatAct').innerText = fmtNum(data.repeat.actual);
+        document.getElementById('txtRepeatTgt').innerText = "Tgt: " + fmtNum(data.repeat.target);
+    }
 }
 
-function renderBpChart(canvasCtx, data) {
-    // Hitung % Capaian (Max visual 100% untuk bar, tapi label tetap angka asli)
+function renderBpChart1(canvasCtx, data) {
     const calcPct = (act, tgt) => (tgt > 0) ? (act / tgt) * 100 : 0;
     
     const pAmt = calcPct(data.amount.actual, data.amount.target);
     const pNoa = calcPct(data.noa.actual, data.noa.target);
     const pWk = calcPct(data.weekly.actual, data.weekly.target);
+    
+    const getColor = (p) => p >= 100 ? '#2e7d32' : '#8e26d4';
 
-    // Tentukan warna: Hijau jika >= 100%, Ungu jika belum
-    const colAmt = pAmt >= 100 ? '#2e7d32' : '#8e26d4';
-    const colNoa = pNoa >= 100 ? '#2e7d32' : '#8e26d4';
-    const colWk = pWk >= 100 ? '#2e7d32' : '#8e26d4';
+    if (window.chartInstance1) window.chartInstance1.destroy();
 
-    // Chart.js Configuration
-    new Chart(canvasCtx, {
+    window.chartInstance1 = new Chart(canvasCtx, {
         type: 'bar',
         data: {
             labels: ['Amount', 'NoA', 'Weekly'],
             datasets: [
                 {
-                    // Layer Depan: Capaian Aktual
                     label: 'Capaian',
                     data: [pAmt, pNoa, pWk],
-                    backgroundColor: [colAmt, colNoa, colWk],
-                    borderRadius: 4,
-                    barPercentage: 0.5,
-                    categoryPercentage: 0.8,
-                    z: 2 // Layer atas
+                    backgroundColor: [getColor(pAmt), getColor(pNoa), getColor(pWk)],
+                    borderRadius: 4, barPercentage: 0.5, z: 2
                 },
                 {
-                    // Layer Belakang: Background Bar (Target 100%)
-                    label: 'Target',
-                    data: [100, 100, 100], 
-                    backgroundColor: '#f0f2f5',
-                    borderRadius: 4,
-                    barPercentage: 0.5,
-                    categoryPercentage: 0.8,
-                    grouped: false, // Stacked effect manual
-                    order: 1, // Layer bawah
-                    hoverBackgroundColor: '#f0f2f5'
+                    label: 'Target', data: [100, 100, 100], 
+                    backgroundColor: '#f0f2f5', borderRadius: 4, barPercentage: 0.5, grouped: false, order: 1
                 }
             ]
         },
-        options: {
-            indexAxis: 'y', // Horizontal Bar
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    enabled: true,
-                    callbacks: {
-                        label: function(ctx) {
-                            if (ctx.datasetIndex === 1) return null; // Hide tooltip bg
-                            let pct = ctx.raw.toFixed(1) + "%";
-                            return `Capaian: ${pct}`;
-                        }
-                    }
-                },
-                datalabels: {
-                    anchor: 'end',
-                    align: 'end',
-                    offset: 4,
-                    color: '#333',
-                    font: { size: 10, weight: 'bold' },
-                    formatter: function(value, ctx) {
-                        if (ctx.datasetIndex === 1) return ""; // Hide label bg
-                        return Math.round(value) + "%";
-                    }
-                }
-            },
-            scales: {
-                x: {
-                    display: false,
-                    max: 130, // Memberi ruang teks di kanan
-                    beginAtZero: true
-                },
-                y: {
-                    grid: { display: false, drawBorder: false },
-                    ticks: { 
-                        font: { size: 11, weight: '600' },
-                        color: '#555'
-                    }
-                }
-            },
-            animation: { duration: 1500 }
-        }
+        options: getChartOptions()
     });
+}
+
+function renderBpChart2(canvasCtx, data) {
+    if(!data.user || !data.repeat) return; // Guard clause
+
+    const calcPct = (act, tgt) => (tgt > 0) ? (act / tgt) * 100 : 0;
+
+    const pUser = calcPct(data.user.actual, data.user.target);
+    const pRepeat = calcPct(data.repeat.actual, data.repeat.target);
+
+    // Warna User/Repeat (Misal: Orange/Kuning biar beda)
+    const getColor = (p) => p >= 100 ? '#2e7d32' : '#ffb300'; 
+
+    if (window.chartInstance2) window.chartInstance2.destroy();
+
+    window.chartInstance2 = new Chart(canvasCtx, {
+        type: 'bar',
+        data: {
+            labels: ['User', 'Repeat'],
+            datasets: [
+                {
+                    label: 'Capaian',
+                    data: [pUser, pRepeat],
+                    backgroundColor: [getColor(pUser), getColor(pRepeat)],
+                    borderRadius: 4, barPercentage: 0.5, z: 2
+                },
+                {
+                    label: 'Target', data: [100, 100], 
+                    backgroundColor: '#f0f2f5', borderRadius: 4, barPercentage: 0.5, grouped: false, order: 1
+                }
+            ]
+        },
+        options: getChartOptions()
+    });
+}
+
+function getChartOptions() {
+    return {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: function(ctx) {
+                        if (ctx.datasetIndex === 1) return null;
+                        return `Capaian: ${ctx.raw.toFixed(1)}%`;
+                    }
+                }
+            },
+            datalabels: {
+                anchor: 'end', align: 'end', offset: 4, color: '#333',
+                font: { size: 10, weight: 'bold' },
+                formatter: (val, ctx) => ctx.datasetIndex === 1 ? "" : Math.round(val) + "%"
+            }
+        },
+        scales: {
+            x: { display: false, max: 130, beginAtZero: true },
+            y: { grid: { display: false }, ticks: { font: { size: 11, weight: '600' }, color: '#555' } }
+        }
+    };
 }
 
 // Fitur Drag-to-Scroll untuk Desktop/Laptop
