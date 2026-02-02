@@ -20,7 +20,7 @@ const db = getDatabase(app);
 // ⚠️ URL APP SCRIPT ⚠️
 const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; 
 
-// GLOBAL VARIABLE UNTUK MENAMPUNG FOTO
+// GLOBAL VARIABLE: Untuk menampung file foto sementara
 let filesArray = []; 
 
 const dataPoints = {
@@ -29,13 +29,13 @@ const dataPoints = {
     "Solo": ["Banjarsari", "Gemolong", "Masaran", "Tangen"],
     "Solo 2": ["Gatak", "Jumantono", "Karanganyar", "Nguter", "Pasar Kliwon"],
     "Yogyakarta": ["01 Sleman", "Kalasan", "Ngaglik", "Umbulharjo"],
-    "Yogyakarta 2": ["01 Pandak", "01 Pangasih", "01 Pleret", "Kutoarjo", "Purworejo", "Saptosari"],
+    "Yogyakarta 2": ["01 Pandak", "01 Pengasih", "01 Pleret", "Kutoarjo", "Purworejo", "Saptosari"],
     "Wonogiri": ["Jatisrono", "Ngadirojo", "Ngawen 2", "Pracimantoro", "Wonosari"]
 };
 
 // --- INIT ---
 window.addEventListener('DOMContentLoaded', () => {
-    console.log("Script Validasi Modern Berjalan...");
+    console.log("Script Validasi Modern (Single Request) Berjalan...");
     setTanggalOtomatis();
 
     onAuthStateChanged(auth, (user) => {
@@ -47,7 +47,7 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 
     setupFormListeners();
-    setupPhotoManager(); // Init fungsi foto baru
+    setupPhotoManager(); // Init fitur foto
 });
 
 function setTanggalOtomatis() {
@@ -61,28 +61,33 @@ function loadUserProfile(uid) {
     get(userRef).then((snapshot) => {
         if (snapshot.exists()) {
             const data = snapshot.val();
-            const elNama = document.getElementById('namaKaryawan');
-            const elId = document.getElementById('idKaryawan');
-            const elReg = document.getElementById('regionalInput');
-            const elArea = document.getElementById('areaSelect');
-            const elPoint = document.getElementById('pointSelect');
+            
+            // Set values
+            const elements = {
+                nama: document.getElementById('namaKaryawan'),
+                id: document.getElementById('idKaryawan'),
+                reg: document.getElementById('regionalInput'),
+                area: document.getElementById('areaSelect'),
+                point: document.getElementById('pointSelect')
+            };
 
-            if(elNama) elNama.value = data.nama || "-";
-            if(elId) elId.value = data.idKaryawan || "-";
-            if(elReg) elReg.value = data.regional || "Jawa Tengah 1";
+            if(elements.nama) elements.nama.value = data.nama || "-";
+            if(elements.id) elements.id.value = data.idKaryawan || "-";
+            if(elements.reg) elements.reg.value = data.regional || "Jawa Tengah 1";
 
-            if (data.area && elArea) {
-                elArea.value = data.area;
+            if (data.area && elements.area) {
+                elements.area.value = data.area;
                 updatePointsDropdown(data.area);
                 
+                // Logic Kunci Area berdasarkan Jabatan
                 if (data.jabatan === 'BM' || data.jabatan === 'BP') {
-                    elArea.disabled = true;
-                    if(elPoint && data.point) {
-                        elPoint.value = data.point;
-                        elPoint.disabled = true;
+                    elements.area.disabled = true;
+                    if(elements.point && data.point) {
+                        elements.point.value = data.point;
+                        elements.point.disabled = true;
                     }
                 } else {
-                    if(elPoint && data.point) elPoint.value = data.point;
+                    if(elements.point && data.point) elements.point.value = data.point;
                 }
             }
         } else {
@@ -96,7 +101,7 @@ function updatePointsDropdown(selectedArea) {
     if (!elPoint) return;
     
     const points = dataPoints[selectedArea] || [];
-    elPoint.innerHTML = '<option value="" selected disabled>Pilih Point</option>';
+    elPoint.innerHTML = '<option value="" selected disabled>Pilih Point...</option>';
     
     if (points.length > 0) {
         elPoint.disabled = false;
@@ -111,63 +116,56 @@ function updatePointsDropdown(selectedArea) {
     }
 }
 
-// --- LOGIKA MANAJEMEN FOTO BARU ---
+// --- MANAGEMEN FOTO (ADD & REMOVE) ---
 function setupPhotoManager() {
     const triggerBtn = document.getElementById('triggerUpload');
     const hiddenInput = document.getElementById('fotoInput');
-    const previewContainer = document.getElementById('previewContainer');
-
+    
     // 1. Klik area box -> Klik input file asli
     triggerBtn.addEventListener('click', () => hiddenInput.click());
 
-    // 2. Saat file dipilih dari galeri
+    // 2. Saat file dipilih
     hiddenInput.addEventListener('change', function() {
         const newFiles = Array.from(this.files);
         
-        // Gabungkan dengan file yg sudah ada
+        // Cek Maksimal
         if (filesArray.length + newFiles.length > 5) {
-            alert("Maksimal 5 foto sekaligus.");
+            alert("Maksimal 5 foto.");
             return;
         }
 
+        // Tambahkan ke array global (hindari duplikat nama & size)
         newFiles.forEach(file => {
-            // Cek duplikasi sederhana berdasarkan nama dan ukuran
             const exists = filesArray.some(f => f.name === file.name && f.size === file.size);
-            if (!exists) {
-                filesArray.push(file);
-            }
+            if (!exists) filesArray.push(file);
         });
 
-        // Reset input agar bisa pilih file yang sama jika dihapus lalu dipilih lagi
-        this.value = ''; 
-        
+        this.value = ''; // Reset input agar bisa pilih file yg sama jika perlu
         renderPreviews();
     });
 }
 
-// Render Ulang Preview berdasarkan filesArray
+// Render Ulang Preview
 function renderPreviews() {
     const container = document.getElementById('previewContainer');
-    container.innerHTML = ''; // Bersihkan
+    container.innerHTML = ''; 
 
     filesArray.forEach((file, index) => {
         const reader = new FileReader();
         reader.onload = function(e) {
-            // Buat Element HTML untuk Preview
             const div = document.createElement('div');
-            div.className = 'photo-item';
-            
+            div.className = 'preview-item';
             div.innerHTML = `
-                <img src="${e.target.result}" alt="Preview">
-                <button type="button" class="delete-btn" data-index="${index}">
+                <img src="${e.target.result}" alt="Foto">
+                <button type="button" class="btn-remove" data-index="${index}">
                     <i class="fa-solid fa-times"></i>
                 </button>
             `;
             container.appendChild(div);
 
-            // Tambah event listener delete khusus untuk tombol ini
-            div.querySelector('.delete-btn').addEventListener('click', function(e) {
-                e.stopPropagation(); // Biar gak bubble
+            // Event Hapus per Item
+            div.querySelector('.btn-remove').addEventListener('click', (e) => {
+                e.stopPropagation();
                 removeFile(index);
             });
         }
@@ -175,100 +173,88 @@ function renderPreviews() {
     });
 }
 
-// Hapus File dari Array
 function removeFile(index) {
-    filesArray.splice(index, 1); // Hapus dari array
-    renderPreviews(); // Gambar ulang
+    filesArray.splice(index, 1);
+    renderPreviews();
 }
 
-// --- LOGIKA UTAMA (SUBMIT & RUPIAH) ---
+// --- SUBMIT LOGIC (SINGLE REQUEST) ---
 function setupFormListeners() {
     // Area Listener
     const elArea = document.getElementById('areaSelect');
-    if (elArea) {
-        elArea.addEventListener('change', function() {
-            updatePointsDropdown(this.value);
-        });
-    }
+    if (elArea) elArea.addEventListener('change', function() { updatePointsDropdown(this.value); });
 
-    // Rupiah Formatter
+    // Rupiah Listener
     document.querySelectorAll('.rupiah-input').forEach(input => {
-        input.addEventListener('input', function() {
-            this.value = formatRupiah(this.value, 'Rp. ');
-        });
-        input.addEventListener('blur', function() {
-            if(this.value === '') this.value = 'Rp. 0';
-        });
+        input.addEventListener('input', function() { this.value = formatRupiah(this.value, 'Rp. '); });
+        input.addEventListener('blur', function() { if(this.value === '') this.value = 'Rp. 0'; });
     });
 
-    // Submit Form
+    // Form Submit
     const elForm = document.getElementById('validasiForm');
     const elLoading = document.getElementById('loadingOverlay');
-    const elLoadingText = document.getElementById('loadingText');
 
     if (elForm) {
         elForm.addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            // Validasi
-            const rawVal = document.getElementById('amountValDisplay').value;
-            const rawModal = document.getElementById('amountModalDisplay').value;
-            const cleanVal = rawVal.replace(/[^0-9]/g, '');
-            const cleanModal = rawModal.replace(/[^0-9]/g, '');
+            // Validasi Input
+            const cleanVal = document.getElementById('amountValDisplay').value.replace(/[^0-9]/g, '');
+            const cleanModal = document.getElementById('amountModalDisplay').value.replace(/[^0-9]/g, '');
 
             if (cleanVal === "") { alert("❌ Nominal Validasi Kosong!"); return; }
             if (filesArray.length === 0) { alert("❌ Wajib upload minimal 1 foto!"); return; }
             if (!document.getElementById('areaSelect').value) { alert("❌ Area belum terpilih!"); return; }
 
-            // Tampilkan Loading
             elLoading.style.display = 'flex';
             
             try {
-                // Loop upload untuk setiap foto yang ada di array
-                // Karena backend mungkin hanya terima 1 row per request, kita kirim multiple request
-                let successCount = 0;
-
-                for (let i = 0; i < filesArray.length; i++) {
-                    const file = filesArray[i];
-                    
-                    // Update teks loading
-                    elLoadingText.innerText = `Mengupload Foto ${i + 1} dari ${filesArray.length}...`;
-
-                    const base64 = await toBase64(file);
-                    
-                    const formData = {
-                        jenisLaporan: "Validasi",
-                        tanggal: document.getElementById('tanggalInput').value,
-                        idKaryawan: document.getElementById('idKaryawan').value,
-                        namaBP: document.getElementById('namaKaryawan').value,
-                        area: document.getElementById('areaSelect').value,
-                        point: document.getElementById('pointSelect').value,
-                        regional: document.getElementById('regionalInput').value,
-                        jmlMitraVal: document.getElementById('jmlMitraVal').value,
-                        nominalVal: cleanVal,       
-                        jmlMitraModal: document.getElementById('jmlMitraModal').value,
-                        nominalModal: cleanModal, 
-                        tenor: document.getElementById('tenorSelect').value,
-                        foto: base64.replace(/^data:image\/(png|jpeg|jpg);base64,/, ""),
+                // 1. Proses Semua Foto ke Base64 secara paralel
+                const photoPromises = filesArray.map(async (file) => {
+                    const b64 = await toBase64(file);
+                    return {
                         namaFoto: "Val_" + file.name,
                         mimeType: file.type,
-                        indexFoto: (i + 1) // Opsional: penanda urutan
+                        data: b64.replace(/^data:image\/(png|jpeg|jpg);base64,/, "")
                     };
+                });
 
-                    // Kirim Data
-                    await fetch(SCRIPT_URL, {
-                        method: 'POST',
-                        body: JSON.stringify(formData)
-                    });
+                const processedPhotos = await Promise.all(photoPromises);
+
+                // 2. Susun Payload (1 JSON Objek berisi list foto)
+                const formData = {
+                    jenisLaporan: "Validasi",
+                    tanggal: document.getElementById('tanggalInput').value,
+                    idKaryawan: document.getElementById('idKaryawan').value,
+                    namaBP: document.getElementById('namaKaryawan').value,
+                    area: document.getElementById('areaSelect').value,
+                    point: document.getElementById('pointSelect').value,
+                    regional: document.getElementById('regionalInput').value,
+                    jmlMitraVal: document.getElementById('jmlMitraVal').value,
+                    nominalVal: cleanVal,       
+                    jmlMitraModal: document.getElementById('jmlMitraModal').value,
+                    nominalModal: cleanModal, 
+                    tenor: document.getElementById('tenorSelect').value,
                     
-                    successCount++;
-                }
+                    // KITA KIRIM ARRAY FOTO DISINI (SINGLE REQUEST)
+                    listFoto: processedPhotos 
+                };
 
-                // Selesai
-                alert(`✅ Berhasil! ${successCount} data validasi terkirim.`);
-                
-                // Reset Form tapi simpan data user
-                resetFormKeepUser(elForm);
+                // 3. Kirim Sekali Saja
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    redirect: 'follow',
+                    body: JSON.stringify(formData)
+                });
+
+                const result = await response.json();
+
+                if (result.result === 'success') {
+                    alert("✅ Laporan Berhasil Terkirim!");
+                    resetFormKeepUser(elForm);
+                } else {
+                    throw new Error(result.error || "Gagal menyimpan data");
+                }
 
             } catch (error) {
                 console.error("Error:", error);
@@ -280,38 +266,41 @@ function setupFormListeners() {
     }
 }
 
+// Reset Form tapi User Data Tetap
 function resetFormKeepUser(form) {
-    // Simpan data user
-    const savedNama = document.getElementById('namaKaryawan').value;
-    const savedId = document.getElementById('idKaryawan').value;
-    const savedReg = document.getElementById('regionalInput').value;
-    const savedArea = document.getElementById('areaSelect').value;
-    const savedPoint = document.getElementById('pointSelect').value;
-    const isAreaLocked = document.getElementById('areaSelect').disabled;
-    const isPointLocked = document.getElementById('pointSelect').disabled;
+    const saved = {
+        nama: document.getElementById('namaKaryawan').value,
+        id: document.getElementById('idKaryawan').value,
+        reg: document.getElementById('regionalInput').value,
+        area: document.getElementById('areaSelect').value,
+        point: document.getElementById('pointSelect').value,
+        areaLocked: document.getElementById('areaSelect').disabled,
+        pointLocked: document.getElementById('pointSelect').disabled
+    };
 
     form.reset();
-    filesArray = []; // Kosongkan array foto
-    renderPreviews(); // Bersihkan preview UI
+    filesArray = [];
+    renderPreviews();
 
-    // Restore data user
+    // Restore
     setTanggalOtomatis();
-    document.getElementById('namaKaryawan').value = savedNama;
-    document.getElementById('idKaryawan').value = savedId;
-    document.getElementById('regionalInput').value = savedReg;
-
-    if (savedArea) {
-        document.getElementById('areaSelect').value = savedArea;
-        updatePointsDropdown(savedArea);
-        document.getElementById('pointSelect').value = savedPoint;
+    document.getElementById('namaKaryawan').value = saved.nama;
+    document.getElementById('idKaryawan').value = saved.id;
+    document.getElementById('regionalInput').value = saved.reg;
+    
+    if (saved.area) {
+        document.getElementById('areaSelect').value = saved.area;
+        updatePointsDropdown(saved.area);
+        document.getElementById('pointSelect').value = saved.point;
     }
 
-    document.getElementById('areaSelect').disabled = isAreaLocked;
-    document.getElementById('pointSelect').disabled = isPointLocked;
+    document.getElementById('areaSelect').disabled = saved.areaLocked;
+    document.getElementById('pointSelect').disabled = saved.pointLocked;
     
     window.scrollTo(0, 0);
 }
 
+// Helpers
 function formatRupiah(angka, prefix) {
     if (!angka) return "";
     let number_string = angka.replace(/[^,\d]/g, '').toString();
@@ -322,10 +311,7 @@ function formatRupiah(angka, prefix) {
         rupiah = split[0].substr(0, sisa),
         ribuan = split[0].substr(sisa).match(/\d{3}/gi);
 
-    if (ribuan) {
-        let separator = sisa ? '.' : '';
-        rupiah += separator + ribuan.join('.');
-    }
+    if (ribuan) rupiah += (sisa ? '.' : '') + ribuan.join('.');
     rupiah = split[1] != undefined ? rupiah + ',' + split[1] : rupiah;
     return prefix == undefined ? rupiah : (rupiah ? 'Rp. ' + rupiah : '');
 }
