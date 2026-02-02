@@ -97,6 +97,47 @@
             </div>
         </div>
 
+        <div id="bpSectionContainer" class="d-none">
+            <div class="section-title">
+                Performance Saya <span class="badge bg-primary ms-2" style="background-color: var(--primary) !important; font-size: 0.7rem;">Live Update</span>
+            </div>
+            
+            <div class="leaderboard-card text-start" style="position: relative; overflow: hidden; min-height: 150px;">
+                <div id="bpLoader" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status" style="width: 2rem; height: 2rem;"></div>
+                    <p class="text-muted small mt-2 mb-0">Memuat data...</p>
+                </div>
+
+                <div id="bpContent" class="d-none">
+                    <div style="height: 200px; width: 100%;">
+                        <canvas id="bpPerformanceChart"></canvas>
+                    </div>
+
+                    <div class="row mt-3 mx-0 g-0 text-center border-top pt-3">
+                        <div class="col-4 px-1">
+                            <div class="text-uppercase text-muted fw-bold" style="font-size: 0.65rem;">AMOUNT</div>
+                            <div class="fw-bold text-dark mt-1" style="font-size: 0.75rem;" id="txtAmountAct">-</div>
+                            <div class="text-secondary" style="font-size: 0.65rem;" id="txtAmountTgt">Tgt: -</div>
+                        </div>
+                        <div class="col-4 px-1 border-start border-end">
+                            <div class="text-uppercase text-muted fw-bold" style="font-size: 0.65rem;">NOA</div>
+                            <div class="fw-bold text-dark mt-1" style="font-size: 0.75rem;" id="txtNoaAct">-</div>
+                            <div class="text-secondary" style="font-size: 0.65rem;" id="txtNoaTgt">Tgt: -</div>
+                        </div>
+                        <div class="col-4 px-1">
+                            <div class="text-uppercase text-muted fw-bold" style="font-size: 0.65rem;">NEW NOA W</div>
+                            <div class="fw-bold text-dark mt-1" style="font-size: 0.75rem;" id="txtWeeklyAct">-</div>
+                            <div class="text-secondary" style="font-size: 0.65rem;" id="txtWeeklyTgt">Tgt: -</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="bpError" class="d-none text-center py-4">
+                    <i class="fa-solid fa-chart-bar text-muted mb-2 fs-3 opacity-50"></i>
+                    <p class="text-muted small mb-0">Data capaian belum tersedia.</p>
+                </div>
+            </div>
+        </div>
         <div class="section-title">Menu Pekerjaan</div>
         <div class="horizontal-scroll-wrapper">
             
