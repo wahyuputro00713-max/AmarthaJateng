@@ -16,7 +16,15 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev";
+// --- KONFIGURASI URL APPS SCRIPT ---
+
+// 1. URL LAMA (Untuk Leaderboard, Area Progress, Repayment)
+const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; 
+
+// 2. URL BARU (Khusus untuk Capaian BP)
+// [PENTING] Ganti tulisan di bawah ini dengan URL Web App Script BP Anda yang baru!
+const SCRIPT_URL_BP = "https://script.google.com/macros/s/AKfycbwUveq1n8OXqTC73Rljga6TSKaqJmUy2pGbSKsc9SyTHHgRMxEcVTo309nq1VjXQH9hKA/exec"; 
+
 const ADMIN_ID = "17246";
 
 const userNameSpan = document.getElementById('userName');
@@ -116,12 +124,13 @@ onAuthStateChanged(auth, (user) => {
                 }
 
                 // 2. Cek Performance Chart (KHUSUS BP)
+                // Pastikan jabatan di database Firebase tertulis "BP"
                 if (userJabatan === "BP") {
                     const bpContainer = document.getElementById('bpSectionContainer');
                     if(bpContainer) bpContainer.classList.remove('d-none'); // Munculkan section
                     
                     if (data.idKaryawan) {
-                        loadBpPerformance(data.idKaryawan); // Load data
+                        loadBpPerformance(data.idKaryawan); // Load data pakai URL BARU
                     } else {
                         // Kalau BP tapi gak ada ID Karyawan
                         const loader = document.getElementById('bpLoader');
@@ -129,6 +138,8 @@ onAuthStateChanged(auth, (user) => {
                         if(loader) loader.classList.add('d-none');
                         if(errorEl) errorEl.classList.remove('d-none');
                     }
+                } else {
+                    console.log("User bukan BP, menu performance disembunyikan. Jabatan:", userJabatan);
                 }
 
             } else {
@@ -149,7 +160,7 @@ if (logoutBtn) {
     });
 }
 
-// --- UPDATE JAM REPAYMENT ---
+// --- UPDATE JAM REPAYMENT (Pakai SCRIPT_URL Lama) ---
 async function loadRepaymentInfo() {
     const labelUpdate = document.getElementById('repaymentUpdateVal');
     if (!labelUpdate) return;
@@ -176,7 +187,7 @@ function formatJamOnly(val) {
     } catch (e) { return ""; }
 }
 
-// --- LEADERBOARD ---
+// --- LEADERBOARD (Pakai SCRIPT_URL Lama) ---
 async function loadLeaderboard() {
     try {
         const response = await fetch(SCRIPT_URL, {
@@ -236,7 +247,7 @@ function formatJuta(n) {
     else return (num / 1e3).toFixed(0) + "rb";
 }
 
-// --- CHART PROGRES AREA ---
+// --- CHART PROGRES AREA (Pakai SCRIPT_URL Lama) ---
 async function loadAreaProgressChart() {
     const ctxCanvas = document.getElementById('areaProgressChart');
     if (!ctxCanvas) return;
@@ -317,7 +328,7 @@ async function loadAreaProgressChart() {
 
 function formatRibuan(n) { return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."); }
 
-// --- FITUR PERFORMANCE BP (Baru) ---
+// --- FITUR PERFORMANCE BP (Pakai SCRIPT_URL_BP BARU) ---
 async function loadBpPerformance(idKaryawan) {
     const loader = document.getElementById('bpLoader');
     const content = document.getElementById('bpContent');
@@ -327,7 +338,8 @@ async function loadBpPerformance(idKaryawan) {
     if (!ctx) return;
 
     try {
-        const response = await fetch(SCRIPT_URL, {
+        // [PENTING] Menggunakan URL Script yang berbeda
+        const response = await fetch(SCRIPT_URL_BP, {
             method: 'POST',
             body: JSON.stringify({ action: "get_bp_performance", idKaryawan: idKaryawan }),
             headers: { "Content-Type": "text/plain;charset=utf-8" }
