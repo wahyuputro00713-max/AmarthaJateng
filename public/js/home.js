@@ -17,12 +17,8 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 // --- KONFIGURASI URL APPS SCRIPT ---
-
-// 1. URL LAMA (Untuk Leaderboard, Area Progress, Repayment)
 const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; 
-
-// 2. URL BARU (Khusus untuk Capaian BP)
-// [PENTING] Pastikan ini adalah URL dari Deployment TERBARU Code.gs Anda
+// URL Code.gs untuk BP Performance (Pastikan sudah deploy new version)
 const SCRIPT_URL_BP = "https://script.google.com/macros/s/AKfycbzbfr4VW1-Atl1TzEo5sy4WnAGFT1agQl-shtGLTmFQNa6JZByvrUlTKo9h0-4YN7P7ww/exec"; 
 
 const ADMIN_ID = "17246";
@@ -31,6 +27,10 @@ const userNameSpan = document.getElementById('userName');
 const logoutBtn = document.getElementById('logoutBtn');
 const btnAdmin = document.getElementById('btnAdmin'); 
 const closingMenuBtn = document.getElementById('closingMenuBtn');
+
+// CACHE DATA UNTUK LEADERBOARD LENGKAP
+let cachedLeaderboardData = [];
+let cachedUsersMap = {};
 
 // --- AUTO LOGOUT ---
 let idleTime = 0;
@@ -80,7 +80,6 @@ async function checkAbsensiStatus(uid) {
         const labelEl = btnAbsen.querySelector('.widget-label');
 
         if (snapshot.exists()) {
-            // Style: Sudah Absen
             btnAbsen.style.pointerEvents = "none"; 
             if (textEl) { textEl.innerText = "Sudah Absen"; textEl.style.color = "#2e7d32"; } 
             if (iconEl) { iconEl.innerHTML = '<i class="fa-solid fa-check"></i>'; iconEl.style.background = "#e8f5e9"; iconEl.style.color = "#2e7d32"; }
@@ -88,7 +87,6 @@ async function checkAbsensiStatus(uid) {
         } else {
             const jamSekarang = getCurrentTimeWIB();
             if (jamSekarang > "08:15") {
-                // Style: Terlambat/Tutup
                 btnAbsen.style.pointerEvents = "none";
                 btnAbsen.style.opacity = "0.7";
                 if (textEl) { textEl.innerText = "Absen Tutup"; textEl.style.color = "#c62828"; }
@@ -101,7 +99,7 @@ async function checkAbsensiStatus(uid) {
 onAuthStateChanged(auth, (user) => {
     if (user) {
         checkAbsensiStatus(user.uid);
-        loadLeaderboard();
+        loadLeaderboard(); // Init leaderboard
         loadRepaymentInfo();
 
         const userRef = ref(db, 'users/' + user.uid);
@@ -118,27 +116,22 @@ onAuthStateChanged(auth, (user) => {
                 
                 const userJabatan = (data.jabatan || "").toUpperCase(); 
                 
-                // 1. Cek Menu Closing (RM/AM/BM)
                 if (["RM", "AM", "BM"].includes(userJabatan) && closingMenuBtn) {
                     closingMenuBtn.classList.remove('d-none');
                 }
 
-                // 2. Cek Performance Chart (KHUSUS BP)
                 if (userJabatan === "BP") {
                     const bpContainer = document.getElementById('bpSectionContainer');
-                    if(bpContainer) bpContainer.classList.remove('d-none'); // Munculkan section
+                    if(bpContainer) bpContainer.classList.remove('d-none'); 
                     
                     if (data.idKaryawan) {
-                        loadBpPerformance(data.idKaryawan); // Load data
+                        loadBpPerformance(data.idKaryawan); 
                     } else {
-                        // Kalau BP tapi gak ada ID Karyawan
                         const loader = document.getElementById('bpLoader');
                         const errorEl = document.getElementById('bpError');
                         if(loader) loader.classList.add('d-none');
                         if(errorEl) errorEl.classList.remove('d-none');
                     }
-                } else {
-                    console.log("User bukan BP, menu performance hidden.");
                 }
 
             } else {
@@ -156,6 +149,19 @@ onAuthStateChanged(auth, (user) => {
 if (logoutBtn) {
     logoutBtn.addEventListener('click', () => {
         if(confirm("Apakah Anda yakin ingin keluar?")) { signOut(auth).then(() => window.location.replace("index.html")); }
+    });
+}
+
+// --- TOMBOL LIHAT LEADERBOARD LENGKAP ---
+const btnViewAll = document.getElementById('btnViewAllLeaderboard');
+if(btnViewAll){
+    btnViewAll.addEventListener('click', (e) => {
+        e.preventDefault();
+        const modal = document.getElementById('fullLbModal');
+        if(modal) {
+            modal.classList.add('active');
+            renderFullLeaderboard();
+        }
     });
 }
 
@@ -186,34 +192,45 @@ function formatJamOnly(val) {
     } catch (e) { return ""; }
 }
 
-// --- LEADERBOARD ---
+// --- LEADERBOARD LOGIC ---
 async function loadLeaderboard() {
     try {
-        const response = await fetch(SCRIPT_URL, {
-            method: 'POST', body: JSON.stringify({ action: "get_leaderboard" }), headers: { "Content-Type": "text/plain;charset=utf-8" }
-        });
-        const result = await response.json();
-        if (result.result !== "success" || !result.data || result.data.length === 0) { return; }
-
-        const top3 = result.data;
-        let usersMap = {};
+        // 1. Fetch User Data dari Firebase untuk Foto & Nama
         try {
             const snapshot = await get(child(ref(db), `users`));
             if (snapshot.exists()) {
                 snapshot.forEach((c) => {
                     const u = c.val();
-                    if (u.idKaryawan) usersMap[String(u.idKaryawan).trim()] = { nama: u.nama || "Tanpa Nama", foto: u.fotoProfil || null };
+                    if (u.idKaryawan) cachedUsersMap[String(u.idKaryawan).trim()] = { nama: u.nama || "Tanpa Nama", foto: u.fotoProfil || null };
                 });
             }
         } catch (e) {}
 
-        updatePodium(".rank-1", top3[0], usersMap);
-        updatePodium(".rank-2", top3[1], usersMap);
-        updatePodium(".rank-3", top3[2], usersMap);
+        // 2. Fetch Leaderboard Data
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST', body: JSON.stringify({ action: "get_leaderboard" }), headers: { "Content-Type": "text/plain;charset=utf-8" }
+        });
+        const result = await response.json();
+        
+        if (result.result === "success" && result.data && result.data.length > 0) {
+            // SIMPAN KE CACHE GLOBAL
+            cachedLeaderboardData = result.data;
+            
+            // Urutkan (Amount terbesar di atas)
+            cachedLeaderboardData.sort((a, b) => b.amount - a.amount);
+
+            // Update Podium (Top 3)
+            updatePodium(".rank-1", cachedLeaderboardData[0], cachedUsersMap);
+            updatePodium(".rank-2", cachedLeaderboardData[1], cachedUsersMap);
+            updatePodium(".rank-3", cachedLeaderboardData[2], cachedUsersMap);
+        } else {
+             updatePodium(".rank-1", null);
+        }
+
     } catch (error) { console.error("Err Leaderboard", error); }
 }
 
-function updatePodium(sel, data, usersMap) {
+function updatePodium(sel, data, usersMap = {}) {
     const c = document.querySelector(sel); if (!c) return;
     const txtName = c.querySelector('.p-name');
     const txtAmt = c.querySelector('.p-amount');
@@ -226,7 +243,7 @@ function updatePodium(sel, data, usersMap) {
     if (data && data.idKaryawan) {
         const id = String(data.idKaryawan).trim();
         const p = usersMap[id];
-        const name = p ? p.nama : `ID: ${data.idKaryawan}`;
+        const name = p ? p.nama : (data.nama || `ID: ${data.idKaryawan}`);
         const photo = (p && p.foto) ? p.foto : `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`;
         
         if(txtName) txtName.textContent = name;
@@ -234,7 +251,47 @@ function updatePodium(sel, data, usersMap) {
         if(img) img.src = photo;
     } else {
         if(txtName) txtName.textContent = "-";
+        if(txtAmt) txtAmt.textContent = "-";
     }
+}
+
+// RENDER MODAL FULL LIST
+function renderFullLeaderboard() {
+    const listContainer = document.getElementById('fullLbList');
+    if (!listContainer) return;
+
+    if (cachedLeaderboardData.length === 0) {
+        listContainer.innerHTML = '<div class="text-center py-5 text-muted">Data tidak tersedia.</div>';
+        return;
+    }
+
+    let html = '';
+    cachedLeaderboardData.forEach((item, index) => {
+        const rank = index + 1;
+        const id = String(item.idKaryawan).trim();
+        const p = cachedUsersMap[id];
+        const name = p ? p.nama : (item.nama || `ID: ${item.idKaryawan}`);
+        const photo = (p && p.foto) ? p.foto : `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`;
+        
+        let rankClass = '';
+        if(rank === 1) rankClass = 'top-1';
+        else if(rank === 2) rankClass = 'top-2';
+        else if(rank === 3) rankClass = 'top-3';
+
+        html += `
+        <div class="lb-list-item">
+            <div class="lb-rank ${rankClass}">${rank}</div>
+            <img src="${photo}" class="lb-user-img" alt="${name}">
+            <div class="lb-user-info">
+                <div class="lb-user-name">${name}</div>
+                <div class="lb-user-id">${id}</div>
+            </div>
+            <div class="lb-score">${formatJuta(item.amount)}</div>
+        </div>
+        `;
+    });
+
+    listContainer.innerHTML = html;
 }
 
 function formatJuta(n) {
@@ -327,13 +384,13 @@ async function loadAreaProgressChart() {
 
 function formatRibuan(n) { return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."); }
 
-// --- FITUR PERFORMANCE BP (Updated 2 Kartu) ---
+// --- FITUR PERFORMANCE BP ---
 async function loadBpPerformance(idKaryawan) {
     const loader = document.getElementById('bpLoader');
     const content = document.getElementById('bpContent');
     const errorEl = document.getElementById('bpError');
     const ctx1 = document.getElementById('bpPerformanceChart');
-    const ctx2 = document.getElementById('bpUserRepeatChart'); // CHART KE-2
+    const ctx2 = document.getElementById('bpUserRepeatChart'); 
 
     if (!ctx1 || !ctx2) return;
 
@@ -346,7 +403,6 @@ async function loadBpPerformance(idKaryawan) {
 
         const result = await response.json();
         
-        // Debugging di Console untuk cek data
         console.log("BP Perf Data:", result);
 
         if(loader) loader.classList.add('d-none');
@@ -354,13 +410,8 @@ async function loadBpPerformance(idKaryawan) {
         if (result.result === "success" && result.data) {
             if(content) content.classList.remove('d-none');
             
-            // Render Kartu 1 (Amount, NoA, Weekly)
             renderBpChart1(ctx1, result.data);
-            
-            // Render Kartu 2 (User, Repeat) - INI YANG PENTING
             renderBpChart2(ctx2, result.data);
-            
-            // Update Teks Angka
             updateBpInfoText(result.data);
         } else {
             if(errorEl) errorEl.classList.remove('d-none');
@@ -374,7 +425,6 @@ async function loadBpPerformance(idKaryawan) {
 }
 
 function updateBpInfoText(data) {
-    // Helper format
     const fmtJuta = (n) => {
         let val = Number(n);
         if(isNaN(val)) return "0";
@@ -384,7 +434,6 @@ function updateBpInfoText(data) {
     };
     const fmtNum = (n) => Number(n).toLocaleString('id-ID');
 
-    // KARTU 1 (Update Teks)
     document.getElementById('txtAmountAct').innerText = "Rp " + fmtJuta(data.amount.actual);
     document.getElementById('txtAmountTgt').innerText = "Tgt: Rp " + fmtJuta(data.amount.target);
     document.getElementById('txtNoaAct').innerText = fmtNum(data.noa.actual);
@@ -392,7 +441,6 @@ function updateBpInfoText(data) {
     document.getElementById('txtWeeklyAct').innerText = fmtNum(data.weekly.actual);
     document.getElementById('txtWeeklyTgt').innerText = "Tgt: " + fmtNum(data.weekly.target);
 
-    // KARTU 2 (Update Teks) - Pastikan bagian ini ada!
     if(data.user && data.repeat) {
         document.getElementById('txtUserAct').innerText = fmtNum(data.user.actual);
         document.getElementById('txtUserTgt').innerText = "Tgt: " + fmtNum(data.user.target);
@@ -434,14 +482,13 @@ function renderBpChart1(canvasCtx, data) {
 }
 
 function renderBpChart2(canvasCtx, data) {
-    if(!data.user || !data.repeat) return; // Guard clause
+    if(!data.user || !data.repeat) return; 
 
     const calcPct = (act, tgt) => (tgt > 0) ? (act / tgt) * 100 : 0;
 
     const pUser = calcPct(data.user.actual, data.user.target);
     const pRepeat = calcPct(data.repeat.actual, data.repeat.target);
 
-    // Warna User/Repeat (Misal: Orange/Kuning biar beda)
     const getColor = (p) => p >= 100 ? '#2e7d32' : '#ffb300'; 
 
     if (window.chartInstance2) window.chartInstance2.destroy();
@@ -493,7 +540,7 @@ function getChartOptions() {
     };
 }
 
-// Fitur Drag-to-Scroll untuk Desktop/Laptop
+// Fitur Drag-to-Scroll
 const slider = document.querySelector('.horizontal-scroll-wrapper');
 let isDown = false;
 let startX;
