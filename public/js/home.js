@@ -108,8 +108,29 @@ onAuthStateChanged(auth, (user) => {
                 
                 if (String(data.idKaryawan).trim() === ADMIN_ID && btnAdmin) btnAdmin.classList.remove('d-none');
                 
-                const userJabatan = data.jabatan || ""; 
-                if (["RM", "AM", "BM"].includes(userJabatan.toUpperCase()) && closingMenuBtn) closingMenuBtn.classList.remove('d-none');
+                const userJabatan = (data.jabatan || "").toUpperCase(); 
+                
+                // 1. Cek Menu Closing (RM/AM/BM)
+                if (["RM", "AM", "BM"].includes(userJabatan) && closingMenuBtn) {
+                    closingMenuBtn.classList.remove('d-none');
+                }
+
+                // 2. Cek Performance Chart (KHUSUS BP)
+                if (userJabatan === "BP") {
+                    const bpContainer = document.getElementById('bpSectionContainer');
+                    if(bpContainer) bpContainer.classList.remove('d-none'); // Munculkan section
+                    
+                    if (data.idKaryawan) {
+                        loadBpPerformance(data.idKaryawan); // Load data
+                    } else {
+                        // Kalau BP tapi gak ada ID Karyawan
+                        const loader = document.getElementById('bpLoader');
+                        const errorEl = document.getElementById('bpError');
+                        if(loader) loader.classList.add('d-none');
+                        if(errorEl) errorEl.classList.remove('d-none');
+                    }
+                }
+
             } else {
                 if (userNameSpan) {
                     userNameSpan.textContent = user.email;
@@ -215,7 +236,7 @@ function formatJuta(n) {
     else return (num / 1e3).toFixed(0) + "rb";
 }
 
-// --- CHART ---
+// --- CHART PROGRES AREA ---
 async function loadAreaProgressChart() {
     const ctxCanvas = document.getElementById('areaProgressChart');
     if (!ctxCanvas) return;
@@ -295,7 +316,156 @@ async function loadAreaProgressChart() {
 }
 
 function formatRibuan(n) { return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."); }
-// --- TAMBAHKAN INI DI js/home.js (Paling Bawah) ---
+
+// --- FITUR PERFORMANCE BP (Baru) ---
+async function loadBpPerformance(idKaryawan) {
+    const loader = document.getElementById('bpLoader');
+    const content = document.getElementById('bpContent');
+    const errorEl = document.getElementById('bpError');
+    const ctx = document.getElementById('bpPerformanceChart');
+
+    if (!ctx) return;
+
+    try {
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: "get_bp_performance", idKaryawan: idKaryawan }),
+            headers: { "Content-Type": "text/plain;charset=utf-8" }
+        });
+
+        const result = await response.json();
+        
+        if(loader) loader.classList.add('d-none');
+
+        if (result.result === "success" && result.data) {
+            if(content) content.classList.remove('d-none');
+            renderBpChart(ctx, result.data);
+            updateBpInfoText(result.data);
+        } else {
+            if(errorEl) errorEl.classList.remove('d-none');
+        }
+
+    } catch (e) {
+        console.error("Err Load BP:", e);
+        if(loader) loader.classList.add('d-none');
+        if(errorEl) errorEl.classList.remove('d-none');
+    }
+}
+
+function updateBpInfoText(data) {
+    // Helper format angka
+    const fmtJuta = (n) => {
+        let val = Number(n);
+        if(isNaN(val)) return "0";
+        if(val >= 1e9) return (val/1e9).toFixed(2) + " M";
+        if(val >= 1e6) return (val/1e6).toFixed(1) + " Jt";
+        return val.toLocaleString('id-ID');
+    };
+    
+    const fmtNum = (n) => Number(n).toLocaleString('id-ID');
+
+    // Update Text Amount
+    document.getElementById('txtAmountAct').innerText = "Rp " + fmtJuta(data.amount.actual);
+    document.getElementById('txtAmountTgt').innerText = "Target: Rp " + fmtJuta(data.amount.target);
+
+    // Update Text NoA
+    document.getElementById('txtNoaAct').innerText = fmtNum(data.noa.actual);
+    document.getElementById('txtNoaTgt').innerText = "Target: " + fmtNum(data.noa.target);
+
+    // Update Text Weekly
+    document.getElementById('txtWeeklyAct').innerText = fmtNum(data.weekly.actual);
+    document.getElementById('txtWeeklyTgt').innerText = "Target: " + fmtNum(data.weekly.target);
+}
+
+function renderBpChart(canvasCtx, data) {
+    // Hitung % Capaian (Max visual 100% untuk bar, tapi label tetap angka asli)
+    const calcPct = (act, tgt) => (tgt > 0) ? (act / tgt) * 100 : 0;
+    
+    const pAmt = calcPct(data.amount.actual, data.amount.target);
+    const pNoa = calcPct(data.noa.actual, data.noa.target);
+    const pWk = calcPct(data.weekly.actual, data.weekly.target);
+
+    // Tentukan warna: Hijau jika >= 100%, Ungu jika belum
+    const colAmt = pAmt >= 100 ? '#2e7d32' : '#8e26d4';
+    const colNoa = pNoa >= 100 ? '#2e7d32' : '#8e26d4';
+    const colWk = pWk >= 100 ? '#2e7d32' : '#8e26d4';
+
+    // Chart.js Configuration
+    new Chart(canvasCtx, {
+        type: 'bar',
+        data: {
+            labels: ['Amount', 'NoA', 'Weekly'],
+            datasets: [
+                {
+                    // Layer Depan: Capaian Aktual
+                    label: 'Capaian',
+                    data: [pAmt, pNoa, pWk],
+                    backgroundColor: [colAmt, colNoa, colWk],
+                    borderRadius: 4,
+                    barPercentage: 0.5,
+                    categoryPercentage: 0.8,
+                    z: 2 // Layer atas
+                },
+                {
+                    // Layer Belakang: Background Bar (Target 100%)
+                    label: 'Target',
+                    data: [100, 100, 100], 
+                    backgroundColor: '#f0f2f5',
+                    borderRadius: 4,
+                    barPercentage: 0.5,
+                    categoryPercentage: 0.8,
+                    grouped: false, // Stacked effect manual
+                    order: 1, // Layer bawah
+                    hoverBackgroundColor: '#f0f2f5'
+                }
+            ]
+        },
+        options: {
+            indexAxis: 'y', // Horizontal Bar
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    enabled: true,
+                    callbacks: {
+                        label: function(ctx) {
+                            if (ctx.datasetIndex === 1) return null; // Hide tooltip bg
+                            let pct = ctx.raw.toFixed(1) + "%";
+                            return `Capaian: ${pct}`;
+                        }
+                    }
+                },
+                datalabels: {
+                    anchor: 'end',
+                    align: 'end',
+                    offset: 4,
+                    color: '#333',
+                    font: { size: 10, weight: 'bold' },
+                    formatter: function(value, ctx) {
+                        if (ctx.datasetIndex === 1) return ""; // Hide label bg
+                        return Math.round(value) + "%";
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    display: false,
+                    max: 130, // Memberi ruang teks di kanan
+                    beginAtZero: true
+                },
+                y: {
+                    grid: { display: false, drawBorder: false },
+                    ticks: { 
+                        font: { size: 11, weight: '600' },
+                        color: '#555'
+                    }
+                }
+            },
+            animation: { duration: 1500 }
+        }
+    });
+}
 
 // Fitur Drag-to-Scroll untuk Desktop/Laptop
 const slider = document.querySelector('.horizontal-scroll-wrapper');
@@ -306,7 +476,7 @@ let scrollLeft;
 if (slider) {
     slider.addEventListener('mousedown', (e) => {
         isDown = true;
-        slider.classList.add('active'); // Ubah kursor jadi menggenggam
+        slider.classList.add('active'); 
         startX = e.pageX - slider.offsetLeft;
         scrollLeft = slider.scrollLeft;
     });
@@ -322,10 +492,10 @@ if (slider) {
     });
 
     slider.addEventListener('mousemove', (e) => {
-        if (!isDown) return; // Stop jika mouse tidak ditekan
-        e.preventDefault();  // Mencegah seleksi teks
+        if (!isDown) return; 
+        e.preventDefault(); 
         const x = e.pageX - slider.offsetLeft;
-        const walk = (x - startX) * 2; // Kecepatan scroll (dikali 2 biar ngebut dikit)
+        const walk = (x - startX) * 2; 
         slider.scrollLeft = scrollLeft - walk;
     });
 }
