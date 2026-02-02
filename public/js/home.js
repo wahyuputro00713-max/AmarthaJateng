@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getDatabase, ref, get, child } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getDatabase, ref, get, set, child } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyC8wOUkyZTa4W2hHHGZq_YKnGFqYEGOuH8",
@@ -18,7 +18,6 @@ const db = getDatabase(app);
 
 // --- KONFIGURASI URL APPS SCRIPT ---
 const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; 
-// URL Code.gs untuk BP Performance (Pastikan sudah deploy new version)
 const SCRIPT_URL_BP = "https://script.google.com/macros/s/AKfycbzbfr4VW1-Atl1TzEo5sy4WnAGFT1agQl-shtGLTmFQNa6JZByvrUlTKo9h0-4YN7P7ww/exec"; 
 
 const ADMIN_ID = "17246";
@@ -28,7 +27,6 @@ const logoutBtn = document.getElementById('logoutBtn');
 const btnAdmin = document.getElementById('btnAdmin'); 
 const closingMenuBtn = document.getElementById('closingMenuBtn');
 
-// CACHE DATA UNTUK LEADERBOARD LENGKAP
 let cachedLeaderboardData = [];
 let cachedUsersMap = {};
 
@@ -66,7 +64,6 @@ function getCurrentTimeWIB() {
     return new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-// --- CEK ABSENSI ---
 async function checkAbsensiStatus(uid) {
     const today = getLocalTodayDate();
     const absensiRef = ref(db, `absensi/${today}/${uid}`);
@@ -96,10 +93,150 @@ async function checkAbsensiStatus(uid) {
     } catch (error) { console.error("Gagal cek absensi:", error); }
 }
 
+// ==========================================
+// LOGIKA SURVEI BARU (11 PERTANYAAN)
+// ==========================================
+
+async function checkSurveyStatus(user, userData) {
+    // 1. Cek Jabatan (Hanya BP)
+    if (userData.jabatan !== "BP") return;
+
+    // 2. Tentukan Periode Survei (Format: YYYY-MM) -> Februari 2026
+    const date = new Date();
+    const period = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`; 
+
+    // 3. Cek Firebase apakah user sudah isi bulan ini
+    const surveyRef = ref(db, `survei_logs/${period}/${user.uid}`);
+    
+    try {
+        const snapshot = await get(surveyRef);
+        
+        if (!snapshot.exists()) {
+            // -- JIKA BELUM ISI --
+            console.log("User BP belum isi survei bulan ini. Memulai pengecekan BM...");
+
+            // A. Cari Nama BM Otomatis berdasarkan Point
+            let namaBm = "BM Point " + (userData.point || "-"); 
+            try {
+                // Ambil semua user untuk mencari BM di point yang sama
+                const usersRef = ref(db, 'users');
+                const snapshotUsers = await get(usersRef);
+                
+                if (snapshotUsers.exists()) {
+                    snapshotUsers.forEach((childSnapshot) => {
+                        const u = childSnapshot.val();
+                        // Cocokkan Point & Jabatan BM
+                        if (u.point === userData.point && u.jabatan === "BM") {
+                            namaBm = u.nama;
+                        }
+                    });
+                }
+            } catch (e) { console.log("Gagal auto-detect BM", e); }
+
+            console.log("Nama BM Terdeteksi:", namaBm);
+
+            // B. Isi data hidden form di Modal
+            const inpPoint = document.getElementById('sv_point');
+            const inpBm = document.getElementById('sv_namaBm');
+            if(inpPoint) inpPoint.value = userData.point || "";
+            if(inpBm) inpBm.value = namaBm;
+
+            // C. Tampilkan Modal (Locked / Tidak bisa ditutup)
+            const surveyModalEl = document.getElementById('surveyModal');
+            if (surveyModalEl) {
+                const modal = new bootstrap.Modal(surveyModalEl, {
+                    backdrop: 'static', 
+                    keyboard: false     
+                });
+                modal.show();
+                
+                // Setup Listener Tombol Submit
+                const btnSubmit = document.getElementById('btnSubmitSurvey');
+                if(btnSubmit) {
+                    btnSubmit.onclick = () => submitSurvey(user, userData, period, namaBm, modal);
+                }
+            }
+        }
+    } catch (error) {
+        console.error("Error cek survei:", error);
+    }
+}
+
+async function submitSurvey(user, userData, period, namaBm, modalInstance) {
+    const btn = document.getElementById('btnSubmitSurvey');
+    const form = document.getElementById('formSurveyBm');
+    
+    // 1. Validasi Input HTML5 (Required fields)
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+
+    // Ambil Value dari Form
+    const formData = new FormData(form);
+    const dataKirim = {
+        action: "submit_survei_bm",
+        idBp: userData.idKaryawan,
+        namaBp: userData.nama,
+        point: userData.point,
+        namaBm: namaBm, // Dikirim otomatis
+        // 11 Pertanyaan
+        q1: formData.get('q1'),
+        q2: formData.get('q2'),
+        q3: formData.get('q3'),
+        q4: formData.get('q4'),
+        q5: formData.get('q5'),
+        q6: formData.get('q6'),
+        q7: formData.get('q7'),
+        q8: formData.get('q8'),
+        q9: formData.get('q9'),
+        q10: formData.get('q10'),
+        q11: formData.get('q11')
+    };
+
+    // 2. Loading State
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Mengirim...';
+    btn.disabled = true;
+
+    try {
+        // 3. Kirim ke Spreadsheet (Apps Script)
+        await fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify(dataKirim),
+            headers: { "Content-Type": "text/plain;charset=utf-8" }
+        });
+
+        // 4. Simpan Log di Firebase (Tandai sudah isi bulan ini)
+        await set(ref(db, `survei_logs/${period}/${user.uid}`), {
+            timestamp: new Date().toISOString(),
+            status: "done"
+        });
+
+        // 5. Sukses
+        alert("Terima kasih! Survei berhasil dikirim. Selamat bekerja.");
+        modalInstance.hide(); 
+        
+        // Restore tombol
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+
+    } catch (error) {
+        console.error("Gagal kirim survei:", error);
+        alert("Gagal mengirim survei. Mohon periksa koneksi internet Anda.");
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+
+// ==========================================
+// MAIN AUTH LISTENER
+// ==========================================
+
 onAuthStateChanged(auth, (user) => {
     if (user) {
         checkAbsensiStatus(user.uid);
-        loadLeaderboard(); // Init leaderboard
+        loadLeaderboard(); 
         loadRepaymentInfo();
 
         const userRef = ref(db, 'users/' + user.uid);
@@ -132,6 +269,9 @@ onAuthStateChanged(auth, (user) => {
                         if(loader) loader.classList.add('d-none');
                         if(errorEl) errorEl.classList.remove('d-none');
                     }
+
+                    // ==> CEK STATUS SURVEI (Trigger Modal) <==
+                    checkSurveyStatus(user, data);
                 }
 
             } else {
@@ -152,7 +292,6 @@ if (logoutBtn) {
     });
 }
 
-// --- TOMBOL LIHAT LEADERBOARD LENGKAP ---
 const btnViewAll = document.getElementById('btnViewAllLeaderboard');
 if(btnViewAll){
     btnViewAll.addEventListener('click', (e) => {
@@ -165,7 +304,6 @@ if(btnViewAll){
     });
 }
 
-// --- UPDATE JAM REPAYMENT ---
 async function loadRepaymentInfo() {
     const labelUpdate = document.getElementById('repaymentUpdateVal');
     if (!labelUpdate) return;
@@ -192,10 +330,8 @@ function formatJamOnly(val) {
     } catch (e) { return ""; }
 }
 
-// --- LEADERBOARD LOGIC ---
 async function loadLeaderboard() {
     try {
-        // 1. Fetch User Data dari Firebase untuk Foto & Nama
         try {
             const snapshot = await get(child(ref(db), `users`));
             if (snapshot.exists()) {
@@ -206,20 +342,14 @@ async function loadLeaderboard() {
             }
         } catch (e) {}
 
-        // 2. Fetch Leaderboard Data
         const response = await fetch(SCRIPT_URL, {
             method: 'POST', body: JSON.stringify({ action: "get_leaderboard" }), headers: { "Content-Type": "text/plain;charset=utf-8" }
         });
         const result = await response.json();
         
         if (result.result === "success" && result.data && result.data.length > 0) {
-            // SIMPAN KE CACHE GLOBAL
             cachedLeaderboardData = result.data;
-            
-            // Urutkan (Amount terbesar di atas)
             cachedLeaderboardData.sort((a, b) => b.amount - a.amount);
-
-            // Update Podium (Top 3)
             updatePodium(".rank-1", cachedLeaderboardData[0], cachedUsersMap);
             updatePodium(".rank-2", cachedLeaderboardData[1], cachedUsersMap);
             updatePodium(".rank-3", cachedLeaderboardData[2], cachedUsersMap);
@@ -255,7 +385,6 @@ function updatePodium(sel, data, usersMap = {}) {
     }
 }
 
-// RENDER MODAL FULL LIST
 function renderFullLeaderboard() {
     const listContainer = document.getElementById('fullLbList');
     if (!listContainer) return;
@@ -290,7 +419,6 @@ function renderFullLeaderboard() {
         </div>
         `;
     });
-
     listContainer.innerHTML = html;
 }
 
@@ -303,7 +431,6 @@ function formatJuta(n) {
     else return (num / 1e3).toFixed(0) + "rb";
 }
 
-// --- CHART PROGRES AREA ---
 async function loadAreaProgressChart() {
     const ctxCanvas = document.getElementById('areaProgressChart');
     if (!ctxCanvas) return;
@@ -384,7 +511,6 @@ async function loadAreaProgressChart() {
 
 function formatRibuan(n) { return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."); }
 
-// --- FITUR PERFORMANCE BP ---
 async function loadBpPerformance(idKaryawan) {
     const loader = document.getElementById('bpLoader');
     const content = document.getElementById('bpContent');
@@ -540,7 +666,6 @@ function getChartOptions() {
     };
 }
 
-// Fitur Drag-to-Scroll
 const slider = document.querySelector('.horizontal-scroll-wrapper');
 let isDown = false;
 let startX;
