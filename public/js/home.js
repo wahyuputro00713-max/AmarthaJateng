@@ -23,7 +23,7 @@ const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev";
 
 // 2. URL BARU (Khusus untuk Capaian BP)
 // [PENTING] Ganti tulisan di bawah ini dengan URL Web App Script BP Anda yang baru!
-const SCRIPT_URL_BP = "https://script.google.com/macros/s/AKfycbwUveq1n8OXqTC73Rljga6TSKaqJmUy2pGbSKsc9SyTHHgRMxEcVTo309nq1VjXQH9hKA/exec"; 
+const SCRIPT_URL_BP = "https://script.google.com/macros/s/AKfycbzbfr4VW1-Atl1TzEo5sy4WnAGFT1agQl-shtGLTmFQNa6JZByvrUlTKo9h0-4YN7P7ww/exec"; 
 
 const ADMIN_ID = "17246";
 
