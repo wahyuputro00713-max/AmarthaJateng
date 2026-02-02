@@ -17,8 +17,11 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 // --- KONFIGURASI URL APPS SCRIPT ---
-const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; 
+const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; // Untuk Leaderboard/Majelis
 const SCRIPT_URL_BP = "https://script.google.com/macros/s/AKfycbzbfr4VW1-Atl1TzEo5sy4WnAGFT1agQl-shtGLTmFQNa6JZByvrUlTKo9h0-4YN7P7ww/exec"; 
+
+// [PENTING] GANTI URL INI DENGAN HASIL DEPLOY "Code.gs" TERBARU ANDA
+const SCRIPT_URL_SURVEY = "https://script.google.com/macros/s/AKfycbzq0iFw8vIT9s7Zvl_5gydKaqy2LMkK_DaP9YV2Y_FThPSw9rtWwukFhjJlgfi0FeQ/exec"; 
 
 const ADMIN_ID = "17246";
 
@@ -93,6 +96,22 @@ async function checkAbsensiStatus(uid) {
     } catch (error) { console.error("Gagal cek absensi:", error); }
 }
 
+// --- FUNGSI BANTUAN: FETCH WITH RETRY (Untuk mengatasi Error Network/QUIC) ---
+async function fetchWithRetry(url, options = {}, retries = 3, backoff = 300) {
+    try {
+        const response = await fetch(url, options);
+        if (!response.ok) {
+            throw new Error(`HTTP Error! status: ${response.status}`);
+        }
+        return response;
+    } catch (error) {
+        if (retries < 1) throw error;
+        // console.log(`Retrying fetch... (${retries} attempts left)`); // Uncomment untuk debug
+        await new Promise(r => setTimeout(r, backoff));
+        return fetchWithRetry(url, options, retries - 1, backoff * 2);
+    }
+}
+
 // ==========================================
 // LOGIKA SURVEI BARU (11 PERTANYAAN)
 // ==========================================
@@ -101,7 +120,7 @@ async function checkSurveyStatus(user, userData) {
     // 1. Cek Jabatan (Hanya BP)
     if (userData.jabatan !== "BP") return;
 
-    // 2. Tentukan Periode Survei (Format: YYYY-MM) -> Februari 2026
+    // 2. Tentukan Periode Survei (Format: YYYY-MM)
     const date = new Date();
     const period = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`; 
 
@@ -200,8 +219,8 @@ async function submitSurvey(user, userData, period, namaBm, modalInstance) {
     btn.disabled = true;
 
     try {
-        // 3. Kirim ke Spreadsheet (Apps Script)
-        await fetch(SCRIPT_URL, {
+        // 3. Kirim ke Spreadsheet (Menggunakan URL Survey Khusus & Retry)
+        await fetchWithRetry(SCRIPT_URL_SURVEY, {
             method: 'POST',
             body: JSON.stringify(dataKirim),
             headers: { "Content-Type": "text/plain;charset=utf-8" }
@@ -223,7 +242,7 @@ async function submitSurvey(user, userData, period, namaBm, modalInstance) {
 
     } catch (error) {
         console.error("Gagal kirim survei:", error);
-        alert("Gagal mengirim survei. Mohon periksa koneksi internet Anda.");
+        alert("Gagal mengirim survei. Pastikan URL Script benar dan koneksi internet stabil.");
         btn.innerHTML = originalText;
         btn.disabled = false;
     }
@@ -304,11 +323,12 @@ if(btnViewAll){
     });
 }
 
+// --- FUNGSI LOAD REPAYMENT UPDATE (Pakai Retry juga) ---
 async function loadRepaymentInfo() {
     const labelUpdate = document.getElementById('repaymentUpdateVal');
     if (!labelUpdate) return;
     try {
-        const response = await fetch(SCRIPT_URL, {
+        const response = await fetchWithRetry(SCRIPT_URL, {
             method: 'POST', body: JSON.stringify({ action: "get_majelis" }), headers: { "Content-Type": "text/plain;charset=utf-8" }
         });
         const result = await response.json();
@@ -316,7 +336,10 @@ async function loadRepaymentInfo() {
             const displayJam = formatJamOnly(result.data[0].jam_update);
             labelUpdate.textContent = displayJam !== "" ? displayJam : "N/A";
         } else { labelUpdate.textContent = "-"; }
-    } catch (error) { labelUpdate.textContent = "Err"; }
+    } catch (error) { 
+        // console.error(error); 
+        labelUpdate.textContent = "Err"; 
+    }
 }
 
 function formatJamOnly(val) {
@@ -342,7 +365,7 @@ async function loadLeaderboard() {
             }
         } catch (e) {}
 
-        const response = await fetch(SCRIPT_URL, {
+        const response = await fetchWithRetry(SCRIPT_URL, {
             method: 'POST', body: JSON.stringify({ action: "get_leaderboard" }), headers: { "Content-Type": "text/plain;charset=utf-8" }
         });
         const result = await response.json();
@@ -436,7 +459,8 @@ async function loadAreaProgressChart() {
     if (!ctxCanvas) return;
 
     try {
-        const response = await fetch(SCRIPT_URL, {
+        // Gunakan Retry juga untuk Chart agar tidak kosong saat glitch jaringan
+        const response = await fetchWithRetry(SCRIPT_URL, {
             method: 'POST', body: JSON.stringify({ action: "get_area_progress" }), headers: { "Content-Type": "text/plain;charset=utf-8" }
         });
 
