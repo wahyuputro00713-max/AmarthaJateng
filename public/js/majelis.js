@@ -18,14 +18,15 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 // =========================================================================
-// URL DEPLOYMENT GOOGLE APPS SCRIPT (Pastikan URL ini hasil Deploy terbaru)
+// URL DEPLOYMENT GOOGLE APPS SCRIPT
+// PASTIKAN INI ADALAH URL DARI DEPLOY TERBARU (New Deployment)
 // =========================================================================
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz7lbSgTnp8OZ2QdOIv8_gfx40heiUXSXF9sfIGf2deyVDTEznkv6lq47NRK4ddIUiF/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx-MCecdv6l5xITTH7B3SZ0a3N65EC36v4lDUSCqwcI-b3gWHfnodYtN1gPZO_NfzQ/exec";
 
 // State Management
 let globalData = [];
-let userProfile = { idKaryawan: "", area: "", point: "" };
-let isTransactionActive = false; // LOCKING VARIABLE
+let userProfile = { idKaryawan: "Guest", area: "", point: "" };
+let isTransactionActive = false; // Mencegah double submit
 
 // DOM Elements
 const els = {
@@ -46,9 +47,13 @@ onAuthStateChanged(auth, async (user) => {
     if (user) {
         showLoading(true);
         try {
+            // Ambil profil user untuk ID Karyawan & Area default
             userProfile = await fetchUserProfile(user.uid);
-            // Default load data based on profile area
+            
+            // Load data awal berdasarkan area user
             globalData = await fetchMainData(userProfile.area);
+            
+            // Siapkan filter dan render data
             initializeFilters();
             renderGroupedData(globalData);
         } catch (error) {
@@ -66,29 +71,44 @@ onAuthStateChanged(auth, async (user) => {
 async function fetchUserProfile(uid) {
     try {
         const snapshot = await get(ref(db, 'users/' + uid));
-        if (snapshot.exists()) return snapshot.val();
+        if (snapshot.exists()) {
+            const val = snapshot.val();
+            // Pastikan field idKaryawan ada, jika tidak pakai uid atau placeholder
+            return {
+                idKaryawan: val.idKaryawan || val.nik || "Unknown", 
+                area: val.area || "",
+                point: val.point || ""
+            };
+        }
         return { idKaryawan: "Unknown", area: "", point: "" };
     } catch (err) {
+        console.warn("User profile fetch fail", err);
         return { idKaryawan: "Unknown", area: "", point: "" };
     }
 }
 
-// 3. Fetch Data Utama
+// 3. Fetch Data Utama (Hit ke handleGetData di Apps Script)
 async function fetchMainData(reqArea) {
     try {
         const payload = {
             action: "get_data_modal",
             reqArea: reqArea || ""
         };
+        
+        // Gunakan no-cors jika hanya testing, tapi untuk data JSON butuh cors normal
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify(payload),
-            headers: { "Content-Type": "text/plain;charset=utf-8" }
+            // Header text/plain penting agar tidak kena preflight options CORS Google
+            headers: { "Content-Type": "text/plain;charset=utf-8" } 
         });
+        
         const result = await response.json();
+        
         if (result.result === "success" && Array.isArray(result.data)) {
             return result.data;
         } else {
+            console.warn("Data kosong atau format salah", result);
             return [];
         }
     } catch (error) {
@@ -101,17 +121,21 @@ async function fetchMainData(reqArea) {
 function initializeFilters() {
     populateFilters(globalData);
 
+    // Set Default Area dari User Profile
     if (userProfile.area && els.filterArea) {
         els.filterArea.value = userProfile.area;
         updatePointDropdown(userProfile.area);
 
+        // Set Default Point jika ada
         if (userProfile.point && els.filterPoint) {
+            // Cek apakah point user ada di opsi
             const pointExists = [...els.filterPoint.options].some(o => o.value === userProfile.point);
             if (pointExists) els.filterPoint.value = userProfile.point;
         }
         updateBPDropdown();
     }
 
+    // Auto select Hari ini
     if (els.filterHari) {
         const daysMap = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
         const todayName = daysMap[new Date().getDay()];
@@ -122,6 +146,7 @@ function initializeFilters() {
 
 function populateFilters(data) {
     if (!els.filterArea) return;
+    // Ambil unique Area
     let areas = [...new Set(data.map(i => i.area).filter(i => i && i !== "-"))];
     if (userProfile.area && !areas.includes(userProfile.area)) areas.push(userProfile.area);
     areas.sort();
@@ -148,28 +173,39 @@ function updateBPDropdown() {
     fillSelect(els.filterBP, bps);
 }
 
+// Event Listeners Filter
 if (els.filterArea) {
     els.filterArea.addEventListener('change', async () => {
         const newArea = els.filterArea.value;
+        // Cek apakah data area tersebut sudah ada di globalData? 
+        // Karena globalData awal mungkin cuma 1 area. Jika pindah area, fetch baru.
         const hasData = globalData.some(i => i.area === newArea);
 
         if (!hasData && newArea !== "") {
             showLoading(true);
             try {
                 const newData = await fetchMainData(newArea);
-                globalData = newData;
-                renderGroupedData(globalData);
-
+                // Kita replace globalData atau append? 
+                // Agar tidak berat, replace saja jika pindah area jauh.
+                globalData = newData; 
+                
+                // Reset child filters
                 if (els.filterPoint) els.filterPoint.value = "";
                 if (els.filterBP) els.filterBP.value = "";
+                
+                populateFilters(globalData); // Refresh list area biar sync
+                els.filterArea.value = newArea; // Keep selection
                 updatePointDropdown(newArea);
                 updateBPDropdown();
+                renderGroupedData(globalData);
+
             } catch (e) {
-                alert("Gagal ambil data area baru.");
+                alert("Gagal mengambil data area baru.");
             } finally {
                 showLoading(false);
             }
         } else {
+            // Data sudah ada, cukup update dropdown
             if (els.filterPoint) els.filterPoint.value = "";
             if (els.filterBP) els.filterBP.value = "";
             updatePointDropdown(els.filterArea.value);
@@ -209,6 +245,7 @@ function renderGroupedData(data) {
     const fHari = els.filterHari ? els.filterHari.value.toLowerCase() : "";
     const fBP = els.filterBP ? els.filterBP.value : "";
 
+    // Filtering Client Side
     const filtered = data.filter(item => {
         if (fArea && String(item.area).toLowerCase() !== fArea) return false;
         if (fPoint && String(item.point).toLowerCase() !== fPoint) return false;
@@ -217,6 +254,7 @@ function renderGroupedData(data) {
         return true;
     });
 
+    // Empty State
     if (filtered.length === 0) {
         els.majelisContainer.innerHTML = "";
         els.emptyState.classList.remove('d-none');
@@ -227,6 +265,7 @@ function renderGroupedData(data) {
 
     els.emptyState.classList.add('d-none');
 
+    // Grouping by Majelis
     const grouped = {};
     filtered.forEach(item => {
         const m = item.majelis || "Tanpa Majelis";
@@ -241,21 +280,18 @@ function renderGroupedData(data) {
     const htmlContent = majelisKeys.map((majelis, index) => {
         const mitras = grouped[majelis];
         const bpName = mitras[0].nama_bp || "-";
-        
         const safeNamaBP = bpName.replace(/'/g, "\\'");
 
         let countBayar = 0, countTelat = 0, countSudahKirim = 0, countBelumKirim = 0;
 
         mitras.forEach(m => {
-            // PERBAIKAN LOGIKA: Jika status kosong, anggap sebagai "Lancar/Bayar"
-            // Karena jika kosong, logic include('telat') akan false -> masuk countBayar
             const statusBayar = String(m.status || "").toLowerCase();
             const statusKirim = String(m.status_kirim || "").toLowerCase().trim();
 
             let isSent = (statusKirim === "sudah" || statusKirim === "sudah terkirim" || statusKirim === "terkirim");
 
             if (statusBayar.includes('telat')) countTelat++;
-            else countBayar++;
+            else countBayar++; // Kosong/Lancar dianggap bayar
 
             if (isSent) countSudahKirim++;
             else countBelumKirim++;
@@ -295,7 +331,7 @@ function renderGroupedData(data) {
                             </thead>
                             <tbody>${rowsHtml}</tbody>
                         </table>
-                        </div>
+                    </div>
                 </div>
             </div>
         `;
@@ -308,27 +344,20 @@ function renderGroupedData(data) {
 function createRowHtml(m, safeNamaBP) {
     const rawMitra = m.mitra || "";
     const rawCustNo = m.cust_no || "-";
-
     const safeMitra = rawMitra.replace(/'/g, "\\'");
 
-    // === PERBAIKAN UTAMA ===
-    // 1. Ambil raw status
+    // Status Bayar Visual
     const rawStatus = String(m.status || "").trim();
     const statusLower = rawStatus.toLowerCase();
-    
-    // 2. Tentukan Teks untuk ditampilkan
-    // Jika data kosong, tampilkan "Lancar" agar user tidak bingung melihat tanda "-"
     const displayStatus = (rawStatus === "" || rawStatus === "-") ? "Lancar" : rawStatus;
+    const badgeClass = statusLower.includes("telat") ? "text-danger" : "text-success";
 
+    // Status Kirim Logic
     const statusKirim = String(m.status_kirim || "").toLowerCase().trim();
     let isSent = (statusKirim === "sudah" || statusKirim === "sudah terkirim" || statusKirim === "terkirim");
 
     const isBll = (m.status_bll === "BLL");
     const bllBadge = isBll ? '<span class="badge-bll">BLL</span>' : '';
-    
-    // 3. Logic Warna Badge
-    // Jika mengandung kata "telat", warna merah. Selain itu (termasuk "Lancar") hijau.
-    const badgeClass = statusLower.includes("telat") ? "text-danger" : "text-success";
 
     const valAngsuran = formatRupiah(m.angsuran);
     const valPartial = formatRupiah(m.partial);
@@ -341,10 +370,12 @@ function createRowHtml(m, safeNamaBP) {
 
     if (isSent) {
         actionHtml = `
-            <span class="badge bg-success rounded-pill">
-                <i class="fa-solid fa-check"></i> Terkirim
-            </span>
-            <div style="font-size: 9px; color: #666; margin-top:2px;">${m.jenis_pembayaran || "Normal"}</div>
+            <div class="d-flex flex-column align-items-end">
+                <span class="badge bg-success rounded-pill">
+                    <i class="fa-solid fa-check"></i> Terkirim
+                </span>
+                <div style="font-size: 9px; color: #666; margin-top:2px;">${m.jenis_pembayaran || "Normal"}</div>
+            </div>
         `;
     } else {
         actionHtml = `
@@ -400,12 +431,6 @@ const formatRupiah = (val) => {
     return "Rp " + parseInt(cleanVal).toLocaleString('id-ID');
 };
 
-const formatAngkaSaja = (val) => {
-    if (!val || val === "-" || val === "0") return "-";
-    const clean = String(val).replace(/[^0-9]/g, '');
-    return clean === "" ? "-" : clean;
-};
-
 function showLoading(show) {
     if (els.loadingOverlay) {
         if (show) els.loadingOverlay.classList.remove('d-none');
@@ -424,23 +449,19 @@ if (els.btnTampilkan) {
 }
 
 // =========================================================================
-// LOGIKA BARU: KIRIM PER MITRA (SEQUENTIAL LOCKING)
+// LOGIKA BARU: KIRIM PER MITRA (Compatible with New Code.gs)
 // =========================================================================
 
 window.enableSendButton = function(btnId, selectEl) {
     const btn = document.getElementById(btnId);
     if (btn) {
-        if (selectEl.value !== "") {
-            btn.disabled = false;
-        } else {
-            btn.disabled = true;
-        }
+        btn.disabled = (selectEl.value === "");
     }
 }
 
 window.kirimPerMitra = async function(custNo, namaMitra, namaBP, selectId, btnId, rowId) {
     if (isTransactionActive) {
-        alert("⚠️ Sedang mengirim data lain. Mohon tunggu sampai selesai satu per satu.");
+        alert("⚠️ Tunggu transaksi sebelumnya selesai.");
         return;
     }
 
@@ -457,15 +478,17 @@ window.kirimPerMitra = async function(custNo, namaMitra, namaBP, selectId, btnId
 
     isTransactionActive = true;
 
+    // UI Feedback: Loading State
     const originalBtnContent = btn.innerHTML;
     btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
     btn.disabled = true;
     selectEl.disabled = true;
 
     try {
+        // PERHATIKAN: Nama key disini harus sama persis dengan yang diambil di Code.gs
+        // Code.gs: params.customerNumber, params.idKaryawan, params.namaBP, params.jenisPembayaran
         const payload = {
             action: "input_laporan",
-            jenisLaporan: "ClosingModal",
             idKaryawan: userProfile.idKaryawan || "Unknown",
             namaBP: namaBP,
             customerNumber: custNo,
@@ -481,20 +504,36 @@ window.kirimPerMitra = async function(custNo, namaMitra, namaBP, selectId, btnId
         const result = await response.json();
 
         if (result.result === 'success') {
+            // --- UPDATE DATA LOKAL (PENTING) ---
+            // Karena backend tidak mengupdate status di spreadsheet sumber (Repayment),
+            // kita harus update di globalData agar UI berubah jadi 'Terkirim'.
             const idx = globalData.findIndex(item => String(item.cust_no) === String(custNo));
             if (idx !== -1) {
                 globalData[idx].status_kirim = "Sudah";
                 globalData[idx].jenis_pembayaran = jnsBayar;
             }
 
+            // Update Tampilan Baris Langsung (Tanpa Reload Semuanya)
             const wrapper = document.getElementById(rowId);
             if (wrapper) {
+                // Ganti tombol dengan Badge Sukses
                 wrapper.parentElement.innerHTML = `
-                    <span class="badge bg-success rounded-pill animate__animated animate__fadeIn">
-                        <i class="fa-solid fa-check"></i> Terkirim
-                    </span>
-                    <div style="font-size: 9px; color: #666; margin-top:2px;">${jnsBayar}</div>
+                    <div class="d-flex flex-column align-items-end animate__animated animate__fadeIn">
+                        <span class="badge bg-success rounded-pill">
+                            <i class="fa-solid fa-check"></i> Terkirim
+                        </span>
+                        <div style="font-size: 9px; color: #666; margin-top:2px;">${jnsBayar}</div>
+                    </div>
                 `;
+                
+                // Opsional: Update Icon status di kolom kiri (kolom pertama)
+                // Ini agak tricky karena harus naik ke parent TR, tapi bisa dilewatkan 
+                // jika user tidak terlalu memperhatikan icon bulat kecil.
+                const tr = wrapper.closest('tr');
+                if(tr) {
+                    const firstTd = tr.cells[0];
+                    firstTd.innerHTML = `<i class="fa-solid fa-circle-check text-success animate__animated animate__heartBeat"></i>`;
+                }
             }
         } else {
             throw new Error(result.error || "Gagal menyimpan");
@@ -503,6 +542,8 @@ window.kirimPerMitra = async function(custNo, namaMitra, namaBP, selectId, btnId
     } catch (error) {
         console.error(error);
         alert(`Gagal mengirim data ${namaMitra}. Silakan coba lagi.\nError: ${error.message}`);
+        
+        // Restore Tombol jika gagal
         btn.innerHTML = originalBtnContent;
         btn.disabled = false;
         selectEl.disabled = false;
