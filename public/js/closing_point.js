@@ -19,7 +19,7 @@ const db = getDatabase(app);
 
 // =========================================================================
 // PASTIKAN URL INI SAMA DENGAN HASIL DEPLOY TERBARU ANDA DI APPS SCRIPT
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxQULUjMJ494zBZ8L-pZJvtXr9vwmpWmEdjkWFchXURoEe5AIriDJCSMEE17sq4MgEi/exec"; 
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxUJwnBdaF8Tsi20hSCs9UzrTgjyLEUh_EAlw3J5PeUTT5HigrmKxG7gPUlMxwGdkDJ/exec"; 
 const ADMIN_ID = "17246";
 // =========================================================================
 
@@ -297,12 +297,11 @@ async function fetchRepaymentData(targetPoint) {
     try {
         if(container) container.innerHTML = `<div class="empty-state"><div class="spinner-border text-primary" role="status"></div><p>Sinkronisasi Database...</p></div>`;
         
-        // UPDATE PENTING: Mengirim parameter 'area' untuk filter di server Code.gs
         const response = await fetch(SCRIPT_URL, {
             method: 'POST', 
             body: JSON.stringify({ 
                 action: "get_data_modal",
-                area: userProfile.area || "" // Kirim area agar server bisa filter
+                area: userProfile.area || "" 
             }), 
             redirect: "follow", 
             headers: { "Content-Type": "text/plain;charset=utf-8" }
@@ -411,7 +410,7 @@ function updatePointDropdownOptions(fixedArea = null) {
 }
 
 // =================================================================
-// 4. RENDER DATA & UI (UPDATED: Status Bayar/Telat Logic)
+// 4. RENDER DATA & UI
 // =================================================================
 
 function filterAndRenderData() {
@@ -481,7 +480,7 @@ function filterAndRenderData() {
         }
 
         const mitraData = {
-            id: row.cust_no, 
+            id: String(row.cust_no).trim(), // Pembersihan ID di sini penting!
             nama: row.mitra,
             status_bayar: st_bayar, 
             status_kirim: st_kirim, 
@@ -612,11 +611,7 @@ function createMitraCard(mitra) {
     const savedReason = savedData.reason || ""; 
     const savedDay = savedData.day || ""; 
 
-    // --- 1. DEFINISI STATUS & JENIS ---
     const jenisBayar = String(mitra.jenis_bayar).toUpperCase().trim();
-    
-    // Cek apakah statusnya mengandung kata "Bayar" (Case Insensitive)
-    // Jika tidak mengandung "Bayar", maka kita anggap "Telat"
     const statusText = String(mitra.status_bayar).toLowerCase();
     const isStatusBayar = statusText.includes("bayar") || statusText.includes("lunas");
     const isStatusTelat = !isStatusBayar; 
@@ -625,24 +620,14 @@ function createMitraCard(mitra) {
     const isJB = jenisBayar === "JB";
     const isTerkirim = mitra.is_terkirim;
 
-    // --- 2. LOGIKA PENGUNCIAN (VALIDATION LOCK) ---
-    // Tombol dikunci (Disabled) JIKA: 
-    // A. Statusnya "Telat" DAN Jenisnya "NORMAL"
-    // B. ATAU Data belum terkirim ke server (!isTerkirim)
     const isValidationLocked = (isStatusTelat && isJenisNormal) || !isTerkirim;
-    // ----------------------------------------------
-
     const lockedClass = isValidationLocked ? "disabled" : "";
-    // Hapus fungsi klik jika terkunci
     const lockedAttr = isValidationLocked ? "" : `onclick="toggleValidation(this, '${mitra.id}')"`;
     
-    // Logika Wajib Isi Alasan
     const isNonNormal = ["PAR", "PARTIAL", "PAR PAYMENT"].includes(jenisBayar);
-    // Jika Telat, Normal, dan Terkirim (biasanya ini kondisi aneh, tapi kita handle saja)
     const isNormalLateAndSent = (isStatusTelat && isTerkirim && isJenisNormal);
     const isMandatoryReason = isNonNormal || isNormalLateAndSent;
 
-    // Styling CSS (Warna Kartu & Badge)
     const cardStatusClass = isStatusBayar ? "card-lunas" : (isTerkirim ? "card-normal" : "card-telat");
     const badgeBayarClass = isStatusBayar ? "badge-success" : "badge-danger";
     const badgeKirimClass = isTerkirim ? "badge-success" : "badge-warning";
@@ -793,28 +778,46 @@ window.toggleValidation = function(element, id) {
     updateMajelisStats(element);
 };
 
+// --- FUNGSI UPDATE JB KE SERVER (DIPERBAIKI) ---
 async function updateJBDaysToServer() {
     const updates = [];
     globalMitraList.forEach(m => {
         const safeKey = String(m.id).replace(/[.#$/[\]]/g, "_");
         const stored = draftData[safeKey];
         const isJB = String(m.jenis_bayar).toUpperCase() === "JB";
+        
         if (isJB && stored && stored.checked && stored.day) {
-            updates.push({ customerNumber: m.id, hariBaru: stored.day });
+            updates.push({ 
+                customerNumber: String(m.id).trim(), 
+                hariBaru: stored.day 
+            });
         }
     });
 
-    if (updates.length === 0) return; 
+    if (updates.length === 0) return true; // Tidak ada yang perlu diupdate, return sukses
+    
     const btn = document.getElementById('btnValidateAll');
-    if(btn) btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin me-1"></i> Update Hari JB...`;
+    if(btn) btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin me-1"></i> Update ${updates.length} JB...`;
 
     try {
-        await fetch(SCRIPT_URL, {
-            method: 'POST', body: JSON.stringify({ action: "batch_update_jb", items: updates }),
-            redirect: "follow", headers: { "Content-Type": "text/plain;charset=utf-8" }
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST', 
+            body: JSON.stringify({ action: "batch_update_jb", items: updates }),
+            redirect: "follow", 
+            headers: { "Content-Type": "text/plain;charset=utf-8" }
         });
+        
+        const result = await response.json();
+        if (result.result === "success") {
+            return true;
+        } else {
+            alert("Gagal Update JB: " + result.error);
+            return false;
+        }
     } catch (err) {
         console.error("Gagal JB:", err);
+        alert("Kesalahan koneksi saat update JB.");
+        return false;
     }
 }
 
@@ -963,18 +966,54 @@ function downloadCSV() {
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
 }
 
+// =================================================================
+// 6. MAIN EVENT LISTENER (PROSES VALIDASI AKHIR)
+// =================================================================
 document.addEventListener("DOMContentLoaded", () => {
     const btnValAll = document.getElementById('btnValidateAll');
+    
     if(btnValAll) {
         btnValAll.disabled = true;
+        
         btnValAll.addEventListener('click', async () => {
-            if(confirm("VALIDASI & DOWNLOAD?\n\nPERINGATAN:\n1. Update Hari JB ke Server.\n2. Laporan TERKUNCI untuk semua user.")) {
-               btnValAll.disabled = true;
-               btnValAll.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Memproses...`;
-               await updateJBDaysToServer();
-               await sendClosingSummary();
-               downloadCSV();
-               setGlobalLock(true);
+            if(!confirm("VALIDASI & DOWNLOAD?\n\nPERINGATAN:\n1. Update Hari JB ke Server.\n2. Laporan TERKUNCI untuk semua user.")) {
+                return;
+            }
+
+            // UI Loading
+            const originalBtnText = btnValAll.innerHTML;
+            btnValAll.disabled = true;
+            btnValAll.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Memproses...`;
+
+            try {
+                // 1. UPDATE JB KE SERVER
+                const isJbSuccess = await updateJBDaysToServer();
+
+                if (!isJbSuccess) {
+                    // Batalkan semua jika update JB gagal
+                    btnValAll.disabled = false;
+                    btnValAll.innerHTML = originalBtnText;
+                    return; 
+                }
+
+                // 2. KIRIM REKAP
+                await sendClosingSummary();
+
+                // 3. DOWNLOAD CSV
+                downloadCSV();
+
+                // 4. KUNCI HALAMAN
+                setGlobalLock(true);
+                
+                // 5. SELESAI
+                alert("Berhasil! Data JB terupdate dan Laporan Terkirim.");
+                location.reload(); 
+
+            } catch (error) {
+                console.error("Critical Error:", error);
+                alert("Terjadi kesalahan fatal. Cek konsol.");
+                btnValAll.disabled = false;
+                btnValAll.innerHTML = originalBtnText;
             }
         });
     }
