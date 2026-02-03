@@ -18,7 +18,7 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 // =========================================================================
-// PASTIKAN URL INI SAMA DENGAN HASIL DEPLOY TERBARU ANDA DI APPS SCRIPT
+// PASTIKAN URL INI SAMA DENGAN HASIL DEPLOY TERBARU (NEW VERSION) DI APPS SCRIPT
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxUJwnBdaF8Tsi20hSCs9UzrTgjyLEUh_EAlw3J5PeUTT5HigrmKxG7gPUlMxwGdkDJ/exec"; 
 const ADMIN_ID = "17246";
 // =========================================================================
@@ -48,7 +48,7 @@ let lockOwner = "Admin";
 let currentStats = { total: 0, telat: 0, bayar: 0 };
 let currentLockListener = null; 
 
-// Helper Strings
+// Helper Strings (Pembersih Text untuk Pencocokan Filter)
 const clean = (str) => {
     if (!str) return "";
     return String(str).toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -273,17 +273,17 @@ function initPage() {
         currentDayName = days[today.getDay()]; 
     }
 
-    let targetPoint = (["RM", "AM", "ADMIN"].includes(currentRole)) ? "ALL" : userProfile.point;
-    
+    // Panggil fetch tanpa parameter area spesifik dulu (agar semua data turun)
     setTimeout(() => { 
         checkGlobalLock(); 
         loadFromStorage();
     }, 1000); 
     
-    fetchRepaymentData(targetPoint);
+    fetchRepaymentData();
 }
 
-async function fetchRepaymentData(targetPoint) {
+// --- FUNGSI FETCH DENGAN PERBAIKAN FILTER ---
+async function fetchRepaymentData() {
     const container = document.getElementById('accordionBP');
     const btnVal = document.getElementById('btnValidateAll');
 
@@ -297,17 +297,22 @@ async function fetchRepaymentData(targetPoint) {
     try {
         if(container) container.innerHTML = `<div class="empty-state"><div class="spinner-border text-primary" role="status"></div><p>Sinkronisasi Database...</p></div>`;
         
+        console.log("Mengambil data dari Spreadsheet..."); // Debug Log
+
+        // PERBAIKAN: Kirim 'area: "ALL"' untuk memaksa server mengirim semua data
+        // agar kita bisa filter sendiri di sini. Ini mencegah data hilang karena beda nama area.
         const response = await fetch(SCRIPT_URL, {
             method: 'POST', 
             body: JSON.stringify({ 
                 action: "get_data_modal",
-                area: userProfile.area || "" 
+                area: "ALL" 
             }), 
             redirect: "follow", 
             headers: { "Content-Type": "text/plain;charset=utf-8" }
         });
         const result = await response.json();
-        
+        console.log("Respon Server:", result); // Debug Log
+
         if (result.result !== "success") { 
             alert("Gagal: " + result.error);
             if (btnVal) btnVal.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Error`;
@@ -315,16 +320,17 @@ async function fetchRepaymentData(targetPoint) {
         }
         
         allRawData = result.data || [];
+        console.log(`Berhasil mengambil ${allRawData.length} baris data.`); // Debug Log
+
         setupHeaderFilters();
         
-        if (currentRole === "BM") {
+        // Render data sesuai filter default
+        if (currentRole === "BM" || currentRole === "AM" || currentRole === "RM" || currentRole === "ADMIN") {
             filterAndRenderData();
-        } else {
-            if(container) container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-filter text-info"></i><h6>Siap Menampilkan Data</h6><p class="small">Silakan pilih Area & Point di atas.</p></div>`;
-        }
+        } 
 
     } catch (error) {
-        console.error(error);
+        console.error("Fetch Error:", error);
         if(container) container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-wifi text-danger"></i><p>Gagal koneksi server.</p></div>`;
         if (btnVal) btnVal.innerHTML = `<i class="fa-solid fa-plug-circle-xmark"></i> Offline`;
     }
@@ -385,6 +391,7 @@ function setupHeaderFilters() {
         updatePointDropdownOptions(); 
 
     } else if (currentRole === "AM") {
+        // AM Filter: Hanya Pilih Point (Area otomatis terkunci di logic render)
         const selPoint = document.createElement('select'); 
         selPoint.id = 'selectPoint'; 
         selPoint.className = 'header-select w-100 mb-2 form-select form-select-sm shadow-sm';
@@ -397,20 +404,32 @@ function setupHeaderFilters() {
 function updatePointDropdownOptions(fixedArea = null) {
     const selectPoint = document.getElementById('selectPoint'); if (!selectPoint) return;
     const selectArea = document.getElementById('selectArea');
+    
+    // Tentukan Area yang dipakai untuk cari point
     const selectedArea = fixedArea || (selectArea ? selectArea.value : "ALL");
+    
     let availablePoints = [];
-    if (selectedArea !== "ALL") { if (dataPoints[selectedArea]) availablePoints = dataPoints[selectedArea]; } 
-    else { Object.values(dataPoints).forEach(pts => availablePoints = availablePoints.concat(pts)); availablePoints.sort(); }
+    if (selectedArea !== "ALL") { 
+        if (dataPoints[selectedArea]) availablePoints = dataPoints[selectedArea]; 
+    } else { 
+        Object.values(dataPoints).forEach(pts => availablePoints = availablePoints.concat(pts)); 
+        availablePoints.sort(); 
+    }
+
     let pointOpts = `<option value="ALL">Semua Point</option>`;
     availablePoints.forEach(p => pointOpts += `<option value="${p}">${p}</option>`);
-    const oldValue = selectPoint.value; selectPoint.innerHTML = pointOpts;
+    
+    const oldValue = selectPoint.value; 
+    selectPoint.innerHTML = pointOpts;
+    
+    // Kembalikan ke pilihan user sebelumnya jika valid
     if (availablePoints.includes(oldValue)) selectPoint.value = oldValue;
     else if (availablePoints.includes(userProfile.point)) selectPoint.value = userProfile.point;
     else selectPoint.value = "ALL";
 }
 
 // =================================================================
-// 4. RENDER DATA & UI
+// 4. RENDER DATA & UI (FILTER FLEKSIBEL)
 // =================================================================
 
 function filterAndRenderData() {
@@ -419,16 +438,22 @@ function filterAndRenderData() {
     const elArea = document.getElementById('selectArea');
     const elPoint = document.getElementById('selectPoint');
     
+    // Ambil Filter Pilihan User
     let filterArea = (elArea && elArea.value) ? elArea.value : (currentRole === 'AM' ? (userProfile.area || "ALL") : "ALL");
     let filterPoint = (elPoint && elPoint.value) ? elPoint.value : (currentRole === 'BM' ? (userProfile.point || "ALL") : "ALL");
+
+    // Jika Admin/RM pilih ALL, tampilkan semua
+    if (currentRole === "RM" && (!elArea || elArea.value === "ALL")) {
+        filterArea = "ALL";
+    }
 
     globalMitraList = [];
     const container = document.getElementById('accordionBP');
     if(!container) return;
     
+    // Cek Data Mentah
     if (!allRawData || allRawData.length === 0) { 
-        container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-folder-open"></i><p>Data Kosong.</p></div>`; 
-        
+        container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-folder-open"></i><p>Data dari Server Kosong.</p></div>`; 
         const btnVal = document.getElementById('btnValidateAll');
         if(btnVal) {
             btnVal.disabled = true;
@@ -443,17 +468,29 @@ function filterAndRenderData() {
     const todayClean = clean(currentDayName);
 
     allRawData.forEach(row => {
+        // 1. Filter Hari (Wajib)
         const p_hari_clean = clean(row.hari || "");
         if (p_hari_clean !== todayClean) return;
         
+        // 2. Filter Area & Point (Fleksibel - Two Way Includes)
         const p_area_clean = clean(row.area || "");
-        const p_cabang_clean = clean(row.point || "");
+        const p_point_clean = clean(row.point || ""); // Menggunakan nama variabel konsisten
+
+        if (filterArea !== "ALL") { 
+            const fArea = clean(filterArea); 
+            // Cek apakah Area User ada di dalam Area Excel ATAU Area Excel ada di dalam Area User
+            // Contoh: "Yogya" match dengan "Area Yogyakarta"
+            if (!p_area_clean.includes(fArea) && !fArea.includes(p_area_clean)) return; 
+        }
         
-        if (filterArea !== "ALL") { const fArea = clean(filterArea); if (!p_area_clean.includes(fArea) && !fArea.includes(p_area_clean)) return; }
-        if (filterPoint !== "ALL") { const fPoint = clean(filterPoint); if (!p_cabang_clean.includes(fPoint) && !fPoint.includes(p_cabang_clean)) return; }
+        if (filterPoint !== "ALL") { 
+            const fPoint = clean(filterPoint); 
+            if (!p_point_clean.includes(fPoint) && !fPoint.includes(p_point_clean)) return; 
+        }
 
         matchCount++;
         
+        // Mapping Kolom Excel ke UI
         const p_bp = row.nama_bp || "Tanpa BP";
         const p_majelis = row.majelis || "Umum";
         const rawBucket = String(row.dpd_bucket || row.dpd || "0").trim();
@@ -469,6 +506,7 @@ function filterAndRenderData() {
         const bucketNum = parseInt(rawBucket);
         const isCurrent = rawBucket.toLowerCase().includes("current") || rawBucket.toLowerCase().includes("lancar") || (!isNaN(bucketNum) && bucketNum <= 1);
 
+        // Statistik
         if (isCurrent) { 
             stats.mm_total++; 
             if (isLunas) stats.mm_bayar++; else stats.mm_telat++;
@@ -480,7 +518,7 @@ function filterAndRenderData() {
         }
 
         const mitraData = {
-            id: String(row.cust_no).trim(), // Pembersihan ID di sini penting!
+            id: String(row.cust_no).trim(), 
             nama: row.mitra,
             status_bayar: st_bayar, 
             status_kirim: st_kirim, 
@@ -509,7 +547,7 @@ function filterAndRenderData() {
     renderStats(stats);
 
     if (matchCount === 0) {
-        container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-magnifying-glass"></i><p>Tidak ada data di hari <b>${currentDayName}</b></p></div>`;
+        container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-magnifying-glass"></i><p>Data kosong untuk <b>${currentDayName}</b><br><small>Area: ${filterArea}, Point: ${filterPoint}</small></p></div>`;
         const btnVal = document.getElementById('btnValidateAll');
         if(btnVal) {
             btnVal.disabled = true;
@@ -778,7 +816,7 @@ window.toggleValidation = function(element, id) {
     updateMajelisStats(element);
 };
 
-// --- FUNGSI UPDATE JB KE SERVER (DIPERBAIKI) ---
+// --- FUNGSI UPDATE JB KE SERVER ---
 async function updateJBDaysToServer() {
     const updates = [];
     globalMitraList.forEach(m => {
@@ -794,7 +832,7 @@ async function updateJBDaysToServer() {
         }
     });
 
-    if (updates.length === 0) return true; // Tidak ada yang perlu diupdate, return sukses
+    if (updates.length === 0) return true; // Tidak ada yang perlu diupdate
     
     const btn = document.getElementById('btnValidateAll');
     if(btn) btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin me-1"></i> Update ${updates.length} JB...`;
@@ -967,7 +1005,7 @@ function downloadCSV() {
 }
 
 // =================================================================
-// 6. MAIN EVENT LISTENER (PROSES VALIDASI AKHIR)
+// 6. MAIN EVENT LISTENER
 // =================================================================
 document.addEventListener("DOMContentLoaded", () => {
     const btnValAll = document.getElementById('btnValidateAll');
@@ -990,7 +1028,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 const isJbSuccess = await updateJBDaysToServer();
 
                 if (!isJbSuccess) {
-                    // Batalkan semua jika update JB gagal
                     btnValAll.disabled = false;
                     btnValAll.innerHTML = originalBtnText;
                     return; 
