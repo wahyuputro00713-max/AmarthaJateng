@@ -17,7 +17,7 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 // --- KONFIGURASI URL APPS SCRIPT ---
-const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; // Untuk Leaderboard/Majelis
+const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev";
 const SCRIPT_URL_BP = "https://script.google.com/macros/s/AKfycbzbfr4VW1-Atl1TzEo5sy4WnAGFT1agQl-shtGLTmFQNa6JZByvrUlTKo9h0-4YN7P7ww/exec"; 
 const SCRIPT_URL_SURVEY = "https://script.google.com/macros/s/AKfycbzq0iFw8vIT9s7Zvl_5gydKaqy2LMkK_DaP9YV2Y_FThPSw9rtWwukFhjJlgfi0FeQ/exec"; 
 
@@ -27,7 +27,6 @@ const userNameSpan = document.getElementById('userName');
 const logoutBtn = document.getElementById('logoutBtn');
 const btnAdmin = document.getElementById('btnAdmin'); 
 const closingMenuBtn = document.getElementById('closingMenuBtn');
-// TAMBAHAN: Tombol Validasi Repayment
 const valRepaymentBtn = document.getElementById('valRepaymentBtn');
 
 let cachedLeaderboardData = [];
@@ -111,9 +110,8 @@ async function fetchWithRetry(url, options = {}, retries = 3, backoff = 300) {
 }
 
 // ==========================================
-// LOGIKA SURVEI BARU
+// LOGIKA SURVEI
 // ==========================================
-
 async function checkSurveyStatus(user, userData) {
     if (userData.jabatan !== "BP") return;
 
@@ -125,8 +123,6 @@ async function checkSurveyStatus(user, userData) {
         const snapshot = await get(surveyRef);
         
         if (!snapshot.exists()) {
-            console.log("User BP belum isi survei bulan ini. Memulai pengecekan BM...");
-
             let namaBm = "BM Point " + (userData.point || "-"); 
             try {
                 const usersRef = ref(db, 'users');
@@ -249,13 +245,12 @@ onAuthStateChanged(auth, (user) => {
                 
                 const userJabatan = (data.jabatan || "").toUpperCase(); 
                 
-                // --- LOGIKA TAMPILAN MENU ---
                 if (["RM", "AM", "BM"].includes(userJabatan) && closingMenuBtn) {
                     closingMenuBtn.classList.remove('d-none');
                 }
 
-                // KHUSUS AM / ADMIN -> TAMPILKAN MENU VALIDASI
-                if (["AM", "ADMIN"].includes(userJabatan) && valRepaymentBtn) {
+                // --- UPDATE: TAMBAHKAN RM DI SINI ---
+                if (["RM", "AM", "ADMIN"].includes(userJabatan) && valRepaymentBtn) {
                     valRepaymentBtn.classList.remove('d-none');
                 }
 
