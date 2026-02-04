@@ -30,11 +30,12 @@ onAuthStateChanged(auth, (user) => {
         get(userRef).then((snapshot) => {
             if (snapshot.exists()) {
                 userProfile = snapshot.val();
-                if (["AM", "ADMIN"].includes(userProfile.jabatan)) {
+                // --- UPDATE: IZINKAN RM AKSES ---
+                if (["RM", "AM", "ADMIN"].includes(userProfile.jabatan)) {
                     document.getElementById('areaInfo').innerText = "Area: " + (userProfile.area || "-");
                     listenToRejectQueue();
                 } else {
-                    alert("Akses Ditolak. Khusus AM.");
+                    alert("Akses Ditolak. Khusus AM/RM/ADMIN.");
                     window.location.replace("home.html");
                 }
             } else { window.location.replace("home.html"); }
@@ -56,6 +57,7 @@ function listenToRejectQueue() {
 
             // --- FILTER DATA BERDASARKAN AREA AM ---
             // Jika AM, hanya tampilkan data dari area yang sama
+            // Jika RM atau ADMIN, tampilkan SEMUA (Lewati filter ini)
             if (userProfile.jabatan === "AM") {
                 const myArea = (userProfile.area || "").toLowerCase().trim();
                 rawList = rawList.filter(item => {
@@ -63,7 +65,6 @@ function listenToRejectQueue() {
                     return itemArea === myArea;
                 });
             }
-            // ADMIN bisa melihat semua
 
             allData = rawList;
             setupPointFilter(allData);
