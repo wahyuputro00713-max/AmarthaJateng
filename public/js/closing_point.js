@@ -276,14 +276,24 @@ function initPage() {
 async function fetchRepaymentData() {
     const container = document.getElementById('accordionBP');
     const btnVal = document.getElementById('btnValidateAll');
+    
+    // --- PERBAIKAN TAMPILAN LOADING ---
     if (btnVal) {
         btnVal.disabled = true;
-        btnVal.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Data..`;
+        // Hapus icon spinner berputar, ganti dengan icon jam pasir diam
+        btnVal.innerHTML = `<i class="fa-solid fa-hourglass-start"></i> Menunggu...`; 
         btnVal.classList.remove('btn-success', 'btn-primary', 'btn-danger');
         btnVal.classList.add('btn-secondary');
     }
+    
     try {
-        if(container) container.innerHTML = `<div class="empty-state"><div class="spinner-border text-primary" role="status"></div><p>Sinkronisasi Database...</p></div>`;
+        if(container) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="spinner-border text-primary mb-3" role="status"></div>
+                    <p class="fw-bold text-muted">Sinkronisasi Database...</p>
+                </div>`;
+        }
         const response = await fetch(SCRIPT_URL, {
             method: 'POST', 
             body: JSON.stringify({ action: "get_data_modal", area: "ALL" }), 
@@ -456,6 +466,10 @@ function filterAndRenderData() {
         const mitraData = {
             id: String(row.cust_no).trim(), 
             nama: row.mitra,
+            // --- UPDATE: MENYIMPAN DATA POINT DAN AREA KE MEMORI ---
+            point: row.point, 
+            area: row.area,
+            // --------------------------------------------------------
             status_bayar: st_bayar, 
             status_kirim: st_kirim, 
             jenis_bayar: p_jenis,
@@ -730,7 +744,7 @@ window.showRejectModal = function(id, name) {
     modal.show();
 };
 
-// Konfirmasi & Kirim Reject
+// Konfirmasi & Kirim Reject (DENGAN AREA & POINT DARI DATA MITRA)
 window.confirmReject = function() {
     const id = document.getElementById('rejMitraId').value;
     const reason = document.getElementById('rejReason').value.trim();
@@ -752,17 +766,20 @@ window.confirmReject = function() {
     const mitraData = globalMitraList.find(m => String(m.id) === String(id));
     if (!mitraData) { alert("Error: Data mitra tidak ditemukan."); return; }
 
-    // 4. Kirim ke Firebase
+    // 4. Kirim ke Firebase (BESERTA AREA & POINT)
     const cleanId = String(id).replace(/[.#$/[\]]/g, "_");
     const dataToSave = {
         mitra: mitraData.nama,
         cust_no: mitraData.id,
-        point: userProfile.point || "Unknown",
+        // --- UPDATE: AMBIL DARI MITRA DATA LANGSUNG ---
+        point: mitraData.point || userProfile.point || "Unknown", 
         nama_bp: userProfile.nama || "Unknown",
         majelis: mitraData.majelis,
         angsuran: "-",
         status: mitraData.status_bayar,
-        reason: reason, // Alasan reject
+        reason: reason, 
+        // --- UPDATE: AMBIL DARI MITRA DATA LANGSUNG ---
+        area: mitraData.area || userProfile.area || "Unknown", 
         timestamp: new Date().toISOString()
     };
 
@@ -778,7 +795,7 @@ window.confirmReject = function() {
             const btn = document.getElementById(`btn-${id}`);
             if(btn) {
                 const card = btn.closest('.mitra-card');
-                if(card) card.remove(); // Atau card.style.display = 'none';
+                if(card) card.remove(); 
             }
         })
         .catch((error) => {
