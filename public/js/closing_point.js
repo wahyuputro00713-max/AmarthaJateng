@@ -20,7 +20,7 @@ const db = getDatabase(app);
 // =========================================================================
 // KONFIGURASI SCRIPT
 // =========================================================================
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwcuA-rdkgP3xv9fqk89Nuq4xFR-SdStwAFtei6ZlUYEe8axnrPLHK4lCeYxbxUtzo7/exec"; 
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzfeMsFQRE2CwNycmHEelVdGRgt2og1egC9ift5rgiidVSontd6s7d2dGmth8xL7OZU/exec"; 
 const ADMIN_ID = "17246";
 
 const dataPoints = {
@@ -657,7 +657,14 @@ function createMitraCard(mitra) {
                 </div>
                 ${inputHtml}
             </div>
-            <div class="d-flex align-items-center h-100 ps-2">
+            
+            <div class="d-flex flex-column gap-2 justify-content-center ps-2 border-start">
+                
+                <button class="btn btn-sm btn-outline-danger shadow-sm" style="border-radius: 50%; width: 40px; height: 40px;" 
+                        onclick="window.showRejectModal('${mitra.id}', '${mitra.nama.replace(/'/g, "\\'")}')" title="Reject ke AM">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+
                 <button class="btn-check-action ${isChecked} ${lockedClass}" ${lockedAttr} id="btn-${mitra.id}">
                     <i class="fa-solid fa-check"></i>
                 </button>
@@ -687,7 +694,7 @@ window.toggleValidation = function(element, id) {
     if (inputReason) {
         const isWajib = inputReason.getAttribute('data-wajib') === 'true';
         if (isWajib && inputReason.value.trim() === "") {
-            alert("Wajib mengisi alasan/keterangan untuk status ini!");
+            alert("Wajib isi alasan/keterangan untuk status ini!");
             inputReason.focus();
             inputReason.classList.add('required');
             return;
@@ -704,6 +711,79 @@ window.toggleValidation = function(element, id) {
     const valDay = daySelect ? daySelect.value : "";
     saveToStorage(id, element.classList.contains('checked'), valReason, valDay);
     updateMajelisStats(element);
+};
+
+// =================================================================
+// 6. LOGIKA REJECT & MODAL (BARU)
+// =================================================================
+
+// Tampilkan Modal
+window.showRejectModal = function(id, name) {
+    document.getElementById('rejMitraName').textContent = name;
+    document.getElementById('rejMitraId').value = id;
+    document.getElementById('rejReason').value = ""; // Reset input
+    document.getElementById('rejReason').classList.remove('is-invalid');
+    
+    // Inisialisasi Modal Bootstrap secara manual jika belum ada
+    const modalEl = document.getElementById('rejectModal');
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+};
+
+// Konfirmasi & Kirim Reject
+window.confirmReject = function() {
+    const id = document.getElementById('rejMitraId').value;
+    const reason = document.getElementById('rejReason').value.trim();
+    const reasonInput = document.getElementById('rejReason');
+
+    // 1. Validasi Input Wajib
+    if (!reason) {
+        reasonInput.classList.add('is-invalid');
+        reasonInput.focus();
+        return;
+    }
+
+    // 2. Konfirmasi User
+    if(!confirm("Apakah Anda yakin ingin me-reject mitra ini?\nData akan dikirim ke AM.")) {
+        return;
+    }
+
+    // 3. Ambil data mitra lengkap
+    const mitraData = globalMitraList.find(m => String(m.id) === String(id));
+    if (!mitraData) { alert("Error: Data mitra tidak ditemukan."); return; }
+
+    // 4. Kirim ke Firebase
+    const cleanId = String(id).replace(/[.#$/[\]]/g, "_");
+    const dataToSave = {
+        mitra: mitraData.nama,
+        cust_no: mitraData.id,
+        point: userProfile.point || "Unknown",
+        nama_bp: userProfile.nama || "Unknown",
+        majelis: mitraData.majelis,
+        angsuran: "-",
+        status: mitraData.status_bayar,
+        reason: reason, // Alasan reject
+        timestamp: new Date().toISOString()
+    };
+
+    set(ref(db, 'reject_queue/' + cleanId), dataToSave)
+        .then(() => {
+            alert("Berhasil direject! Menunggu validasi AM.");
+            // Tutup modal
+            const modalEl = document.getElementById('rejectModal');
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            modal.hide();
+            
+            // Sembunyikan kartu di UI
+            const btn = document.getElementById(`btn-${id}`);
+            if(btn) {
+                const card = btn.closest('.mitra-card');
+                if(card) card.remove(); // Atau card.style.display = 'none';
+            }
+        })
+        .catch((error) => {
+            alert("Gagal koneksi ke server: " + error.message);
+        });
 };
 
 // --- FUNGSI UPDATE JB (DENGAN AUTO-RETRY & PROGRESS BAR) ---
