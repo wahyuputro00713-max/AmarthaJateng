@@ -19,8 +19,6 @@ const db = getDatabase(app);
 // --- KONFIGURASI URL APPS SCRIPT ---
 const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev"; // Untuk Leaderboard/Majelis
 const SCRIPT_URL_BP = "https://script.google.com/macros/s/AKfycbzbfr4VW1-Atl1TzEo5sy4WnAGFT1agQl-shtGLTmFQNa6JZByvrUlTKo9h0-4YN7P7ww/exec"; 
-
-// [PENTING] GANTI URL INI DENGAN HASIL DEPLOY "Code.gs" TERBARU ANDA
 const SCRIPT_URL_SURVEY = "https://script.google.com/macros/s/AKfycbzq0iFw8vIT9s7Zvl_5gydKaqy2LMkK_DaP9YV2Y_FThPSw9rtWwukFhjJlgfi0FeQ/exec"; 
 
 const ADMIN_ID = "17246";
@@ -29,6 +27,8 @@ const userNameSpan = document.getElementById('userName');
 const logoutBtn = document.getElementById('logoutBtn');
 const btnAdmin = document.getElementById('btnAdmin'); 
 const closingMenuBtn = document.getElementById('closingMenuBtn');
+// TAMBAHAN: Tombol Validasi Repayment
+const valRepaymentBtn = document.getElementById('valRepaymentBtn');
 
 let cachedLeaderboardData = [];
 let cachedUsersMap = {};
@@ -96,7 +96,6 @@ async function checkAbsensiStatus(uid) {
     } catch (error) { console.error("Gagal cek absensi:", error); }
 }
 
-// --- FUNGSI BANTUAN: FETCH WITH RETRY (Untuk mengatasi Error Network/QUIC) ---
 async function fetchWithRetry(url, options = {}, retries = 3, backoff = 300) {
     try {
         const response = await fetch(url, options);
@@ -106,45 +105,36 @@ async function fetchWithRetry(url, options = {}, retries = 3, backoff = 300) {
         return response;
     } catch (error) {
         if (retries < 1) throw error;
-        // console.log(`Retrying fetch... (${retries} attempts left)`); // Uncomment untuk debug
         await new Promise(r => setTimeout(r, backoff));
         return fetchWithRetry(url, options, retries - 1, backoff * 2);
     }
 }
 
 // ==========================================
-// LOGIKA SURVEI BARU (11 PERTANYAAN)
+// LOGIKA SURVEI BARU
 // ==========================================
 
 async function checkSurveyStatus(user, userData) {
-    // 1. Cek Jabatan (Hanya BP)
     if (userData.jabatan !== "BP") return;
 
-    // 2. Tentukan Periode Survei (Format: YYYY-MM)
     const date = new Date();
     const period = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`; 
-
-    // 3. Cek Firebase apakah user sudah isi bulan ini
     const surveyRef = ref(db, `survei_logs/${period}/${user.uid}`);
     
     try {
         const snapshot = await get(surveyRef);
         
         if (!snapshot.exists()) {
-            // -- JIKA BELUM ISI --
             console.log("User BP belum isi survei bulan ini. Memulai pengecekan BM...");
 
-            // A. Cari Nama BM Otomatis berdasarkan Point
             let namaBm = "BM Point " + (userData.point || "-"); 
             try {
-                // Ambil semua user untuk mencari BM di point yang sama
                 const usersRef = ref(db, 'users');
                 const snapshotUsers = await get(usersRef);
                 
                 if (snapshotUsers.exists()) {
                     snapshotUsers.forEach((childSnapshot) => {
                         const u = childSnapshot.val();
-                        // Cocokkan Point & Jabatan BM
                         if (u.point === userData.point && u.jabatan === "BM") {
                             namaBm = u.nama;
                         }
@@ -152,24 +142,19 @@ async function checkSurveyStatus(user, userData) {
                 }
             } catch (e) { console.log("Gagal auto-detect BM", e); }
 
-            console.log("Nama BM Terdeteksi:", namaBm);
-
-            // B. Isi data hidden form di Modal
             const inpPoint = document.getElementById('sv_point');
             const inpBm = document.getElementById('sv_namaBm');
             if(inpPoint) inpPoint.value = userData.point || "";
             if(inpBm) inpBm.value = namaBm;
 
-            // C. Tampilkan Modal (Locked / Tidak bisa ditutup)
             const surveyModalEl = document.getElementById('surveyModal');
             if (surveyModalEl) {
                 const modal = new bootstrap.Modal(surveyModalEl, {
                     backdrop: 'static', 
-                    keyboard: false     
+                    keyboard: false      
                 });
                 modal.show();
                 
-                // Setup Listener Tombol Submit
                 const btnSubmit = document.getElementById('btnSubmitSurvey');
                 if(btnSubmit) {
                     btnSubmit.onclick = () => submitSurvey(user, userData, period, namaBm, modal);
@@ -185,21 +170,18 @@ async function submitSurvey(user, userData, period, namaBm, modalInstance) {
     const btn = document.getElementById('btnSubmitSurvey');
     const form = document.getElementById('formSurveyBm');
     
-    // 1. Validasi Input HTML5 (Required fields)
     if (!form.checkValidity()) {
         form.reportValidity();
         return;
     }
 
-    // Ambil Value dari Form
     const formData = new FormData(form);
     const dataKirim = {
         action: "submit_survei_bm",
         idBp: userData.idKaryawan,
         namaBp: userData.nama,
         point: userData.point,
-        namaBm: namaBm, // Dikirim otomatis
-        // 11 Pertanyaan
+        namaBm: namaBm,
         q1: formData.get('q1'),
         q2: formData.get('q2'),
         q3: formData.get('q3'),
@@ -213,30 +195,25 @@ async function submitSurvey(user, userData, period, namaBm, modalInstance) {
         q11: formData.get('q11')
     };
 
-    // 2. Loading State
     const originalText = btn.innerHTML;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Mengirim...';
     btn.disabled = true;
 
     try {
-        // 3. Kirim ke Spreadsheet (Menggunakan URL Survey Khusus & Retry)
         await fetchWithRetry(SCRIPT_URL_SURVEY, {
             method: 'POST',
             body: JSON.stringify(dataKirim),
             headers: { "Content-Type": "text/plain;charset=utf-8" }
         });
 
-        // 4. Simpan Log di Firebase (Tandai sudah isi bulan ini)
         await set(ref(db, `survei_logs/${period}/${user.uid}`), {
             timestamp: new Date().toISOString(),
             status: "done"
         });
 
-        // 5. Sukses
         alert("Terima kasih! Survei berhasil dikirim. Selamat bekerja.");
         modalInstance.hide(); 
         
-        // Restore tombol
         btn.innerHTML = originalText;
         btn.disabled = false;
 
@@ -272,8 +249,14 @@ onAuthStateChanged(auth, (user) => {
                 
                 const userJabatan = (data.jabatan || "").toUpperCase(); 
                 
+                // --- LOGIKA TAMPILAN MENU ---
                 if (["RM", "AM", "BM"].includes(userJabatan) && closingMenuBtn) {
                     closingMenuBtn.classList.remove('d-none');
+                }
+
+                // KHUSUS AM / ADMIN -> TAMPILKAN MENU VALIDASI
+                if (["AM", "ADMIN"].includes(userJabatan) && valRepaymentBtn) {
+                    valRepaymentBtn.classList.remove('d-none');
                 }
 
                 if (userJabatan === "BP") {
@@ -288,8 +271,6 @@ onAuthStateChanged(auth, (user) => {
                         if(loader) loader.classList.add('d-none');
                         if(errorEl) errorEl.classList.remove('d-none');
                     }
-
-                    // ==> CEK STATUS SURVEI (Trigger Modal) <==
                     checkSurveyStatus(user, data);
                 }
 
@@ -323,7 +304,6 @@ if(btnViewAll){
     });
 }
 
-// --- FUNGSI LOAD REPAYMENT UPDATE (Pakai Retry juga) ---
 async function loadRepaymentInfo() {
     const labelUpdate = document.getElementById('repaymentUpdateVal');
     if (!labelUpdate) return;
@@ -337,7 +317,6 @@ async function loadRepaymentInfo() {
             labelUpdate.textContent = displayJam !== "" ? displayJam : "N/A";
         } else { labelUpdate.textContent = "-"; }
     } catch (error) { 
-        // console.error(error); 
         labelUpdate.textContent = "Err"; 
     }
 }
@@ -459,7 +438,6 @@ async function loadAreaProgressChart() {
     if (!ctxCanvas) return;
 
     try {
-        // Gunakan Retry juga untuk Chart agar tidak kosong saat glitch jaringan
         const response = await fetchWithRetry(SCRIPT_URL, {
             method: 'POST', body: JSON.stringify({ action: "get_area_progress" }), headers: { "Content-Type": "text/plain;charset=utf-8" }
         });
@@ -499,36 +477,7 @@ async function loadAreaProgressChart() {
                     }
                 ]
             },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                layout: { padding: { right: 50 } }, 
-                plugins: {
-                    legend: { position: 'top', labels: { font: { size: 10 }, boxWidth: 10, usePointStyle: true } },
-                    tooltip: {
-                        callbacks: {
-                            label: function(ctx) {
-                                let lbl = ctx.dataset.label + ': ' + ctx.parsed.x + '%';
-                                const item = areaData[ctx.dataIndex];
-                                if (ctx.datasetIndex === 0) lbl += ` (${formatRibuan(item.progress)}/${formatRibuan(item.plan)})`;
-                                else lbl += ` (${formatRibuan(item.achievement)}/${formatRibuan(item.target)})`;
-                                return lbl;
-                            }
-                        }
-                    },
-                    datalabels: {
-                        color: '#444',
-                        anchor: 'end', align: 'end', offset: 4,
-                        font: { weight: 'bold', size: 9 },
-                        formatter: function(value) { return value + "%"; }
-                    }
-                },
-                scales: {
-                    x: { beginAtZero: true, suggestedMax: 120, grid: { display: false }, ticks: { display: false } },
-                    y: { grid: { display: false }, ticks: { font: { size: 10, weight: '500' } } }
-                }
-            }
+            options: getChartOptions()
         });
     } catch (e) { console.error("Err Chart:", e); }
 }
