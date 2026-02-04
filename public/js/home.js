@@ -147,7 +147,7 @@ async function checkSurveyStatus(user, userData) {
             if (surveyModalEl) {
                 const modal = new bootstrap.Modal(surveyModalEl, {
                     backdrop: 'static', 
-                    keyboard: false      
+                    keyboard: false       
                 });
                 modal.show();
                 
@@ -249,7 +249,6 @@ onAuthStateChanged(auth, (user) => {
                     closingMenuBtn.classList.remove('d-none');
                 }
 
-                // --- UPDATE: TAMBAHKAN RM DI SINI ---
                 if (["RM", "AM", "ADMIN"].includes(userJabatan) && valRepaymentBtn) {
                     valRepaymentBtn.classList.remove('d-none');
                 }
@@ -449,6 +448,48 @@ async function loadAreaProgressChart() {
         if (window.myAreaChart) window.myAreaChart.destroy();
         Chart.register(ChartDataLabels);
 
+        // --- KONFIGURASI KHUSUS AREA (FIX) ---
+        // Kita tidak pakai getChartOptions() karena fungsi itu menyembunyikan legend dan label dataset 1
+        const areaChartOptions = {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { 
+                    display: true, // Tampilkan Legend (Judul Grafik)
+                    position: 'top',
+                    labels: { boxWidth: 10, font: { size: 10 } }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            return ctx.dataset.label + ': ' + ctx.raw + '%';
+                        }
+                    }
+                },
+                datalabels: {
+                    anchor: 'end', 
+                    align: 'end', 
+                    offset: 0, 
+                    color: '#333',
+                    font: { size: 10, weight: 'bold' },
+                    // Hapus logika yang menyembunyikan index 1, tampilkan semua
+                    formatter: (val) => Math.round(val) + "%"
+                }
+            },
+            scales: {
+                x: { 
+                    display: false, 
+                    max: 130, // Beri ruang agar label persen tidak terpotong
+                    beginAtZero: true 
+                },
+                y: { 
+                    grid: { display: false }, 
+                    ticks: { font: { size: 11, weight: '600' }, color: '#555' } 
+                }
+            }
+        };
+
         window.myAreaChart = new Chart(ctxCanvas.getContext('2d'), {
             type: 'bar',
             data: {
@@ -472,7 +513,7 @@ async function loadAreaProgressChart() {
                     }
                 ]
             },
-            options: getChartOptions()
+            options: areaChartOptions // Gunakan opsi khusus yang baru dibuat
         });
     } catch (e) { console.error("Err Chart:", e); }
 }
@@ -571,7 +612,7 @@ function renderBpChart1(canvasCtx, data) {
                 }
             ]
         },
-        options: getChartOptions()
+        options: getChartOptions() // Grafik BP tetap pakai opsi lama
     });
 }
 
@@ -604,10 +645,11 @@ function renderBpChart2(canvasCtx, data) {
                 }
             ]
         },
-        options: getChartOptions()
+        options: getChartOptions() // Grafik BP tetap pakai opsi lama
     });
 }
 
+// Opsi Default (Hanya untuk grafik BP)
 function getChartOptions() {
     return {
         indexAxis: 'y', responsive: true, maintainAspectRatio: false,
@@ -624,6 +666,7 @@ function getChartOptions() {
             datalabels: {
                 anchor: 'end', align: 'end', offset: 4, color: '#333',
                 font: { size: 10, weight: 'bold' },
+                // Logika ini menyembunyikan dataset index 1 (Target Background) pada grafik BP
                 formatter: (val, ctx) => ctx.datasetIndex === 1 ? "" : Math.round(val) + "%"
             }
         },
