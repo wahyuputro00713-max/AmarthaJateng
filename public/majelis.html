@@ -1,750 +1,330 @@
 <!DOCTYPE html>
-
 <html lang="id">
 
 <head>
-
     <meta charset="UTF-8">
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>Data Majelis - Amartha Jateng</title>
 
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    
-
     <style>
-
-        /* --- Tambahan Style untuk Statistik Mini di Header Accordion --- */
-
-.stats-row {
-
-    display: flex;
-
-    gap: 8px;
-
-    margin-top: 8px;
-
-    flex-wrap: wrap;
-
-}
-
-
-
-.mini-stat {
-
-    display: flex;
-
-    align-items: center;
-
-    font-size: 0.7rem;
-
-    padding: 3px 8px;
-
-    border-radius: 6px;
-
-    font-weight: 600;
-
-    border: 1px solid transparent;
-
-}
-
-
-
-/* Warna-warni status */
-
-.stat-bayar { background: #e6fffa; color: #00b894; border-color: #b2f2bb; }
-
-.stat-telat { background: #fff5f5; color: #ff7675; border-color: #ffcccc; }
-
-.stat-sent  { background: #e7f5ff; color: #74c0fc; border-color: #a5d8ff; }
-
-.stat-unsent{ background: #f8f9fa; color: #636e72; border-color: #dfe6e9; }
-
-
-
-.mini-stat i { margin-right: 4px; }
-
         :root {
-
-            --primary-color: #6c5ce7; /* Warna Ungu Modern */
-
+            --primary-color: #6c5ce7;
             --secondary-color: #a29bfe;
-
-            --accent-color: #00b894; /* Hijau Mint */
-
+            --accent-color: #00b894;
             --bg-color: #f4f6f9;
-
             --text-dark: #2d3436;
-
             --text-light: #636e72;
-
             --card-radius: 16px;
-
         }
 
-
-
+        /* --- Base Styles --- */
         body {
-
             font-family: 'Poppins', sans-serif;
-
             background-color: var(--bg-color);
-
             color: var(--text-dark);
-
-            padding-bottom: 80px; /* Space for bottom nav if needed */
-
+            padding-bottom: 80px;
         }
-
-
 
         /* --- Navbar Modern --- */
-
         .navbar-custom {
-
             background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-
-            padding: 15px 0;
-
+            padding: 15px 0 50px 0;
             border-bottom-left-radius: 20px;
-
             border-bottom-right-radius: 20px;
-
             box-shadow: 0 4px 15px rgba(108, 92, 231, 0.2);
-
-            margin-bottom: -40px; /* Overlap effect */
-
-            padding-bottom: 50px;
-
+            margin-bottom: -40px;
             position: relative;
-
             z-index: 1;
-
         }
-
-
 
         .navbar-title {
-
             color: white;
-
             font-weight: 600;
-
             font-size: 1.2rem;
-
             margin: 0;
-
         }
 
-
-
         .btn-back {
-
             color: white;
-
             background: rgba(255, 255, 255, 0.2);
-
             border: none;
-
             border-radius: 12px;
-
             width: 40px;
-
             height: 40px;
-
             display: flex;
-
             align-items: center;
-
             justify-content: center;
-
             transition: all 0.2s;
-
             text-decoration: none;
-
         }
 
         .btn-back:hover {
-
             background: rgba(255, 255, 255, 0.4);
-
             color: white;
-
             transform: scale(1.05);
-
         }
 
-
-
-        /* --- Main Container Overlap --- */
-
+        /* --- Main Content Overlap --- */
         .main-content {
-
             position: relative;
-
             z-index: 2;
-
             padding: 0 15px;
-
         }
-
-
 
         /* --- Filter Card --- */
-
         .filter-card {
-
             background: white;
-
             border-radius: var(--card-radius);
-
             border: none;
-
-            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
-
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
             padding: 20px;
-
             margin-bottom: 20px;
-
         }
-
-
 
         .form-label {
-
             font-size: 0.85rem;
-
             color: var(--text-light);
-
             font-weight: 500;
-
             margin-bottom: 5px;
-
         }
 
-
-
         .form-select {
-
             border-radius: 10px;
-
             border: 1px solid #dfe6e9;
-
             padding: 10px 12px;
-
             font-size: 0.9rem;
-
             transition: all 0.2s;
-
             background-color: #fdfdfd;
-
         }
 
         .form-select:focus {
-
             border-color: var(--primary-color);
-
             box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.1);
-
         }
 
-
-
         .btn-tampilkan {
-
             background: var(--primary-color);
-
             border: none;
-
             border-radius: 10px;
-
             padding: 12px;
-
             font-weight: 500;
-
             letter-spacing: 0.5px;
-
             box-shadow: 0 4px 10px rgba(108, 92, 231, 0.3);
-
             width: 100%;
-
             color: white;
-
             transition: transform 0.2s;
-
         }
 
         .btn-tampilkan:active {
-
             transform: scale(0.98);
-
         }
 
-
-
         /* --- Stats Badge --- */
-
         .stats-container {
-
             display: flex;
-
             gap: 10px;
-
             margin-bottom: 15px;
-
             overflow-x: auto;
-
             padding-bottom: 5px;
-
         }
 
         .stat-badge {
-
             background: white;
-
             padding: 8px 15px;
-
             border-radius: 20px;
-
             font-size: 0.85rem;
-
             font-weight: 600;
-
             color: var(--primary-color);
-
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
             white-space: nowrap;
-
             border: 1px solid rgba(108, 92, 231, 0.1);
-
         }
 
+        /* --- Accordion Mini Stats --- */
+        .stats-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
 
+        .mini-stat {
+            display: flex;
+            align-items: center;
+            font-size: 0.7rem;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-weight: 600;
+            border: 1px solid transparent;
+        }
 
-        /* --- Accordion Styling (List Majelis) --- */
+        .stat-bayar { background: #e6fffa; color: #00b894; border-color: #b2f2bb; }
+        .stat-telat { background: #fff5f5; color: #ff7675; border-color: #ffcccc; }
+        .stat-sent { background: #e7f5ff; color: #74c0fc; border-color: #a5d8ff; }
+        .stat-unsent { background: #f8f9fa; color: #636e72; border-color: #dfe6e9; }
 
+        .mini-stat i { margin-right: 4px; }
+
+        /* --- Accordion Styling --- */
         .accordion-item {
-
             border: none;
-
             margin-bottom: 12px;
-
             background: transparent;
-
         }
-
-
 
         .accordion-button {
-
             background: white !important;
-
             border-radius: 12px !important;
-
-            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
-
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
             padding: 15px;
-
             color: var(--text-dark);
-
             font-weight: 500;
-
             border: 1px solid transparent;
-
         }
-
-
 
         .accordion-button:not(.collapsed) {
-
             color: var(--primary-color);
-
             background: #f8f7ff !important;
-
             border: 1px solid var(--secondary-color);
-
             box-shadow: 0 4px 12px rgba(108, 92, 231, 0.1);
-
         }
-
-
-
-        .accordion-button::after {
-
-            background-size: 1rem;
-
-            opacity: 0.5;
-
-        }
-
-        .accordion-button:not(.collapsed)::after {
-
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%236c5ce7'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e");
-
-        }
-
-
 
         .accordion-body {
-
             background: white;
-
             border-bottom-left-radius: 12px;
-
             border-bottom-right-radius: 12px;
-
             padding: 0;
-
-            margin-top: -5px; /* Merge with header */
-
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-
+            margin-top: -5px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
         }
 
-
-
-        .majelis-badge {
-
-            background: #ffeaa7;
-
-            color: #d63031;
-
-            padding: 2px 8px;
-
-            border-radius: 6px;
-
-            font-size: 0.75rem;
-
-            font-weight: 700;
-
-            margin-left: 8px;
-
-        }
-
-
-
-        /* --- Table Styling --- */
-
+        /* --- Table Mitra --- */
         .table-mitra thead th {
-
             font-size: 0.75rem;
-
             text-transform: uppercase;
-
-            letter-spacing: 0.5px;
-
             color: var(--text-light);
-
             background: #f8f9fa;
-
-            border-bottom: 1px solid #eee;
-
             padding: 10px 8px;
-
+            border-bottom: 1px solid #eee;
         }
-
-
 
         .table-mitra td {
-
             vertical-align: middle;
-
             font-size: 0.85rem;
-
             padding: 12px 8px;
-
             border-bottom: 1px solid #f1f2f6;
-
         }
 
+        .mitra-name { font-weight: 600; color: var(--text-dark); display: block; }
+        .mitra-id { font-size: 0.7rem; color: #b2bec3; display: block; }
 
-
-        .mitra-name {
-
-            display: block;
-
-            font-weight: 600;
-
-            color: var(--text-dark);
-
-            margin-bottom: 2px;
-
-        }
-
-        .mitra-id {
-
-            display: block;
-
-            font-size: 0.7rem;
-
-            color: #b2bec3;
-
-        }
-
-
-
-        .nominal-text {
-
-            font-family: 'Consolas', monospace;
-
-            font-weight: 600;
-
-            font-size: 0.9rem;
-
-        }
-
-        .nominal-label {
-
-            font-size: 0.65rem;
-
-            color: #b2bec3;
-
-            display: block;
-
-            margin-top: -2px;
-
-        }
-
-
-
-        /* Badge Status */
-
-        .badge-bll {
-
-            background-color: #ff7675;
-
-            color: white;
-
-            font-size: 0.6rem;
-
-            padding: 1px 4px;
-
-            border-radius: 4px;
-
-            vertical-align: middle;
-
-            margin-left: 4px;
-
-        }
-
-
-
-        /* --- Loading Overlay (Glassmorphism) --- */
-
+        /* --- Loading & Empty State --- */
         #loadingOverlay {
-
             background: rgba(255, 255, 255, 0.8);
-
             backdrop-filter: blur(5px);
-
             z-index: 9999;
-
         }
 
         .spinner-custom {
-
             width: 3rem;
-
             height: 3rem;
-
-            border-width: 0.25em;
-
             color: var(--primary-color);
-
         }
-
-
-
-        /* --- Empty State --- */
 
         .empty-state-icon {
-
             font-size: 4rem;
-
             color: #dfe6e9;
-
             margin-bottom: 15px;
-
         }
-
     </style>
-
 </head>
 
 <body>
 
-
-
     <div id="loadingOverlay" class="d-none position-fixed top-0 start-0 w-100 h-100 d-flex flex-column justify-content-center align-items-center">
-
         <div class="spinner-border spinner-custom mb-3" role="status"></div>
-
         <p class="text-muted fw-bold">Memuat data...</p>
-
     </div>
-
-
 
     <nav class="navbar-custom">
-
         <div class="container d-flex align-items-center justify-content-between px-3">
-
             <div class="d-flex align-items-center gap-3">
-
                 <a href="home.html" class="btn-back">
-
                     <i class="fa-solid fa-arrow-left"></i>
-
                 </a>
-
                 <h1 class="navbar-title">Data Majelis</h1>
-
             </div>
-
-            </div>
-
+        </div>
     </nav>
 
-
-
     <div class="main-content container">
-
         
-
-        <div class="filter-card mt-n4"> <div class="row g-3">
-
+        <div class="filter-card mt-n4">
+            <div class="row g-3">
                 <div class="col-6 col-md-3">
-
                     <label class="form-label">Area</label>
-
                     <select id="filterArea" class="form-select">
-
                         <option value="">Semua Area</option>
-
                     </select>
-
                 </div>
-
                 <div class="col-6 col-md-3">
-
                     <label class="form-label">Hari</label>
-
                     <select id="filterHari" class="form-select">
-
                         <option value="">Semua Hari</option>
-
                         <option value="Senin">Senin</option>
-
                         <option value="Selasa">Selasa</option>
-
                         <option value="Rabu">Rabu</option>
-
                         <option value="Kamis">Kamis</option>
-
                         <option value="Jumat">Jumat</option>
-
                     </select>
-
                 </div>
-
                 <div class="col-6 col-md-3">
-
                     <label class="form-label">Point</label>
-
                     <select id="filterPoint" class="form-select">
-
                         <option value="">Semua Point</option>
-
                     </select>
-
                 </div>
-
                 <div class="col-6 col-md-3">
-
                     <label class="form-label">Nama BP</label>
-
                     <select id="filterBP" class="form-select">
-
                         <option value="">Semua BP</option>
-
                     </select>
-
                 </div>
-
                 <div class="col-12 mt-4">
-
                     <button id="btnTampilkan" class="btn-tampilkan">
-
                         <i class="fa-solid fa-filter me-2"></i>Tampilkan Data
-
                     </button>
-
                 </div>
-
             </div>
-
         </div>
-
-
 
         <div class="stats-container">
-
             <div class="stat-badge">
-
                 <i class="fa-solid fa-users-rectangle me-2"></i>
-
                 <span id="totalMajelis">Total: 0 Majelis</span>
-
             </div>
-
             <div class="stat-badge">
-
                 <i class="fa-solid fa-user-group me-2"></i>
-
                 <span id="totalMitra">0 Mitra</span>
-
             </div>
-
         </div>
-
-
 
         <div id="majelisContainer" class="accordion accordion-flush">
-
             </div>
 
-
-
         <div id="emptyState" class="text-center py-5 d-none">
-
             <i class="fa-solid fa-folder-open empty-state-icon"></i>
-
             <h5 class="fw-bold text-secondary">Data Tidak Ditemukan</h5>
-
             <p class="text-muted small">Silakan pilih filter area dan klik tombol Tampilkan Data.</p>
-
         </div>
-
-
-
     </div>
 
-
-
-    <script type="module" src="js/majelis.js"></script>
-
+    <script type="module" src="js/majelis.js?v=1.1"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
-
-
 </body>
 
 </html>
-
