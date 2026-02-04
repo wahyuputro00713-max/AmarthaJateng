@@ -52,7 +52,20 @@ function listenToRejectQueue() {
         const data = snapshot.val();
 
         if (data) {
-            allData = Object.values(data);
+            let rawList = Object.values(data);
+
+            // --- FILTER DATA BERDASARKAN AREA AM ---
+            // Jika AM, hanya tampilkan data dari area yang sama
+            if (userProfile.jabatan === "AM") {
+                const myArea = (userProfile.area || "").toLowerCase().trim();
+                rawList = rawList.filter(item => {
+                    const itemArea = (item.area || "").toLowerCase().trim();
+                    return itemArea === myArea;
+                });
+            }
+            // ADMIN bisa melihat semua
+
+            allData = rawList;
             setupPointFilter(allData);
             renderData(allData);
         } else {
@@ -64,7 +77,6 @@ function listenToRejectQueue() {
 // 3. FILTER POINT
 function setupPointFilter(data) {
     const select = document.getElementById('filterPoint');
-    // Simpan nilai pilihan saat ini agar tidak reset saat data refresh realtime
     const currentVal = select.value;
     
     select.innerHTML = '<option value="ALL">Semua Point</option>';
@@ -77,7 +89,6 @@ function setupPointFilter(data) {
         select.appendChild(opt);
     });
 
-    // Replace element to remove old listeners
     const newSelect = select.cloneNode(true);
     select.parentNode.replaceChild(newSelect, select);
     
@@ -142,7 +153,6 @@ window.confirmDelete = async function(custNo, namaMitra) {
     }
 
     try {
-        // Hapus dari Sheet
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify({ action: "delete_task_modal", custNo: custNo }),
@@ -152,7 +162,6 @@ window.confirmDelete = async function(custNo, namaMitra) {
         const result = await response.json();
 
         if (result.result === "success") {
-            // Hapus dari Firebase (Otomatis update UI karena realtime listener)
             const cleanId = String(custNo).replace(/[.#$/[\]]/g, "_");
             await remove(ref(db, 'reject_queue/' + cleanId));
             alert("SUKSES! Data berhasil dihapus.");
