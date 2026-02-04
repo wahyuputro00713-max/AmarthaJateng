@@ -341,8 +341,45 @@
         </div>
 
     </div>
+    <div class="container-fluid px-3 pt-3">
+        <div class="accordion pb-5" id="accordionBP">
+            <div class="empty-state">
+                <div class="spinner-border text-primary mb-3" role="status"></div>
+                <p>Mengambil Data Server...</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="rejectModal" tabindex="-1" aria-labelledby="rejectModalLabel" aria-hidden="true" data-bs-backdrop="static">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header bg-danger text-white">
+            <h5 class="modal-title" id="rejectModalLabel"><i class="fa-solid fa-triangle-exclamation me-2"></i>Reject Mitra</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p class="mb-2">Anda akan me-reject mitra: <strong id="rejMitraName">...</strong></p>
+            <input type="hidden" id="rejMitraId">
+            <div class="mb-3">
+                <label for="rejReason" class="form-label small fw-bold text-muted">Alasan Reject (Wajib Diisi):</label>
+                <textarea class="form-control" id="rejReason" rows="3" placeholder="Contoh: Mitra double data, Mitra sudah lunas manual, dll..."></textarea>
+                <div class="invalid-feedback">Alasan wajib diisi!</div>
+            </div>
+            <div class="alert alert-warning small mb-0">
+                <i class="fa-solid fa-info-circle me-1"></i> Data ini akan dikirim ke AM untuk divalidasi dan dihapus dari database Tugas Modal.
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+            <button type="button" class="btn btn-danger btn-sm fw-bold" onclick="window.confirmReject()">
+                <i class="fa-solid fa-paper-plane me-1"></i> Kirim Reject
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script type="module" src="./js/closing_point.js?v=1.2"></script>
+    <script type="module" src="./js/closing_point.js?v=1.3"></script>
 </body>
 </html>
