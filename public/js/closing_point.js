@@ -20,7 +20,7 @@ const db = getDatabase(app);
 // =========================================================================
 // KONFIGURASI SCRIPT
 // =========================================================================
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzfeMsFQRE2CwNycmHEelVdGRgt2og1egC9ift5rgiidVSontd6s7d2dGmth8xL7OZU/exec"; 
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzf9Pwl7VXVppjStO3dMkcRB5ftXwgRIlB5Ad93V1zArxToD3XdWrEVvdizSmfcKRXp/exec"; 
 const ADMIN_ID = "17246";
 
 const dataPoints = {
