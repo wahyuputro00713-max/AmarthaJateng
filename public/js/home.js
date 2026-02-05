@@ -18,7 +18,9 @@ const db = getDatabase(app);
 
 // --- KONFIGURASI URL APPS SCRIPT ---
 const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev";
+// Pastikan URL di bawah ini adalah URL Deployment terbaru dari Code.gs (Fitur BP & BM)
 const SCRIPT_URL_BP = "https://script.google.com/macros/s/AKfycbzn3uUAMZlVyMB_-LxCMSGN60aePGVYTNCh7fmW6OKKqjohaC3xT4yLH4IU5F0PUDqlGg/exec"; 
+// Pastikan URL di bawah ini untuk Script Survei
 const SCRIPT_URL_SURVEY = "https://script.google.com/macros/s/AKfycbzq0iFw8vIT9s7Zvl_5gydKaqy2LMkK_DaP9YV2Y_FThPSw9rtWwukFhjJlgfi0FeQ/exec"; 
 
 const ADMIN_ID = "17246";
@@ -590,7 +592,8 @@ async function loadBmDashboard(point) {
                     return val;
                 };
 
-                // Desain List Item (Bukan Card lagi) `
+                // Desain List Item (Bukan Card lagi)
+                html += `
                 <div class="p-3 border-bottom d-flex justify-content-between align-items-center bg-white" 
                      onclick="openBmDetail('${bpDataStr}')" 
                      style="cursor: pointer; transition: background 0.2s;" 
@@ -614,6 +617,9 @@ async function loadBmDashboard(point) {
                         </div>
                     </div>
                 </div>
+                `;
+            });
+            listContainer.innerHTML = html;
         } else {
             cardWrapper.classList.remove('d-none');
             listContainer.innerHTML = '<div class="text-center text-muted py-5"><i class="fa-regular fa-folder-open mb-2 fs-3"></i><p class="mb-0 small">Belum ada data tim.</p></div>';
