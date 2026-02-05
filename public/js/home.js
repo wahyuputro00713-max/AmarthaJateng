@@ -18,7 +18,7 @@ const db = getDatabase(app);
 
 // --- KONFIGURASI URL APPS SCRIPT ---
 const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev";
-const SCRIPT_URL_BP = "https://script.google.com/macros/s/AKfycbzbfr4VW1-Atl1TzEo5sy4WnAGFT1agQl-shtGLTmFQNa6JZByvrUlTKo9h0-4YN7P7ww/exec"; 
+const SCRIPT_URL_BP = "https://script.google.com/macros/s/AKfycbzn3uUAMZlVyMB_-LxCMSGN60aePGVYTNCh7fmW6OKKqjohaC3xT4yLH4IU5F0PUDqlGg/exec"; 
 const SCRIPT_URL_SURVEY = "https://script.google.com/macros/s/AKfycbzq0iFw8vIT9s7Zvl_5gydKaqy2LMkK_DaP9YV2Y_FThPSw9rtWwukFhjJlgfi0FeQ/exec"; 
 
 const ADMIN_ID = "17246";
@@ -110,7 +110,7 @@ async function fetchWithRetry(url, options = {}, retries = 3, backoff = 300) {
 }
 
 // ==========================================
-// LOGIKA SURVEI
+// LOGIKA SURVEI & BM LOGIC
 // ==========================================
 async function checkSurveyStatus(user, userData) {
     if (userData.jabatan !== "BP") return;
@@ -147,7 +147,7 @@ async function checkSurveyStatus(user, userData) {
             if (surveyModalEl) {
                 const modal = new bootstrap.Modal(surveyModalEl, {
                     backdrop: 'static', 
-                    keyboard: false       
+                    keyboard: false        
                 });
                 modal.show();
                 
@@ -178,17 +178,9 @@ async function submitSurvey(user, userData, period, namaBm, modalInstance) {
         namaBp: userData.nama,
         point: userData.point,
         namaBm: namaBm,
-        q1: formData.get('q1'),
-        q2: formData.get('q2'),
-        q3: formData.get('q3'),
-        q4: formData.get('q4'),
-        q5: formData.get('q5'),
-        q6: formData.get('q6'),
-        q7: formData.get('q7'),
-        q8: formData.get('q8'),
-        q9: formData.get('q9'),
-        q10: formData.get('q10'),
-        q11: formData.get('q11')
+        q1: formData.get('q1'), q2: formData.get('q2'), q3: formData.get('q3'), q4: formData.get('q4'),
+        q5: formData.get('q5'), q6: formData.get('q6'), q7: formData.get('q7'), q8: formData.get('q8'),
+        q9: formData.get('q9'), q10: formData.get('q10'), q11: formData.get('q11')
     };
 
     const originalText = btn.innerHTML;
@@ -207,7 +199,7 @@ async function submitSurvey(user, userData, period, namaBm, modalInstance) {
             status: "done"
         });
 
-        alert("Terima kasih! Survei berhasil dikirim. Selamat bekerja.");
+        alert("Terima kasih! Survei berhasil dikirim.");
         modalInstance.hide(); 
         
         btn.innerHTML = originalText;
@@ -215,7 +207,7 @@ async function submitSurvey(user, userData, period, namaBm, modalInstance) {
 
     } catch (error) {
         console.error("Gagal kirim survei:", error);
-        alert("Gagal mengirim survei. Pastikan URL Script benar dan koneksi internet stabil.");
+        alert("Gagal mengirim survei.");
         btn.innerHTML = originalText;
         btn.disabled = false;
     }
@@ -253,6 +245,7 @@ onAuthStateChanged(auth, (user) => {
                     valRepaymentBtn.classList.remove('d-none');
                 }
 
+                // --- 1. JABATAN BP ---
                 if (userJabatan === "BP") {
                     const bpContainer = document.getElementById('bpSectionContainer');
                     if(bpContainer) bpContainer.classList.remove('d-none'); 
@@ -266,6 +259,22 @@ onAuthStateChanged(auth, (user) => {
                         if(errorEl) errorEl.classList.remove('d-none');
                     }
                     checkSurveyStatus(user, data);
+                } 
+                
+                // --- 2. JABATAN BM (BARU) ---
+                else if (userJabatan === "BM") {
+                    const bmContainer = document.getElementById('bmSectionContainer');
+                    if(bmContainer) bmContainer.classList.remove('d-none'); 
+                    
+                    if (data.point) {
+                        loadBmDashboard(data.point);
+                    } else {
+                        document.getElementById('bmLoader').innerHTML = '<p class="text-danger">Point tidak ditemukan.</p>';
+                    }
+                } 
+                
+                else {
+                    console.log("Menu performance hidden.");
                 }
 
             } else {
@@ -298,6 +307,7 @@ if(btnViewAll){
     });
 }
 
+// --- UPDATE JAM REPAYMENT ---
 async function loadRepaymentInfo() {
     const labelUpdate = document.getElementById('repaymentUpdateVal');
     if (!labelUpdate) return;
@@ -448,45 +458,18 @@ async function loadAreaProgressChart() {
         if (window.myAreaChart) window.myAreaChart.destroy();
         Chart.register(ChartDataLabels);
 
-        // --- KONFIGURASI KHUSUS AREA (FIX) ---
-        // Kita tidak pakai getChartOptions() karena fungsi itu menyembunyikan legend dan label dataset 1
         const areaChartOptions = {
             indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { 
-                    display: true, // Tampilkan Legend (Judul Grafik)
-                    position: 'top',
-                    labels: { boxWidth: 10, font: { size: 10 } }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(ctx) {
-                            return ctx.dataset.label + ': ' + ctx.raw + '%';
-                        }
-                    }
-                },
-                datalabels: {
-                    anchor: 'end', 
-                    align: 'end', 
-                    offset: 0, 
-                    color: '#333',
-                    font: { size: 10, weight: 'bold' },
-                    // Hapus logika yang menyembunyikan index 1, tampilkan semua
-                    formatter: (val) => Math.round(val) + "%"
-                }
+                legend: { display: true, position: 'top', labels: { boxWidth: 10, font: { size: 10 } } },
+                tooltip: { callbacks: { label: function(ctx) { return ctx.dataset.label + ': ' + ctx.raw + '%'; } } },
+                datalabels: { anchor: 'end', align: 'end', offset: 0, color: '#333', font: { size: 10, weight: 'bold' }, formatter: (val) => Math.round(val) + "%" }
             },
             scales: {
-                x: { 
-                    display: false, 
-                    max: 130, // Beri ruang agar label persen tidak terpotong
-                    beginAtZero: true 
-                },
-                y: { 
-                    grid: { display: false }, 
-                    ticks: { font: { size: 11, weight: '600' }, color: '#555' } 
-                }
+                x: { display: false, max: 130, beginAtZero: true },
+                y: { grid: { display: false }, ticks: { font: { size: 11, weight: '600' }, color: '#555' } }
             }
         };
 
@@ -495,30 +478,14 @@ async function loadAreaProgressChart() {
             data: {
                 labels: labels,
                 datasets: [
-                    {
-                        label: 'Harian',
-                        data: dailyPrc,
-                        backgroundColor: 'rgba(142, 38, 212, 0.7)',
-                        borderColor: 'rgba(142, 38, 212, 1)',
-                        borderWidth: 1,
-                        barPercentage: 0.7, categoryPercentage: 0.8
-                    },
-                    {
-                        label: 'Pencapaian',
-                        data: achievePrc,
-                        backgroundColor: 'rgba(255, 179, 0, 0.7)',
-                        borderColor: 'rgba(255, 179, 0, 1)',
-                        borderWidth: 1,
-                        barPercentage: 0.7, categoryPercentage: 0.8
-                    }
+                    { label: 'Harian', data: dailyPrc, backgroundColor: 'rgba(142, 38, 212, 0.7)', borderColor: 'rgba(142, 38, 212, 1)', borderWidth: 1, barPercentage: 0.7, categoryPercentage: 0.8 },
+                    { label: 'Pencapaian', data: achievePrc, backgroundColor: 'rgba(255, 179, 0, 0.7)', borderColor: 'rgba(255, 179, 0, 1)', borderWidth: 1, barPercentage: 0.7, categoryPercentage: 0.8 }
                 ]
             },
-            options: areaChartOptions // Gunakan opsi khusus yang baru dibuat
+            options: areaChartOptions 
         });
     } catch (e) { console.error("Err Chart:", e); }
 }
-
-function formatRibuan(n) { return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."); }
 
 async function loadBpPerformance(idKaryawan) {
     const loader = document.getElementById('bpLoader');
@@ -544,7 +511,6 @@ async function loadBpPerformance(idKaryawan) {
 
         if (result.result === "success" && result.data) {
             if(content) content.classList.remove('d-none');
-            
             renderBpChart1(ctx1, result.data);
             renderBpChart2(ctx2, result.data);
             updateBpInfoText(result.data);
@@ -584,91 +550,174 @@ function updateBpInfoText(data) {
     }
 }
 
-function renderBpChart1(canvasCtx, data) {
-    const calcPct = (act, tgt) => (tgt > 0) ? (act / tgt) * 100 : 0;
+// ==========================================
+// BM DASHBOARD FUNCTIONS
+// ==========================================
+async function loadBmDashboard(point) {
+    const loader = document.getElementById('bmLoader');
+    const listContainer = document.getElementById('bmBpList');
     
+    try {
+        const response = await fetch(SCRIPT_URL_BP, {
+            method: 'POST',
+            body: JSON.stringify({ action: "get_bm_team_data", point: point }),
+            headers: { "Content-Type": "text/plain;charset=utf-8" }
+        });
+        const result = await response.json();
+
+        loader.classList.add('d-none');
+
+        if (result.result === "success" && result.data && result.data.length > 0) {
+            let html = '';
+            // Sort by amount actual desc
+            result.data.sort((a, b) => b.amount.actual - a.amount.actual);
+
+            result.data.forEach(bp => {
+                const bpDataStr = encodeURIComponent(JSON.stringify(bp));
+                const fmtAmt = (n) => { 
+                    let val = Number(n); 
+                    if(isNaN(val)) return "0"; 
+                    if(val >= 1e9) return (val/1e9).toFixed(1) + "M"; 
+                    if(val >= 1e6) return (val/1e6).toFixed(0) + "Jt"; 
+                    return val;
+                };
+
+                html += `
+                <div class="leaderboard-card p-3 mb-3 d-flex justify-content-between align-items-center" onclick="openBmDetail('${bpDataStr}')" style="cursor: pointer;">
+                    <div class="d-flex align-items-center">
+                        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold me-3 shadow-sm" style="width:40px; height:40px; font-size: 0.9rem;">
+                            ${getInitials(bp.nama)}
+                        </div>
+                        <div>
+                            <div class="fw-bold text-dark text-truncate" style="font-size: 0.9rem; max-width: 160px;">${bp.nama}</div>
+                            <div class="text-muted small">ID: ${bp.idKaryawan}</div>
+                        </div>
+                    </div>
+                    <div class="text-end">
+                        <div class="fw-bold text-success" style="font-size: 0.85rem;">Rp ${fmtAmt(bp.amount.actual)}</div>
+                        <div class="text-muted small" style="font-size: 0.7rem;">Capaian Amt</div>
+                    </div>
+                </div>
+                `;
+            });
+            listContainer.innerHTML = html;
+        } else {
+            listContainer.innerHTML = '<div class="text-center text-muted py-3">Tidak ada data BP di Point ini.</div>';
+        }
+
+    } catch (e) {
+        console.error("Err BM Data:", e);
+        loader.innerHTML = '<p class="text-danger small">Gagal memuat data tim.</p>';
+    }
+}
+
+function getInitials(name) {
+    if(!name) return "BP";
+    const parts = name.split(' ');
+    if(parts.length === 1) return parts[0].substring(0,2).toUpperCase();
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
+window.openBmDetail = function(bpDataStr) {
+    const bp = JSON.parse(decodeURIComponent(bpDataStr));
+    const modal = document.getElementById('bmDetailModal');
+    
+    document.getElementById('modalBpName').innerText = bp.nama;
+    document.getElementById('modalBpId').innerText = "ID: " + bp.idKaryawan;
+
+    // Helper text
+    const fmtJuta = (n) => {
+        let val = Number(n);
+        if(isNaN(val)) return "0";
+        if(val >= 1e9) return (val/1e9).toFixed(2) + " M";
+        if(val >= 1e6) return (val/1e6).toFixed(1) + " Jt";
+        return val.toLocaleString('id-ID');
+    };
+    const fmtNum = (n) => Number(n).toLocaleString('id-ID');
+
+    document.getElementById('mAmountAct').innerText = "Rp " + fmtJuta(bp.amount.actual);
+    document.getElementById('mNoaAct').innerText = fmtNum(bp.noa.actual);
+    document.getElementById('mWeeklyAct').innerText = fmtNum(bp.weekly.actual);
+    
+    if(bp.user) document.getElementById('mUserAct').innerText = fmtNum(bp.user.actual);
+    if(bp.repeat) document.getElementById('mRepeatAct').innerText = fmtNum(bp.repeat.actual);
+
+    modal.classList.add('active');
+
+    // Render Charts
+    renderBpChart1(document.getElementById('modalChart1'), bp, true);
+    renderBpChart2(document.getElementById('modalChart2'), bp, true);
+}
+
+// Chart Renderers (Modified for multiple instances)
+function renderBpChart1(canvasCtx, data, isModal = false) {
+    const calcPct = (act, tgt) => (tgt > 0) ? (act / tgt) * 100 : 0;
     const pAmt = calcPct(data.amount.actual, data.amount.target);
     const pNoa = calcPct(data.noa.actual, data.noa.target);
     const pWk = calcPct(data.weekly.actual, data.weekly.target);
-    
     const getColor = (p) => p >= 100 ? '#2e7d32' : '#8e26d4';
 
-    if (window.chartInstance1) window.chartInstance1.destroy();
+    if (isModal) {
+        if (window.modalChartInstance1) window.modalChartInstance1.destroy();
+    } else {
+        if (window.chartInstance1) window.chartInstance1.destroy();
+    }
 
-    window.chartInstance1 = new Chart(canvasCtx, {
+    const chartConfig = {
         type: 'bar',
         data: {
             labels: ['Amount', 'NoA', 'Weekly'],
             datasets: [
-                {
-                    label: 'Capaian',
-                    data: [pAmt, pNoa, pWk],
-                    backgroundColor: [getColor(pAmt), getColor(pNoa), getColor(pWk)],
-                    borderRadius: 4, barPercentage: 0.5, z: 2
-                },
-                {
-                    label: 'Target', data: [100, 100, 100], 
-                    backgroundColor: '#f0f2f5', borderRadius: 4, barPercentage: 0.5, grouped: false, order: 1
-                }
+                { label: 'Capaian', data: [pAmt, pNoa, pWk], backgroundColor: [getColor(pAmt), getColor(pNoa), getColor(pWk)], borderRadius: 4, barPercentage: 0.5, z: 2 },
+                { label: 'Target', data: [100, 100, 100], backgroundColor: '#f0f2f5', borderRadius: 4, barPercentage: 0.5, grouped: false, order: 1 }
             ]
         },
-        options: getChartOptions() // Grafik BP tetap pakai opsi lama
-    });
+        options: getChartOptions()
+    };
+
+    const newChart = new Chart(canvasCtx, chartConfig);
+    if (isModal) window.modalChartInstance1 = newChart;
+    else window.chartInstance1 = newChart;
 }
 
-function renderBpChart2(canvasCtx, data) {
+function renderBpChart2(canvasCtx, data, isModal = false) {
     if(!data.user || !data.repeat) return; 
 
     const calcPct = (act, tgt) => (tgt > 0) ? (act / tgt) * 100 : 0;
-
     const pUser = calcPct(data.user.actual, data.user.target);
     const pRepeat = calcPct(data.repeat.actual, data.repeat.target);
-
     const getColor = (p) => p >= 100 ? '#2e7d32' : '#ffb300'; 
 
-    if (window.chartInstance2) window.chartInstance2.destroy();
+    if (isModal) {
+        if (window.modalChartInstance2) window.modalChartInstance2.destroy();
+    } else {
+        if (window.chartInstance2) window.chartInstance2.destroy();
+    }
 
-    window.chartInstance2 = new Chart(canvasCtx, {
+    const chartConfig = {
         type: 'bar',
         data: {
             labels: ['User', 'Repeat'],
             datasets: [
-                {
-                    label: 'Capaian',
-                    data: [pUser, pRepeat],
-                    backgroundColor: [getColor(pUser), getColor(pRepeat)],
-                    borderRadius: 4, barPercentage: 0.5, z: 2
-                },
-                {
-                    label: 'Target', data: [100, 100], 
-                    backgroundColor: '#f0f2f5', borderRadius: 4, barPercentage: 0.5, grouped: false, order: 1
-                }
+                { label: 'Capaian', data: [pUser, pRepeat], backgroundColor: [getColor(pUser), getColor(pRepeat)], borderRadius: 4, barPercentage: 0.5, z: 2 },
+                { label: 'Target', data: [100, 100], backgroundColor: '#f0f2f5', borderRadius: 4, barPercentage: 0.5, grouped: false, order: 1 }
             ]
         },
-        options: getChartOptions() // Grafik BP tetap pakai opsi lama
-    });
+        options: getChartOptions()
+    };
+
+    const newChart = new Chart(canvasCtx, chartConfig);
+    if (isModal) window.modalChartInstance2 = newChart;
+    else window.chartInstance2 = newChart;
 }
 
-// Opsi Default (Hanya untuk grafik BP)
 function getChartOptions() {
     return {
         indexAxis: 'y', responsive: true, maintainAspectRatio: false,
         plugins: {
             legend: { display: false },
-            tooltip: {
-                callbacks: {
-                    label: function(ctx) {
-                        if (ctx.datasetIndex === 1) return null;
-                        return `Capaian: ${ctx.raw.toFixed(1)}%`;
-                    }
-                }
-            },
-            datalabels: {
-                anchor: 'end', align: 'end', offset: 4, color: '#333',
-                font: { size: 10, weight: 'bold' },
-                // Logika ini menyembunyikan dataset index 1 (Target Background) pada grafik BP
-                formatter: (val, ctx) => ctx.datasetIndex === 1 ? "" : Math.round(val) + "%"
-            }
+            tooltip: { callbacks: { label: function(ctx) { if (ctx.datasetIndex === 1) return null; return `Capaian: ${ctx.raw.toFixed(1)}%`; } } },
+            datalabels: { anchor: 'end', align: 'end', offset: 4, color: '#333', font: { size: 10, weight: 'bold' }, formatter: (val, ctx) => ctx.datasetIndex === 1 ? "" : Math.round(val) + "%" }
         },
         scales: {
             x: { display: false, max: 130, beginAtZero: true },
@@ -684,27 +733,11 @@ let scrollLeft;
 
 if (slider) {
     slider.addEventListener('mousedown', (e) => {
-        isDown = true;
-        slider.classList.add('active'); 
-        startX = e.pageX - slider.offsetLeft;
-        scrollLeft = slider.scrollLeft;
+        isDown = true; slider.classList.add('active'); startX = e.pageX - slider.offsetLeft; scrollLeft = slider.scrollLeft;
     });
-
-    slider.addEventListener('mouseleave', () => {
-        isDown = false;
-        slider.classList.remove('active');
-    });
-
-    slider.addEventListener('mouseup', () => {
-        isDown = false;
-        slider.classList.remove('active');
-    });
-
+    slider.addEventListener('mouseleave', () => { isDown = false; slider.classList.remove('active'); });
+    slider.addEventListener('mouseup', () => { isDown = false; slider.classList.remove('active'); });
     slider.addEventListener('mousemove', (e) => {
-        if (!isDown) return; 
-        e.preventDefault(); 
-        const x = e.pageX - slider.offsetLeft;
-        const walk = (x - startX) * 2; 
-        slider.scrollLeft = scrollLeft - walk;
+        if (!isDown) return; e.preventDefault(); const x = e.pageX - slider.offsetLeft; const walk = (x - startX) * 2; slider.scrollLeft = scrollLeft - walk;
     });
 }
