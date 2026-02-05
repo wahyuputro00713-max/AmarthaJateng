@@ -48,7 +48,7 @@ let isPageLocked = false;
 let lockOwner = "Admin"; 
 let currentStats = { total: 0, telat: 0, bayar: 0 };
 let currentLockListener = null; 
-let currentDraftListener = null; // Listener baru untuk data validasi
+let currentDraftListener = null;
 
 // STATUS WORKFLOW
 let workflowStatus = {
@@ -63,13 +63,12 @@ const clean = (str) => {
 };
 
 // =================================================================
-// 1. DATA SYNC (FIREBASE REALTIME) - PENGGANTI LOCALSTORAGE
+// 1. DATA SYNC (FIREBASE REALTIME)
 // =================================================================
 
 function listenToDrafts() {
     if(!userProfile) return;
 
-    // Tentukan Key Tanggal & Point
     const dateInput = document.getElementById('dateInput');
     let dateStr = "";
     if (dateInput && !dateInput.classList.contains('d-none') && dateInput.value) {
@@ -78,8 +77,6 @@ function listenToDrafts() {
         dateStr = new Date().toLocaleDateString('en-CA');
     }
     
-    // Path Database: closing_drafts / POINT_NAME / TANGGAL
-    // Kita gunakan Point user agar data tersinkron per cabang
     const pointKey = clean(userProfile.point || "global");
     const draftPath = `closing_drafts/${pointKey}/${dateStr}`;
     const draftRef = ref(db, draftPath);
@@ -90,18 +87,15 @@ function listenToDrafts() {
 
     currentDraftListener = onValue(draftRef, (snapshot) => {
         serverDraftData = snapshot.val() || {};
-        // Setiap kali ada perubahan di Firebase, update tampilan UI (tanpa reload)
         updateUIFromDrafts();
     });
 }
 
-// Fungsi Update UI tanpa render ulang semua (biar tidak kedip)
 function updateUIFromDrafts() {
     globalMitraList.forEach(mitra => {
         const safeKey = String(mitra.id).replace(/[.#$/[\]]/g, "_");
         const data = serverDraftData[safeKey] || {};
         
-        // Update Tombol Centang
         const btn = document.getElementById(`btn-${mitra.id}`);
         if (btn) {
             if (data.checked) {
@@ -111,13 +105,11 @@ function updateUIFromDrafts() {
             }
         }
 
-        // Update Input Reason
         const inputReason = document.getElementById(`validasi-${mitra.id}`);
-        if (inputReason && document.activeElement !== inputReason) { // Jangan update jika user sedang mengetik
+        if (inputReason && document.activeElement !== inputReason) { 
             inputReason.value = data.reason || "";
         }
 
-        // Update Dropdown Hari
         const selectDay = document.getElementById(`day-${mitra.id}`);
         if (selectDay) {
             selectDay.value = data.day || "";
@@ -126,10 +118,7 @@ function updateUIFromDrafts() {
     
     updateGlobalValidationStatus();
     
-    // Update counter majelis
     document.querySelectorAll('.accordion-button').forEach(btn => {
-        // Trigger logic update count (agak hacky tapi efektif)
-        // Cari ID button di dalam accordion body
         const targetId = btn.getAttribute('data-bs-target');
         const body = document.querySelector(targetId);
         if(body){
@@ -140,24 +129,43 @@ function updateUIFromDrafts() {
 }
 
 // =================================================================
-// 2. LOCK SYSTEM
+// 2. LOCK SYSTEM (DIPERBAIKI: Menggunakan Promise)
 // =================================================================
 
 function setGlobalLock(status) {
-    if(!userProfile || !userProfile.point) return;
-    const dateInput = document.getElementById('dateInput');
-    let dateStr = (dateInput && !dateInput.classList.contains('d-none')) ? dateInput.value : new Date().toLocaleDateString('en-CA');
-    
-    const pointKey = clean(userProfile.point); 
-    const lockPath = `closing_locks/${pointKey}/${dateStr}`;
+    // --- PERBAIKAN: Return Promise agar bisa di-await ---
+    return new Promise((resolve, reject) => {
+        if(!userProfile || !userProfile.point) {
+            console.warn("User Profile belum siap, skip lock.");
+            resolve(); 
+            return;
+        }
 
-    if (status === true) {
-        set(ref(db, lockPath), {
-            isLocked: true,
-            lockedBy: userProfile.nama || "User",
-            lockedAt: new Date().toISOString()
-        });
-    }
+        const dateInput = document.getElementById('dateInput');
+        let dateStr = (dateInput && !dateInput.classList.contains('d-none')) ? dateInput.value : new Date().toLocaleDateString('en-CA');
+        
+        const pointKey = clean(userProfile.point); 
+        const lockPath = `closing_locks/${pointKey}/${dateStr}`;
+
+        if (status === true) {
+            console.log("Mencoba mengunci Firebase di path:", lockPath);
+            set(ref(db, lockPath), {
+                isLocked: true,
+                lockedBy: userProfile.nama || "User",
+                lockedAt: new Date().toISOString()
+            })
+            .then(() => {
+                console.log("Firebase Lock BERHASIL disimpan.");
+                resolve(); // Selesai
+            })
+            .catch((error) => {
+                console.error("Firebase Lock GAGAL:", error);
+                reject(error); // Gagal
+            });
+        } else {
+            resolve();
+        }
+    });
 }
 
 function checkGlobalLock() {
@@ -201,7 +209,6 @@ window.unlockGlobalStatus = function() {
 };
 
 window.markMajelisAsRead = function(uniqueKey, elementId) {
-    // Read status masih lokal tidak apa-apa, karena notifikasi personal
     const rawRead = localStorage.getItem(`closing_read_${new Date().toLocaleDateString('en-CA')}`);
     readStatusData = rawRead ? JSON.parse(rawRead) : {};
     
@@ -270,7 +277,7 @@ function initPage() {
                 
                 isPageLocked = false; 
                 checkGlobalLock(); 
-                listenToDrafts(); // Panggil listener baru saat tanggal ganti
+                listenToDrafts(); 
                 
                 workflowStatus = { recapSent: false, csvDownloaded: false, jbUpdated: false };
                 setTimeout(() => { filterAndRenderData(); }, 500);
@@ -282,7 +289,7 @@ function initPage() {
 
     setTimeout(() => { 
         checkGlobalLock(); 
-        listenToDrafts(); // Mulai dengarkan Firebase Validasi
+        listenToDrafts(); 
     }, 1000); 
     fetchRepaymentData();
 }
@@ -542,7 +549,7 @@ function renderAccordion(hierarchy) {
             let checkedCount = 0; let hasNewUpdate = false;
             mitraList.forEach(m => { 
                 const safeKey = String(m.id).replace(/[.#$/[\]]/g, "_");
-                const saved = serverDraftData[safeKey] || {}; // USE SERVER DATA
+                const saved = serverDraftData[safeKey] || {}; 
                 if (saved.checked) checkedCount++; 
                 if (m.is_terkirim) hasNewUpdate = true; 
             });
@@ -592,7 +599,7 @@ function renderAccordion(hierarchy) {
 
 function createMitraCard(mitra) {
     const safeKey = String(mitra.id).replace(/[.#$/[\]]/g, "_");
-    const savedData = serverDraftData[safeKey] || {}; // USE SERVER DATA
+    const savedData = serverDraftData[safeKey] || {}; 
     const isChecked = savedData.checked ? "checked" : "";
     const savedReason = savedData.reason || ""; 
     const savedDay = savedData.day || ""; 
@@ -666,11 +673,8 @@ function createMitraCard(mitra) {
                    value="${savedReason}" oninput="window.saveReasonInput('${mitra.id}', this.value, '')">`;
     }
 
-    // --- LOGIKA TOMBOL REJECT (PERUBAHAN 1) ---
-    // Hanya aktif jika status sudah terkirim (ada kata "sudah" atau "terkirim")
     const isStatusSent = String(mitra.status_kirim).toLowerCase().includes("sudah") || String(mitra.status_kirim).toLowerCase().includes("terkirim");
     
-    // Style jika disabled: transparan dan pointer events none
     const rejectDisabledStyle = !isStatusSent ? 'opacity: 0.3; cursor: not-allowed;' : '';
     const rejectOnClick = isStatusSent 
         ? `onclick="window.showRejectModal('${mitra.id}', '${mitra.nama.replace(/'/g, "\\'")}')"` 
@@ -708,10 +712,9 @@ function createMitraCard(mitra) {
 }
 
 // =================================================================
-// 5. USER INTERACTIONS (UPDATE REALTIME)
+// 5. USER INTERACTIONS
 // =================================================================
 
-// Fungsi untuk menyiapkan Path ke Firebase
 function getFirebaseRef(mitraId) {
     const dateInput = document.getElementById('dateInput');
     let dateStr = "";
@@ -728,12 +731,9 @@ function getFirebaseRef(mitraId) {
 window.saveReasonInput = function(id, reason, day) {
     if (isPageLocked) return;
     const itemRef = getFirebaseRef(id);
-    
-    // Kita gunakan debounce sedikit agar tidak terlalu sering hit DB saat mengetik
     const payload = {};
     if(reason !== "") payload.reason = reason;
     if(day !== "") payload.day = day;
-    
     update(itemRef, payload);
 };
 
@@ -757,11 +757,9 @@ window.toggleValidation = function(element, id) {
         return; 
     }
 
-    // Toggle status checked
     const isCheckedNow = element.classList.contains('checked');
     const newCheckedStatus = !isCheckedNow;
 
-    // --- PERUBAHAN: UPDATE KE FIREBASE, BUKAN LOCALSTORAGE ---
     const itemRef = getFirebaseRef(id);
     const valReason = inputReason ? inputReason.value : "";
     const valDay = daySelect ? daySelect.value : "";
@@ -771,50 +769,40 @@ window.toggleValidation = function(element, id) {
         reason: valReason,
         day: valDay
     });
-    
-    // UI akan otomatis berubah karena kita punya listener `onValue`
 };
 
 // =================================================================
-// 6. LOGIKA REJECT & MODAL (BARU)
+// 6. LOGIKA REJECT
 // =================================================================
 
-// Tampilkan Modal
 window.showRejectModal = function(id, name) {
     document.getElementById('rejMitraName').textContent = name;
     document.getElementById('rejMitraId').value = id;
-    document.getElementById('rejReason').value = ""; // Reset input
+    document.getElementById('rejReason').value = ""; 
     document.getElementById('rejReason').classList.remove('is-invalid');
-    
-    // Inisialisasi Modal Bootstrap secara manual jika belum ada
     const modalEl = document.getElementById('rejectModal');
     const modal = new bootstrap.Modal(modalEl);
     modal.show();
 };
 
-// Konfirmasi & Kirim Reject (DENGAN AREA & POINT DARI DATA MITRA)
 window.confirmReject = function() {
     const id = document.getElementById('rejMitraId').value;
     const reason = document.getElementById('rejReason').value.trim();
     const reasonInput = document.getElementById('rejReason');
 
-    // 1. Validasi Input Wajib
     if (!reason) {
         reasonInput.classList.add('is-invalid');
         reasonInput.focus();
         return;
     }
 
-    // 2. Konfirmasi User
     if(!confirm("Apakah Anda yakin ingin me-reject mitra ini?\nData akan dikirim ke AM.")) {
         return;
     }
 
-    // 3. Ambil data mitra lengkap
     const mitraData = globalMitraList.find(m => String(m.id) === String(id));
     if (!mitraData) { alert("Error: Data mitra tidak ditemukan."); return; }
 
-    // 4. Kirim ke Firebase (BESERTA AREA & POINT)
     const cleanId = String(id).replace(/[.#$/[\]]/g, "_");
     const dataToSave = {
         mitra: mitraData.nama,
@@ -847,12 +835,12 @@ window.confirmReject = function() {
         });
 };
 
-// --- FUNGSI UPDATE JB (DENGAN AUTO-RETRY & PROGRESS BAR) ---
+// --- FUNGSI UPDATE JB ---
 async function updateJBDaysToServerWithProgress() {
     const updates = [];
     globalMitraList.forEach(m => {
         const safeKey = String(m.id).replace(/[.#$/[\]]/g, "_");
-        const stored = serverDraftData[safeKey]; // USE SERVER DATA
+        const stored = serverDraftData[safeKey]; 
         const isJB = String(m.jenis_bayar).toUpperCase() === "JB";
         if (isJB && stored && stored.checked && stored.day) {
             updates.push({ customerNumber: String(m.id).trim(), hariBaru: stored.day });
@@ -861,7 +849,6 @@ async function updateJBDaysToServerWithProgress() {
 
     if (updates.length === 0) return true;
 
-    // UI Progress Bar
     const btnContainer = document.getElementById('btnValidateAll').parentElement;
     let progContainer = document.getElementById('jb-progress-container');
     if (!progContainer) {
@@ -918,7 +905,7 @@ async function updateJBDaysToServerWithProgress() {
         if (!batchSuccess) {
             progLabel.innerHTML = `<span class="text-danger fw-bold">GAGAL UPDATE!</span>`;
             alert(`Gagal update JB. Error: ${lastError}\n\nSilakan klik tombol lagi untuk melanjutkan.`);
-            return false; // STOP PROSES (JANGAN DIKUNCI)
+            return false; 
         }
 
         processedItems += chunk.length;
@@ -933,26 +920,47 @@ async function updateJBDaysToServerWithProgress() {
     return true; 
 }
 
+// --- PERBAIKAN: Fungsi Kirim Rekap dengan Cek Error ---
 async function sendClosingSummary() {
+    if (!currentStats || currentStats.total === 0) {
+        console.warn("Peringatan: Statistik 0, mungkin data belum ter-render sempurna.");
+    }
+
     const elArea = document.getElementById('selectArea');
     const elPoint = document.getElementById('selectPoint');
-    const areaName = (elArea && elArea.value !== "ALL") ? elArea.value : userProfile.area;
-    const pointName = (elPoint && elPoint.value !== "ALL") ? elPoint.value : userProfile.point;
+    const areaName = (elArea && elArea.value !== "ALL") ? elArea.value : (userProfile.area || "-");
+    const pointName = (elPoint && elPoint.value !== "ALL") ? elPoint.value : (userProfile.point || "-");
+    
     const payload = {
         action: "closing_summary",
         area: areaName,
         point: pointName,
-        totalAkun: currentStats.total,
-        totalTelat: currentStats.telat,
-        totalBayar: currentStats.bayar
+        totalAkun: currentStats.total || 0,
+        totalTelat: currentStats.telat || 0,
+        totalBayar: currentStats.bayar || 0
     };
+
+    console.log("Mengirim Payload Rekap:", payload);
+
     try {
-        await fetch(SCRIPT_URL, {
+        const response = await fetch(SCRIPT_URL, {
             method: 'POST', 
             body: JSON.stringify(payload),
             redirect: "follow", 
             headers: { "Content-Type": "text/plain;charset=utf-8" }
         });
+        
+        // Baca JSON respon dari server
+        const result = await response.json();
+        
+        // Cek apakah server bilang sukses
+        if (result.result !== "success") {
+            throw new Error(result.error || "Gagal menyimpan rekap di Server.");
+        }
+        
+        console.log("Sukses Kirim Rekap:", result);
+        return true; 
+
     } catch (err) {
         console.error("Gagal kirim rekap:", err);
         throw err; 
@@ -967,8 +975,8 @@ function applyLockMode(lockedBy = "Admin") {
             btnValAll.disabled = false;
             btnValAll.innerHTML = `<i class="fa-solid fa-lock-open me-1"></i> Buka Kunci (Locked by ${lockedBy})`;
             btnValAll.classList.remove('btn-primary', 'btn-success', 'btn-secondary');
-            btnValAll.classList.add('btn-danger');
-            btnValAll.onclick = window.unlockGlobalStatus; 
+            btnVal.classList.add('btn-danger');
+            btnVal.onclick = window.unlockGlobalStatus; 
         } else {
             btnValAll.disabled = true;
             btnValAll.innerHTML = `<i class="fa-solid fa-lock me-1"></i> Terkunci oleh ${lockedBy}`;
@@ -1024,64 +1032,6 @@ function releaseLockMode() {
     }
 }
 
-function updateGlobalValidationStatus() {
-    if (isPageLocked) return;
-    const totalMitra = document.querySelectorAll('.btn-check-action').length;
-    const checkedMitra = document.querySelectorAll('.btn-check-action.checked').length;
-    const btnValAll = document.getElementById('btnValidateAll');
-    if(btnValAll) {
-        if (totalMitra > 0 && checkedMitra === totalMitra) {
-            btnValAll.disabled = false;
-            // UPDATE LOGIC TEXT TOMBOL
-            if (!workflowStatus.recapSent) {
-                btnValAll.innerHTML = `<i class="fa-solid fa-file-arrow-down me-1"></i> Selesai & Download`;
-            } else if (!workflowStatus.csvDownloaded) {
-                btnValAll.innerHTML = `<i class="fa-solid fa-file-csv me-1"></i> Lanjut: Download CSV`;
-            } else if (!workflowStatus.jbUpdated) {
-                btnValAll.innerHTML = `<i class="fa-solid fa-rotate-right me-1"></i> Lanjut: Update JB`;
-            } 
-            btnValAll.classList.remove('btn-primary', 'btn-secondary');
-            btnValAll.classList.add('btn-success'); 
-        } else if (totalMitra > 0) {
-            btnValAll.disabled = true;
-            btnValAll.innerHTML = `<i class="fa-solid fa-hourglass-half me-1"></i> Selesaikan ${totalMitra - checkedMitra} Lagi`;
-            btnValAll.classList.remove('btn-success', 'btn-secondary');
-            btnValAll.classList.add('btn-primary');
-        }
-    }
-}
-
-function updateMajelisStats(btnElement) {
-    const collapseDiv = btnElement.closest('.accordion-collapse');
-    if (!collapseDiv) return;
-    const headerId = collapseDiv.getAttribute('aria-labelledby') || collapseDiv.id.replace('collapse', 'heading');
-    const countDiv = document.querySelector(`#${headerId} .small.text-muted`); 
-    if (countDiv) {
-        const allInMajelis = collapseDiv.querySelectorAll('.btn-check-action').length;
-        const checkedInMajelis = collapseDiv.querySelectorAll('.btn-check-action.checked').length;
-        countDiv.innerText = `${checkedInMajelis} / ${allInMajelis} Selesai`;
-    }
-    updateGlobalValidationStatus();
-}
-
-function downloadCSV() {
-    if (globalMitraList.length === 0) return alert("Data kosong.");
-    let csvContent = "ID Mitra,Nama Mitra,BP,Majelis,Status Bayar,Status Kirim,Status BLL,Jenis Bayar,Hari Baru (JB),DPD Bucket,Keterangan\n";
-    globalMitraList.forEach(m => {
-        const safeKey = String(m.id).replace(/[.#$/[\]]/g, "_");
-        const stored = serverDraftData[safeKey] || {}; // USE SERVER DATA
-        const finalReason = stored.reason || m.alasan || "-";
-        const finalDay = stored.day || "-";
-        const row = [`'${m.id}`, `"${m.nama}"`, `"${m.bp}"`, `"${m.majelis}"`, m.status_bayar, m.status_kirim, m.status_bll, m.jenis_bayar, finalDay, m.bucket, `"${finalReason}"`].join(",");
-        csvContent += row + "\n";
-    });
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `Laporan_Closing_${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(link); link.click(); document.body.removeChild(link);
-}
-
 // =================================================================
 // 6. MAIN EVENT LISTENER (SMART RESUME)
 // =================================================================
@@ -1089,8 +1039,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnValAll = document.getElementById('btnValidateAll');
     if(btnValAll) {
         btnValAll.disabled = true;
+        
+        // --- PERBAIKAN: Handler Asynchronous yang Benar ---
         btnValAll.addEventListener('click', async () => {
-            // Cek status
             let stepMsg = "";
             if (!workflowStatus.recapSent) stepMsg += "\n1. Kirim Rekap";
             if (!workflowStatus.csvDownloaded) stepMsg += "\n2. Download CSV";
@@ -1108,7 +1059,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 // TAHAP 1: KIRIM REKAP
                 if (!workflowStatus.recapSent) {
                     btnValAll.innerHTML = `<i class="fa-solid fa-cloud-arrow-up fa-fade me-1"></i> 1/4 Mengirim Rekap...`;
-                    await sendClosingSummary();
+                    await sendClosingSummary(); // Akan throw error jika gagal
                     workflowStatus.recapSent = true; 
                 }
 
@@ -1120,35 +1071,40 @@ document.addEventListener("DOMContentLoaded", () => {
                     workflowStatus.csvDownloaded = true; 
                 }
 
-                // TAHAP 3: UPDATE JB (Dengan Auto-Retry & Stop jika Gagal)
+                // TAHAP 3: UPDATE JB
                 if (!workflowStatus.jbUpdated) {
                     btnValAll.innerHTML = `<i class="fa-solid fa-pen-to-square me-1"></i> 3/4 Update JB...`;
                     const isJbSuccess = await updateJBDaysToServerWithProgress();
 
                     if (!isJbSuccess) {
-                        // Jika gagal setelah 3x retry, STOP di sini.
                         throw new Error("Gagal update JB. Proses dihentikan agar data aman.");
                     }
                     workflowStatus.jbUpdated = true; 
                 }
 
-                // TAHAP 4: KUNCI HALAMAN (Hanya jika JB sukses)
+                // TAHAP 4: KUNCI LAPORAN
                 btnValAll.innerHTML = `<i class="fa-solid fa-lock fa-fade me-1"></i> 4/4 Mengunci Laporan...`;
-                setGlobalLock(true);
+                
+                // --- PERBAIKAN: AWAIT LOCK DULU SEBELUM RELOAD ---
+                await setGlobalLock(true);
+                
+                // Beri jeda ekstra untuk memastikan sync
+                await new Promise(r => setTimeout(r, 1000));
                 
                 // SELESAI
                 btnValAll.classList.remove('btn-success', 'btn-primary');
                 btnValAll.classList.add('btn-dark');
                 btnValAll.innerHTML = `<i class="fa-solid fa-check-double me-1"></i> Selesai!`;
                 alert("SUKSES!\nSemua proses selesai.");
+                
                 location.reload(); 
 
             } catch (error) {
                 console.error("Proses Terhenti:", error);
-                // Kembalikan tombol agar bisa diklik lagi (Resume)
+                alert("Terjadi Kesalahan: " + error.message);
+                
                 btnValAll.disabled = false;
                 
-                // Update teks tombol
                 if (!workflowStatus.jbUpdated && workflowStatus.csvDownloaded) {
                     btnValAll.innerHTML = `<i class="fa-solid fa-rotate-right me-1"></i> Coba Lagi: Update JB`;
                 } else {
