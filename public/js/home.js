@@ -16,9 +16,9 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// --- KONFIGURASI URL ---
+// --- KONFIGURASI URL (PASTIKAN INI URL TERBARU SETELAH DEPLOY) ---
 const SCRIPT_URL = "https://amarthajateng.wahyuputro00713.workers.dev";
-const SCRIPT_URL_BP = "https://script.google.com/macros/s/AKfycbzn3uUAMZlVyMB_-LxCMSGN60aePGVYTNCh7fmW6OKKqjohaC3xT4yLH4IU5F0PUDqlGg/exec"; 
+const SCRIPT_URL_BP = "https://script.google.com/macros/s/AKfycbyxR8o5fLsh8LKWn5JrNGooLokQ024seuDHvgTCg97jgrQW3kISyFitIoEOWlDX_AU8Dw/exec"; 
 const SCRIPT_URL_SURVEY = "https://script.google.com/macros/s/AKfycbzq0iFw8vIT9s7Zvl_5gydKaqy2LMkK_DaP9YV2Y_FThPSw9rtWwukFhjJlgfi0FeQ/exec"; 
 
 const ADMIN_ID = "17246";
@@ -32,7 +32,7 @@ const valRepaymentBtn = document.getElementById('valRepaymentBtn');
 let cachedLeaderboardData = [];
 let cachedUsersMap = {};
 
-// --- GLOBAL CHART INSTANCES (Penting untuk mencegah error canvas) ---
+// --- GLOBAL CHART INSTANCES ---
 window.chartInstance1 = null;
 window.chartInstance2 = null;
 window.modalChartInstance1 = null;
@@ -72,16 +72,34 @@ function getCurrentTimeWIB() {
     return new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-// --- FUNGSI HELPER FETCH ---
-async function fetchWithRetry(url, options = {}, retries = 3, backoff = 300) {
+// --- FUNGSI HELPER FETCH (FIXED CORS & CREDENTIALS) ---
+async function fetchWithRetry(url, customOptions = {}, retries = 3, backoff = 300) {
     try {
+        // --- PERBAIKAN UTAMA DI SINI ---
+        const defaultOptions = {
+            method: 'POST',
+            credentials: 'omit', // PENTING: Mencegah error login Google
+            redirect: 'follow',
+            headers: {
+                "Content-Type": "text/plain;charset=utf-8" // PENTING: Mencegah preflight OPTIONS
+            }
+        };
+        
+        // Merge options
+        const options = { ...defaultOptions, ...customOptions };
+        
+        // Pastikan body ada untuk POST
+        if(options.method === 'POST' && !options.body) {
+             options.body = JSON.stringify({});
+        }
+
         const response = await fetch(url, options);
         if (!response.ok) throw new Error(`HTTP Error! status: ${response.status}`);
         return response;
     } catch (error) {
         if (retries < 1) throw error;
         await new Promise(r => setTimeout(r, backoff));
-        return fetchWithRetry(url, options, retries - 1, backoff * 2);
+        return fetchWithRetry(url, customOptions, retries - 1, backoff * 2);
     }
 }
 
@@ -148,7 +166,6 @@ onAuthStateChanged(auth, (user) => {
 
                 // --- LOGIKA TAMPILAN DASHBOARD ---
                 if (userJabatan === "BP") {
-                    // Tampilkan Container BP
                     const bpContainer = document.getElementById('bpSectionContainer');
                     if(bpContainer) bpContainer.classList.remove('d-none'); 
                     
@@ -160,7 +177,6 @@ onAuthStateChanged(auth, (user) => {
                     checkSurveyStatus(user, data);
                 } 
                 else if (userJabatan === "BM") {
-                    // Tampilkan Container BM
                     const bmContainer = document.getElementById('bmSectionContainer');
                     if(bmContainer) bmContainer.classList.remove('d-none'); 
                     
@@ -179,7 +195,6 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
-// Event Listeners Dasar
 if (logoutBtn) {
     logoutBtn.addEventListener('click', () => {
         if(confirm("Apakah Anda yakin ingin keluar?")) { signOut(auth).then(() => window.location.replace("index.html")); }
@@ -228,7 +243,7 @@ async function loadRepaymentInfo() {
     if (!label) return;
     try {
         const response = await fetchWithRetry(SCRIPT_URL, {
-            method: 'POST', body: JSON.stringify({ action: "get_majelis" }), headers: { "Content-Type": "text/plain;charset=utf-8" }
+            body: JSON.stringify({ action: "get_majelis" })
         });
         const result = await response.json();
         if (result.result === "success" && result.data.length > 0) {
@@ -250,7 +265,7 @@ async function loadLeaderboard() {
         } catch (e) {}
 
         const response = await fetchWithRetry(SCRIPT_URL, {
-            method: 'POST', body: JSON.stringify({ action: "get_leaderboard" }), headers: { "Content-Type": "text/plain;charset=utf-8" }
+            body: JSON.stringify({ action: "get_leaderboard" })
         });
         const result = await response.json();
         
@@ -317,7 +332,7 @@ function renderFullLeaderboard() {
 }
 
 // ==========================================
-// BP PERFORMANCE LOGIC
+// BP PERFORMANCE LOGIC (FIXED)
 // ==========================================
 async function loadBpPerformance(idKaryawan) {
     const loader = document.getElementById('bpLoader');
@@ -329,10 +344,9 @@ async function loadBpPerformance(idKaryawan) {
     if (!ctx1 || !ctx2) return;
 
     try {
-        const response = await fetch(SCRIPT_URL_BP, {
-            method: 'POST',
-            body: JSON.stringify({ action: "get_bp_performance", idKaryawan: idKaryawan }),
-            headers: { "Content-Type": "text/plain;charset=utf-8" }
+        // MENGGUNAKAN fetchWithRetry YANG SUDAH DIPERBAIKI
+        const response = await fetchWithRetry(SCRIPT_URL_BP, {
+            body: JSON.stringify({ action: "get_bp_performance", idKaryawan: idKaryawan })
         });
         const result = await response.json();
 
@@ -340,7 +354,6 @@ async function loadBpPerformance(idKaryawan) {
 
         if (result.result === "success" && result.data) {
             if(content) content.classList.remove('d-none');
-            // Render Chart BP
             renderBpChart1(ctx1, result.data, false);
             renderBpChart2(ctx2, result.data, false);
             updateBpInfoText(result.data);
@@ -387,7 +400,7 @@ function updateBpInfoText(data) {
 }
 
 // ==========================================
-// BM DASHBOARD LOGIC
+// BM DASHBOARD LOGIC (FIXED)
 // ==========================================
 async function loadBmDashboard(point) {
     const loader = document.getElementById('bmLoader');
@@ -396,10 +409,9 @@ async function loadBmDashboard(point) {
     const totalLabel = document.getElementById('bmTotalMember');
     
     try {
-        const response = await fetch(SCRIPT_URL_BP, {
-            method: 'POST',
-            body: JSON.stringify({ action: "get_bm_team_data", point: point }),
-            headers: { "Content-Type": "text/plain;charset=utf-8" }
+        // MENGGUNAKAN fetchWithRetry
+        const response = await fetchWithRetry(SCRIPT_URL_BP, {
+            body: JSON.stringify({ action: "get_bm_team_data", point: point })
         });
         const result = await response.json();
 
@@ -476,7 +488,7 @@ window.openBmDetail = function(dataStr) {
     setTimeout(() => {
         renderBpChart1(document.getElementById('modalChart1'), bp, true);
         renderBpChart2(document.getElementById('modalChart2'), bp, true);
-    }, 200); // Delay sedikit agar modal transisi selesai
+    }, 200); 
 };
 
 // ==========================================
@@ -567,7 +579,7 @@ async function loadAreaProgressChart() {
 
     try {
         const response = await fetchWithRetry(SCRIPT_URL, {
-            method: 'POST', body: JSON.stringify({ action: "get_area_progress" }), headers: { "Content-Type": "text/plain;charset=utf-8" }
+            body: JSON.stringify({ action: "get_area_progress" })
         });
         const result = await response.json();
         
@@ -600,8 +612,6 @@ async function loadAreaProgressChart() {
 
 // --- SURVEY LOGIC ---
 async function checkSurveyStatus(user, userData) {
-    // Kode survei sama seperti sebelumnya...
-    // (Disingkat agar tidak terlalu panjang, tapi logika inti ada di sini)
     const date = new Date();
     const period = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
     const surveyRef = ref(db, `survei_logs/${period}/${user.uid}`);
@@ -610,7 +620,6 @@ async function checkSurveyStatus(user, userData) {
         const snap = await get(surveyRef);
         if(!snap.exists()) {
             let namaBm = "BM Point " + (userData.point || "-");
-            // Auto detect BM logic...
             const surveyModal = new bootstrap.Modal(document.getElementById('surveyModal'), {backdrop:'static', keyboard:false});
             document.getElementById('sv_point').value = userData.point || "";
             document.getElementById('sv_namaBm').value = namaBm;
@@ -636,7 +645,7 @@ async function submitSurvey(user, data, period, bmName, modal) {
             q5: formData.get('q5'), q6: formData.get('q6'), q7: formData.get('q7'), q8: formData.get('q8'),
             q9: formData.get('q9'), q10: formData.get('q10'), q11: formData.get('q11')
         };
-        await fetchWithRetry(SCRIPT_URL_SURVEY, { method: 'POST', body: JSON.stringify(body) });
+        await fetchWithRetry(SCRIPT_URL_SURVEY, { body: JSON.stringify(body) });
         await set(ref(db, `survei_logs/${period}/${user.uid}`), { timestamp: new Date().toISOString(), status: "done" });
         
         alert("Survei terkirim!");
