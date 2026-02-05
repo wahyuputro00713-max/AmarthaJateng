@@ -570,12 +570,14 @@ async function loadBmDashboard(point) {
         loader.classList.add('d-none');
 
         if (result.result === "success" && result.data && result.data.length > 0) {
+            // Tampilkan Card Wrapper
             cardWrapper.classList.remove('d-none');
             
+            // Update Total Member
             if(totalMemberLabel) totalMemberLabel.innerText = result.data.length + " Org";
 
             let html = '';
-            // Sort by amount actual desc
+            // Sort by amount actual desc (Tertinggi di atas)
             result.data.sort((a, b) => b.amount.actual - a.amount.actual);
 
             result.data.forEach(bp => {
@@ -588,6 +590,7 @@ async function loadBmDashboard(point) {
                     return val;
                 };
 
+                // Desain List Item (Bukan Card lagi)
                 html += `
                 <div class="p-3 border-bottom d-flex justify-content-between align-items-center bg-white" 
                      onclick="openBmDetail('${bpDataStr}')" 
