@@ -133,25 +133,50 @@ function updateUIFromDrafts() {
 // 2. LOCK SYSTEM
 // =================================================================
 
+// =================================================================
+// 2. LOCK SYSTEM (DIPERBAIKI: Prioritaskan Dropdown Point)
+// =================================================================
+
 function setGlobalLock(status) {
     return new Promise((resolve, reject) => {
-        if(!userProfile || !userProfile.point) {
-            console.warn("User Profile belum siap, skip lock.");
-            resolve(); 
+        // 1. Cek User Profile (Hanya untuk mengambil Nama)
+        const lockerName = (userProfile && userProfile.nama) ? userProfile.nama : "Admin";
+
+        // 2. Tentukan Point Mana yang Mau Dikunci
+        // Cek dulu apakah ada Dropdown Point yang dipilih?
+        const elPoint = document.getElementById('selectPoint');
+        let targetPoint = "";
+
+        if (elPoint && elPoint.value && elPoint.value !== "ALL") {
+            // Jika user memilih point spesifik di dropdown (Mode RM/Admin)
+            targetPoint = elPoint.value;
+        } else if (userProfile && userProfile.point) {
+            // Jika tidak ada dropdown, gunakan point bawaan user (Mode BM/Staff)
+            targetPoint = userProfile.point;
+        }
+
+        // 3. Validasi: Jika Point masih kosong atau "ALL", batalkan Lock
+        if (!targetPoint || targetPoint === "ALL" || targetPoint === "Point -") {
+            console.warn("Gagal Lock: Point belum spesifik (Masih ALL).");
+            alert("Gagal mengunci: Harap pilih POINT spesifik di filter atas sebelum validasi.");
+            reject(new Error("Point belum dipilih"));
             return;
         }
 
+        // 4. Ambil Tanggal
         const dateInput = document.getElementById('dateInput');
         let dateStr = (dateInput && !dateInput.classList.contains('d-none')) ? dateInput.value : new Date().toLocaleDateString('en-CA');
         
-        const pointKey = clean(userProfile.point); 
+        // 5. Susun Path Firebase
+        const pointKey = clean(targetPoint); 
         const lockPath = `closing_locks/${pointKey}/${dateStr}`;
 
         if (status === true) {
-            console.log("Mencoba mengunci Firebase di path:", lockPath);
+            console.log(`Mengunci untuk Point: ${targetPoint} oleh ${lockerName}`);
+            
             set(ref(db, lockPath), {
                 isLocked: true,
-                lockedBy: userProfile.nama || "User",
+                lockedBy: lockerName,
                 lockedAt: new Date().toISOString()
             })
             .then(() => {
