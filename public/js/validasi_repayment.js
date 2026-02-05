@@ -18,7 +18,7 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 // URL Script Apps Script
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzMJ3sfCoVihjfEe9ZuxZnj3ocXUxTxfp0KtaC0HLgF_duyHDcZYg8-PYnA1k6QueIw/exec"; 
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyvzmOCeKlHOh_HtNkeoZDSf7Qm4qDdlpIbPINbd_8JDWNJuj5PFBZNXOGd3GKWBobk/exec"; 
 
 let userProfile = null;
 let allData = [];
