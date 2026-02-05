@@ -415,7 +415,6 @@ function renderFullLeaderboard() {
         else if(rank === 2) rankClass = 'top-2';
         else if(rank === 3) rankClass = 'top-3';
 
-        html += `
         <div class="lb-list-item">
             <div class="lb-rank ${rankClass}">${rank}</div>
             <img src="${photo}" class="lb-user-img" alt="${name}">
@@ -425,9 +424,7 @@ function renderFullLeaderboard() {
             </div>
             <div class="lb-score">${formatJuta(item.amount)}</div>
         </div>
-        `;
     });
-    listContainer.innerHTML = html;
 }
 
 function formatJuta(n) {
@@ -592,8 +589,7 @@ async function loadBmDashboard(point) {
                     return val;
                 };
 
-                // Desain List Item (Bukan Card lagi)
-                html += `
+                // Desain List Item (Bukan Card lagi)`
                 <div class="p-3 border-bottom d-flex justify-content-between align-items-center bg-white" 
                      onclick="openBmDetail('${bpDataStr}')" 
                      style="cursor: pointer; transition: background 0.2s;" 
@@ -617,9 +613,7 @@ async function loadBmDashboard(point) {
                         </div>
                     </div>
                 </div>
-                `;
             });
-            listContainer.innerHTML = html;
         } else {
             cardWrapper.classList.remove('d-none');
             listContainer.innerHTML = '<div class="text-center text-muted py-5"><i class="fa-regular fa-folder-open mb-2 fs-3"></i><p class="mb-0 small">Belum ada data tim.</p></div>';
