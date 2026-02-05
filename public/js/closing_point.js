@@ -116,6 +116,7 @@ function updateUIFromDrafts() {
         }
     });
     
+    // --- FUNGSI INI SEKARANG SUDAH ADA DEFINISINYA DI BAWAH ---
     updateGlobalValidationStatus();
     
     document.querySelectorAll('.accordion-button').forEach(btn => {
@@ -129,11 +130,10 @@ function updateUIFromDrafts() {
 }
 
 // =================================================================
-// 2. LOCK SYSTEM (DIPERBAIKI: Menggunakan Promise)
+// 2. LOCK SYSTEM
 // =================================================================
 
 function setGlobalLock(status) {
-    // --- PERBAIKAN: Return Promise agar bisa di-await ---
     return new Promise((resolve, reject) => {
         if(!userProfile || !userProfile.point) {
             console.warn("User Profile belum siap, skip lock.");
@@ -156,11 +156,11 @@ function setGlobalLock(status) {
             })
             .then(() => {
                 console.log("Firebase Lock BERHASIL disimpan.");
-                resolve(); // Selesai
+                resolve(); 
             })
             .catch((error) => {
                 console.error("Firebase Lock GAGAL:", error);
-                reject(error); // Gagal
+                reject(error); 
             });
         } else {
             resolve();
@@ -712,7 +712,75 @@ function createMitraCard(mitra) {
 }
 
 // =================================================================
-// 5. USER INTERACTIONS
+// 5. HELPER FUNCTIONS (YANG SEBELUMNYA HILANG)
+// =================================================================
+
+// --- FUNGSI UPDATE STATUS TOMBOL UTAMA ---
+function updateGlobalValidationStatus() {
+    if (isPageLocked) return;
+    const totalMitra = document.querySelectorAll('.btn-check-action').length;
+    const checkedMitra = document.querySelectorAll('.btn-check-action.checked').length;
+    const btnValAll = document.getElementById('btnValidateAll');
+    
+    if(btnValAll) {
+        if (totalMitra > 0 && checkedMitra === totalMitra) {
+            btnValAll.disabled = false;
+            // UPDATE LOGIC TEXT TOMBOL
+            if (!workflowStatus.recapSent) {
+                btnValAll.innerHTML = `<i class="fa-solid fa-file-arrow-down me-1"></i> Selesai & Download`;
+            } else if (!workflowStatus.csvDownloaded) {
+                btnValAll.innerHTML = `<i class="fa-solid fa-file-csv me-1"></i> Lanjut: Download CSV`;
+            } else if (!workflowStatus.jbUpdated) {
+                btnValAll.innerHTML = `<i class="fa-solid fa-rotate-right me-1"></i> Lanjut: Update JB`;
+            } else {
+                 btnValAll.innerHTML = `<i class="fa-solid fa-check me-1"></i> Selesai (Dikunci)`;
+            }
+            btnValAll.classList.remove('btn-primary', 'btn-secondary');
+            btnValAll.classList.add('btn-success'); 
+        } else if (totalMitra > 0) {
+            btnValAll.disabled = true;
+            btnValAll.innerHTML = `<i class="fa-solid fa-hourglass-half me-1"></i> Selesaikan ${totalMitra - checkedMitra} Lagi`;
+            btnValAll.classList.remove('btn-success', 'btn-secondary');
+            btnValAll.classList.add('btn-primary');
+        }
+    }
+}
+
+// --- FUNGSI UPDATE STATISTIK MAJELIS ---
+function updateMajelisStats(btnElement) {
+    const collapseDiv = btnElement.closest('.accordion-collapse');
+    if (!collapseDiv) return;
+    const headerId = collapseDiv.getAttribute('aria-labelledby') || collapseDiv.id.replace('collapse', 'heading');
+    const countDiv = document.querySelector(`#${headerId} .small.text-muted`); 
+    if (countDiv) {
+        const allInMajelis = collapseDiv.querySelectorAll('.btn-check-action').length;
+        const checkedInMajelis = collapseDiv.querySelectorAll('.btn-check-action.checked').length;
+        countDiv.innerText = `${checkedInMajelis} / ${allInMajelis} Selesai`;
+    }
+    updateGlobalValidationStatus();
+}
+
+// --- FUNGSI DOWNLOAD CSV ---
+function downloadCSV() {
+    if (globalMitraList.length === 0) return alert("Data kosong.");
+    let csvContent = "ID Mitra,Nama Mitra,BP,Majelis,Status Bayar,Status Kirim,Status BLL,Jenis Bayar,Hari Baru (JB),DPD Bucket,Keterangan\n";
+    globalMitraList.forEach(m => {
+        const safeKey = String(m.id).replace(/[.#$/[\]]/g, "_");
+        const stored = serverDraftData[safeKey] || {}; 
+        const finalReason = stored.reason || m.alasan || "-";
+        const finalDay = stored.day || "-";
+        const row = [`'${m.id}`, `"${m.nama}"`, `"${m.bp}"`, `"${m.majelis}"`, m.status_bayar, m.status_kirim, m.status_bll, m.jenis_bayar, finalDay, m.bucket, `"${finalReason}"`].join(",");
+        csvContent += row + "\n";
+    });
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `Laporan_Closing_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+}
+
+// =================================================================
+// 6. USER INTERACTIONS
 // =================================================================
 
 function getFirebaseRef(mitraId) {
@@ -772,7 +840,7 @@ window.toggleValidation = function(element, id) {
 };
 
 // =================================================================
-// 6. LOGIKA REJECT
+// 7. LOGIKA REJECT
 // =================================================================
 
 window.showRejectModal = function(id, name) {
@@ -920,7 +988,7 @@ async function updateJBDaysToServerWithProgress() {
     return true; 
 }
 
-// --- PERBAIKAN: Fungsi Kirim Rekap dengan Cek Error ---
+// --- FUNGSI KIRIM REKAP ---
 async function sendClosingSummary() {
     if (!currentStats || currentStats.total === 0) {
         console.warn("Peringatan: Statistik 0, mungkin data belum ter-render sempurna.");
@@ -1033,14 +1101,13 @@ function releaseLockMode() {
 }
 
 // =================================================================
-// 6. MAIN EVENT LISTENER (SMART RESUME)
+// 8. MAIN EVENT LISTENER (SMART RESUME)
 // =================================================================
 document.addEventListener("DOMContentLoaded", () => {
     const btnValAll = document.getElementById('btnValidateAll');
     if(btnValAll) {
         btnValAll.disabled = true;
         
-        // --- PERBAIKAN: Handler Asynchronous yang Benar ---
         btnValAll.addEventListener('click', async () => {
             let stepMsg = "";
             if (!workflowStatus.recapSent) stepMsg += "\n1. Kirim Rekap";
