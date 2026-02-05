@@ -551,11 +551,13 @@ function updateBpInfoText(data) {
 }
 
 // ==========================================
-// BM DASHBOARD FUNCTIONS
+// BM DASHBOARD FUNCTIONS (Updated: Single Card List)
 // ==========================================
 async function loadBmDashboard(point) {
     const loader = document.getElementById('bmLoader');
     const listContainer = document.getElementById('bmBpList');
+    const cardWrapper = document.getElementById('bmCardWrapper');
+    const totalMemberLabel = document.getElementById('bmTotalMember');
     
     try {
         const response = await fetch(SCRIPT_URL_BP, {
@@ -568,8 +570,14 @@ async function loadBmDashboard(point) {
         loader.classList.add('d-none');
 
         if (result.result === "success" && result.data && result.data.length > 0) {
+            // Tampilkan Card Wrapper
+            cardWrapper.classList.remove('d-none');
+            
+            // Update Total Member
+            if(totalMemberLabel) totalMemberLabel.innerText = result.data.length + " Org";
+
             let html = '';
-            // Sort by amount actual desc
+            // Sort by amount actual desc (Tertinggi di atas)
             result.data.sort((a, b) => b.amount.actual - a.amount.actual);
 
             result.data.forEach(bp => {
@@ -582,27 +590,37 @@ async function loadBmDashboard(point) {
                     return val;
                 };
 
+                // Desain List Item (Bukan Card lagi)
                 html += `
-                <div class="leaderboard-card p-3 mb-3 d-flex justify-content-between align-items-center" onclick="openBmDetail('${bpDataStr}')" style="cursor: pointer;">
+                <div class="p-3 border-bottom d-flex justify-content-between align-items-center bg-white" 
+                     onclick="openBmDetail('${bpDataStr}')" 
+                     style="cursor: pointer; transition: background 0.2s;" 
+                     onmouseover="this.style.background='#f8f9fa'" 
+                     onmouseout="this.style.background='#fff'">
+                    
                     <div class="d-flex align-items-center">
-                        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold me-3 shadow-sm" style="width:40px; height:40px; font-size: 0.9rem;">
+                        <div class="rounded-circle bg-light text-primary border d-flex align-items-center justify-content-center fw-bold me-3" style="width:38px; height:38px; font-size: 0.85rem;">
                             ${getInitials(bp.nama)}
                         </div>
                         <div>
-                            <div class="fw-bold text-dark text-truncate" style="font-size: 0.9rem; max-width: 160px;">${bp.nama}</div>
-                            <div class="text-muted small">ID: ${bp.idKaryawan}</div>
+                            <div class="fw-bold text-dark text-truncate" style="font-size: 0.85rem; max-width: 150px;">${bp.nama}</div>
+                            <div class="text-muted" style="font-size: 0.7rem;">ID: ${bp.idKaryawan}</div>
                         </div>
                     </div>
+                    
                     <div class="text-end">
                         <div class="fw-bold text-success" style="font-size: 0.85rem;">Rp ${fmtAmt(bp.amount.actual)}</div>
-                        <div class="text-muted small" style="font-size: 0.7rem;">Capaian Amt</div>
+                        <div class="progress mt-1" style="height: 3px; width: 60px; margin-left: auto;">
+                            <div class="progress-bar bg-success" role="progressbar" style="width: ${Math.min((bp.amount.actual/bp.amount.target)*100, 100)}%"></div>
+                        </div>
                     </div>
                 </div>
                 `;
             });
             listContainer.innerHTML = html;
         } else {
-            listContainer.innerHTML = '<div class="text-center text-muted py-3">Tidak ada data BP di Point ini.</div>';
+            cardWrapper.classList.remove('d-none');
+            listContainer.innerHTML = '<div class="text-center text-muted py-5"><i class="fa-regular fa-folder-open mb-2 fs-3"></i><p class="mb-0 small">Belum ada data tim.</p></div>';
         }
 
     } catch (e) {
