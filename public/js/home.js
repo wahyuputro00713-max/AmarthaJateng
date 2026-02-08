@@ -132,9 +132,11 @@ async function checkAbsensiStatus(uid) {
     } catch (error) { console.error("Gagal cek absensi:", error); }
 }
 
-// --- FUNGSI CHECK DAILY BRIEFING (BARU DITAMBAHKAN) ---
+// --- FUNGSI CHECK DAILY BRIEFING (PERBAIKAN TIMEZONE) ---
 function checkDailyBriefing(uid) {
-    const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
+    // Gunakan getLocalTodayDate() agar mengikuti jam HP user (WIB), bukan UTC.
+    const today = getLocalTodayDate(); 
+    
     const storageKey = `briefing_seen_${uid}`;
     const lastSeenDate = localStorage.getItem(storageKey);
 
@@ -145,10 +147,13 @@ function checkDailyBriefing(uid) {
             const briefingModal = new bootstrap.Modal(briefingModalEl);
             briefingModal.show();
 
-            // Handle Tombol Konfirmasi
             const btnConfirm = document.getElementById('btnConfirmBriefing');
             if (btnConfirm) {
-                btnConfirm.onclick = function() {
+                // Clone button untuk memastikan event listener fresh (tidak menumpuk)
+                const newBtn = btnConfirm.cloneNode(true);
+                btnConfirm.parentNode.replaceChild(newBtn, btnConfirm);
+
+                newBtn.onclick = function() {
                     // Simpan tanggal hari ini ke Local Storage
                     localStorage.setItem(storageKey, today);
                     briefingModal.hide();
@@ -202,6 +207,7 @@ onAuthStateChanged(auth, (user) => {
                     checkSurveyStatus(user, data);
 
                     // >>> PANGGIL FUNGSI BRIEFING PAGI <<<
+                    // Hanya dipanggil jika jabatan adalah BP
                     checkDailyBriefing(user.uid);
                 } 
                 else if (userJabatan === "BM") {
