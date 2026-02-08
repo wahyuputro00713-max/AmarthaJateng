@@ -75,7 +75,6 @@ function getCurrentTimeWIB() {
 // --- FUNGSI HELPER FETCH (FIXED CORS & CREDENTIALS) ---
 async function fetchWithRetry(url, customOptions = {}, retries = 3, backoff = 300) {
     try {
-        // --- PERBAIKAN UTAMA DI SINI ---
         const defaultOptions = {
             method: 'POST',
             credentials: 'omit', // PENTING: Mencegah error login Google
@@ -133,6 +132,32 @@ async function checkAbsensiStatus(uid) {
     } catch (error) { console.error("Gagal cek absensi:", error); }
 }
 
+// --- FUNGSI CHECK DAILY BRIEFING (BARU DITAMBAHKAN) ---
+function checkDailyBriefing(uid) {
+    const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
+    const storageKey = `briefing_seen_${uid}`;
+    const lastSeenDate = localStorage.getItem(storageKey);
+
+    // Jika tanggal terakhir dilihat TIDAK SAMA dengan hari ini, tampilkan popup
+    if (lastSeenDate !== today) {
+        const briefingModalEl = document.getElementById('briefingModal');
+        if (briefingModalEl) {
+            const briefingModal = new bootstrap.Modal(briefingModalEl);
+            briefingModal.show();
+
+            // Handle Tombol Konfirmasi
+            const btnConfirm = document.getElementById('btnConfirmBriefing');
+            if (btnConfirm) {
+                btnConfirm.onclick = function() {
+                    // Simpan tanggal hari ini ke Local Storage
+                    localStorage.setItem(storageKey, today);
+                    briefingModal.hide();
+                };
+            }
+        }
+    }
+}
+
 // ==========================================
 // MAIN AUTH & LOGIC CABANG (BP vs BM)
 // ==========================================
@@ -175,6 +200,9 @@ onAuthStateChanged(auth, (user) => {
                         hideLoaderBP("ID Karyawan tidak ditemukan.");
                     }
                     checkSurveyStatus(user, data);
+
+                    // >>> PANGGIL FUNGSI BRIEFING PAGI <<<
+                    checkDailyBriefing(user.uid);
                 } 
                 else if (userJabatan === "BM") {
                     const bmContainer = document.getElementById('bmSectionContainer');
