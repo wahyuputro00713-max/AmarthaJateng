@@ -19,11 +19,17 @@ async function fetchData() {
     try {
         const response = await fetch(API_URL, {
             method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
             body: JSON.stringify({ action: "get_data_sosialisasi" })
         });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
         const result = await response.json();
 
-        if (result.result === "success") {
+        if (result.result === "success" && Array.isArray(result.data)) {
             globalData = result.data;
             populateAreaFilter(globalData);
             renderData(globalData);
@@ -101,8 +107,13 @@ function renderData(data) {
 
     data.forEach(item => {
         // Format Nomor HP
-        let rawHp = item.no_hp.replace(/[^0-9]/g, '');
+        let rawHp = String(item.no_hp || '').replace(/[^0-9]/g, '');
         if (rawHp.startsWith('0')) rawHp = '62' + rawHp.substring(1);
+        const safeHp = item.no_hp || '-';
+        const safeNamaMitra = item.nama_mitra || '-';
+        const safeNamaBp = item.nama_bp || '-';
+        const safeArea = item.area || '-';
+        const safePoint = item.point || '-';
 
         // Generate Pesan Dinamis (Anti-Blokir)
         const pesan = generateDynamicMessage(item);
@@ -120,12 +131,12 @@ function renderData(data) {
         if(isFu) card.style.opacity = "0.7";
 
         card.innerHTML = `
-            <div class="tag">${item.area} - ${item.point}</div>
-            <h3>${item.nama_mitra}</h3>
-            <p><strong>BP:</strong> ${item.nama_bp}</p>
-            <p><strong>No HP:</strong> ${item.no_hp}</p>
+            <div class="tag">${safeArea} - ${safePoint}</div>
+            <h3>${safeNamaMitra}</h3>
+            <p><strong>BP:</strong> ${safeNamaBp}</p>
+            <p><strong>No HP:</strong> ${safeHp}</p>
             <button class="btn-wa" style="${btnStyle}" 
-                onclick="handleFollowUp('${item.nama_mitra}', '${item.no_hp}', '${waLink}', this, ${isFu})">
+                onclick="handleFollowUp('${safeNamaMitra}', '${safeHp}', '${waLink}', this, ${isFu})">
                 ${btnText}
             </button>
         `;
