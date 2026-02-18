@@ -389,6 +389,7 @@ function createRowHtml(m, safeNamaBP) {
                     <option value="Partial">Partial</option>
                     <option value="Par Payment">Par Pay</option>
                     <option value="JB">JB</option> 
+                    <option value="Lunas">Lunas</option> 
                 </select>
                 <button id="${btnId}" class="btn btn-primary btn-sm px-2 py-1" disabled
                     onclick="window.kirimPerMitra('${rawCustNo}', '${safeMitra}', '${safeNamaBP}', '${selectId}', '${btnId}', '${rowId}')">
