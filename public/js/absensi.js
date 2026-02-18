@@ -1,16 +1,8 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getFirebaseApp } from "./firebase-init.js";
 import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-const firebaseConfig = {
-    apiKey: "AIzaSyC8wOUkyZTa4W2hHHGZq_YKnGFqYEGOuH8",
-    authDomain: "amarthajatengwebapp.firebaseapp.com",
-    databaseURL: "https://amarthajatengwebapp-default-rtdb.firebaseio.com",
-    projectId: "amarthajatengwebapp",
-    storageBucket: "amarthajatengwebapp.firebasestorage.app",
-    messagingSenderId: "22431520744",
-    appId: "1:22431520744:web:711af76a5335d97179765d"
-};
+
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwu59gsQNwmRuvJxbFYmGRP9CN3EYntK2wMjiX1mcotQ9Ny7IftBCOf-TayhHQN9OIlwg/exec"; 
 
@@ -68,7 +60,7 @@ const MAX_JAM_ABSEN = "08:15";
 // Tambahkan WFH dan WFC di sini
 const STATUS_BEBAS_LOKASI = ["Sakit", "Izin", "WFH", "WFC"];
 
-const app = initializeApp(firebaseConfig);
+const app = getFirebaseApp();
 const auth = getAuth(app);
 const db = getDatabase(app);
 
