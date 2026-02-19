@@ -350,6 +350,7 @@ function createRowHtml(m, safeNamaBP) {
 
     const isBll = (m.status_bll === "BLL");
     const bllBadge = isBll ? '<span class="badge-bll">BLL</span>' : '';
+    const mitraTitle = `<span class="mitra-title"><span>${rawMitra}</span>${bllBadge}</span>`;
 
     const valAngsuran = formatRupiah(m.angsuran);
     const valPartial = formatRupiah(m.partial);
@@ -401,7 +402,7 @@ function createRowHtml(m, safeNamaBP) {
                 ${statusIcon}
             </td>
             <td class="align-middle">
-                <span class="mitra-name">${rawMitra} ${bllBadge}</span>
+                <span class="mitra-name">${mitraTitle}</span>
                 <div style="font-size: 10px;" class="text-muted"><i class="fa-regular fa-id-card me-1"></i>${rawCustNo}</div>
                 <div class="${badgeClass} fw-bold" style="font-size: 10px;">${displayStatus}</div>
             </td>
