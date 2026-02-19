@@ -23,7 +23,7 @@ const valRepaymentBtn = document.getElementById('valRepaymentBtn');
 
 let cachedLeaderboardData = [];
 let cachedUsersMap = {};
-let bmTeamDataCache = [];
+let roleAreaPointsMap = {};
 
 // --- GLOBAL CHART INSTANCES ---
 window.chartInstance1 = null;
@@ -528,22 +528,31 @@ async function loadRoleTeamDashboard({ role, area = '' }) {
     const areaFilter = document.getElementById('bmAreaFilter');
     const pointFilter = document.getElementById('bmPointFilter');
     const filterWrapper = document.getElementById('bmFilterWrapper');
+    const listContainer = document.getElementById('bmBpList');
+    const totalLabel = document.getElementById('bmTotalMember');
+    const cardWrapper = document.getElementById('bmCardWrapper');
 
     try {
-        const response = await fetchWithRetry(SCRIPT_URL_BP, {
-            body: JSON.stringify({ action: 'get_role_team_data' })
+        const usersSnap = await get(ref(db, 'users'));
+        if (!usersSnap.exists()) throw new Error('Data users kosong');
+
+        const users = usersSnap.val() || {};
+        roleAreaPointsMap = {};
+
+        Object.values(users).forEach((u) => {
+            if (!u) return;
+            const areaName = String(u.area || '').trim();
+            const pointName = String(u.point || '').trim();
+            if (!areaName || !pointName) return;
+            if (!roleAreaPointsMap[areaName]) roleAreaPointsMap[areaName] = new Set();
+            roleAreaPointsMap[areaName].add(pointName);
         });
-        const result = await response.json();
 
         if (loader) loader.classList.add('d-none');
         if (filterWrapper) filterWrapper.classList.remove('d-none');
-
-        if (!(result.result === 'success' && Array.isArray(result.data) && result.data.length > 0)) {
-            renderBmLikeList([]);
-            return;
-        }
-
-        bmTeamDataCache = result.data;
+        if (cardWrapper) cardWrapper.classList.remove('d-none');
+        if (totalLabel) totalLabel.innerText = '0 Org';
+        if (listContainer) listContainer.innerHTML = '<div class="text-center py-4 small text-muted">Pilih filter untuk melihat data BP.</div>';
 
         if (role === 'AM') {
             if (areaFilter) {
@@ -554,12 +563,12 @@ async function loadRoleTeamDashboard({ role, area = '' }) {
             return;
         }
 
-        // RM: bisa pilih area lalu point
-        const areas = [...new Set(bmTeamDataCache.map(item => item.area).filter(Boolean))].sort();
+        const areas = Object.keys(roleAreaPointsMap).sort();
         if (areaFilter) {
             areaFilter.disabled = false;
             areaFilter.innerHTML = '<option value="">Pilih Area...</option>' +
                 areas.map(a => `<option value="${a}">${a}</option>`).join('');
+            areaFilter.value = '';
             areaFilter.onchange = function() {
                 populatePointFilterByArea(this.value);
             };
@@ -568,9 +577,8 @@ async function loadRoleTeamDashboard({ role, area = '' }) {
         if (pointFilter) {
             pointFilter.innerHTML = '<option value="">Pilih Point...</option>';
             pointFilter.disabled = true;
+            pointFilter.onchange = null;
         }
-
-        renderBmLikeList([]);
     } catch (e) {
         console.error('Err role dashboard:', e);
         if (loader) loader.innerHTML = '<p class="text-danger small">Gagal memuat data tim.</p>';
@@ -579,66 +587,25 @@ async function loadRoleTeamDashboard({ role, area = '' }) {
 
 function populatePointFilterByArea(area) {
     const pointFilter = document.getElementById('bmPointFilter');
+    const listContainer = document.getElementById('bmBpList');
+    const totalLabel = document.getElementById('bmTotalMember');
+
     if (!pointFilter) return;
 
-    const points = [...new Set(bmTeamDataCache.filter(item => item.area === area).map(item => item.point).filter(Boolean))].sort();
+    const points = area && roleAreaPointsMap[area] ? Array.from(roleAreaPointsMap[area]).sort() : [];
+
     pointFilter.innerHTML = '<option value="">Pilih Point...</option>' +
         points.map(p => `<option value="${p}">${p}</option>`).join('');
     pointFilter.disabled = points.length === 0;
+    pointFilter.value = '';
+
+    if (listContainer) listContainer.innerHTML = '<div class="text-center py-4 small text-muted">Pilih point untuk melihat data BP.</div>';
+    if (totalLabel) totalLabel.innerText = '0 Org';
 
     pointFilter.onchange = function() {
-        const list = bmTeamDataCache.filter(item => item.area === area && item.point === this.value);
-        renderBmLikeList(list);
+        if (!this.value) return;
+        loadBmDashboard(this.value);
     };
-
-    renderBmLikeList([]);
-}
-
-function renderBmLikeList(dataList) {
-    const cardWrapper = document.getElementById('bmCardWrapper');
-    const listContainer = document.getElementById('bmBpList');
-    const totalLabel = document.getElementById('bmTotalMember');
-    if (!cardWrapper || !listContainer || !totalLabel) return;
-
-    cardWrapper.classList.remove('d-none');
-
-    if (!Array.isArray(dataList) || dataList.length === 0) {
-        totalLabel.innerText = '0 Org';
-        listContainer.innerHTML = '<div class="text-center py-4 small text-muted">Pilih filter untuk melihat data BP.</div>';
-        return;
-    }
-
-    dataList.sort((a, b) => (b.amount?.actual || 0) - (a.amount?.actual || 0));
-    totalLabel.innerText = `${dataList.length} Org`;
-
-    let html = '';
-    dataList.forEach(bp => {
-        const dataStr = encodeURIComponent(JSON.stringify(bp));
-        const init = getInitials(bp.nama);
-        const amt = formatJuta(bp.amount?.actual || 0);
-        const pct = Math.min(((bp.amount?.actual || 0) / (bp.amount?.target || 1)) * 100, 100) || 0;
-        html += `
-        <div class="p-3 border-bottom d-flex justify-content-between align-items-center bg-white"
-             onclick="openBmDetail('${dataStr}')"
-             style="cursor: pointer; transition: background 0.2s;"
-             onmouseover="this.style.background='#f8f9fa'"
-             onmouseout="this.style.background='#fff'">
-            <div class="d-flex align-items-center">
-                <div class="rounded-circle bg-light text-primary border d-flex align-items-center justify-content-center fw-bold me-3" style="width:38px; height:38px; font-size: 0.85rem;">${init}</div>
-                <div>
-                    <div class="fw-bold text-dark text-truncate" style="font-size: 0.85rem; max-width: 150px;">${bp.nama || '-'}</div>
-                    <div class="text-muted" style="font-size: 0.7rem;">ID: ${bp.idKaryawan || '-'} • ${bp.point || '-'}</div>
-                </div>
-            </div>
-            <div class="text-end">
-                <div class="fw-bold text-success" style="font-size: 0.85rem;">${amt}</div>
-                <div class="progress mt-1" style="height: 3px; width: 60px; margin-left: auto;">
-                    <div class="progress-bar bg-success" role="progressbar" style="width: ${pct}%"></div>
-                </div>
-            </div>
-        </div>`;
-    });
-    listContainer.innerHTML = html;
 }
 
 // Global Function untuk dipanggil dari HTML string
