@@ -254,6 +254,17 @@ if(btnViewAll){
     });
 }
 
+const bmBpList = document.getElementById('bmBpList');
+if (bmBpList) {
+    bmBpList.addEventListener('click', (e) => {
+        const row = e.target.closest('.bp-row-item');
+        if (!row) return;
+        const payload = row.dataset.bp;
+        if (!payload) return;
+        window.openBmDetail(payload);
+    });
+}
+
 // --- FUNGSI FORMAT ANGKA ---
 function formatJuta(n) {
     if (!n) return "Rp 0";
@@ -473,8 +484,8 @@ async function loadBmDashboard(point) {
                 const pct = Math.min((bp.amount.actual / bp.amount.target) * 100, 100) || 0;
 
                 html += `
-                <div class="p-3 border-bottom d-flex justify-content-between align-items-center bg-white" 
-                     onclick="openBmDetail('${dataStr}')" 
+                <div class="p-3 border-bottom d-flex justify-content-between align-items-center bg-white bp-row-item"
+                     data-bp="${dataStr}"
                      style="cursor: pointer; transition: background 0.2s;"
                      onmouseover="this.style.background='#f8f9fa'" 
                      onmouseout="this.style.background='#fff'">
@@ -519,7 +530,13 @@ function setupBmLikeHeaderByRole(role) {
         }
     }
 
-    if (filterWrapper) filterWrapper.classList.remove('d-none');
+    if (filterWrapper) {
+        if (role === 'BM') {
+            filterWrapper.classList.add('d-none');
+        } else {
+            filterWrapper.classList.remove('d-none');
+        }
+    }
     if (areaFilterCol) areaFilterCol.classList.toggle('d-none', role !== 'RM');
 }
 
