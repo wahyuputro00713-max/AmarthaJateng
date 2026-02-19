@@ -116,6 +116,23 @@
         <div id="bmSectionContainer" class="d-none">
             <div class="section-title">Capaian Tim <span class="badge bg-primary ms-2" style="background-color: var(--primary)!important;">BM View</span></div>
             <div id="bmLoader" class="text-center py-5"><div class="spinner-border text-primary" role="status"></div><p class="text-muted small mt-2">Memuat data tim...</p></div>
+
+            <div id="bmFilterWrapper" class="leaderboard-card mx-3 p-3 d-none">
+                <div class="row g-2">
+                    <div class="col-12 col-md-6" id="areaFilterCol">
+                        <label for="bmAreaFilter" class="form-label small fw-bold text-muted mb-1">Filter Area</label>
+                        <select id="bmAreaFilter" class="form-select form-select-sm">
+                            <option value="">Pilih Area...</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label for="bmPointFilter" class="form-label small fw-bold text-muted mb-1">Pilih Point</label>
+                        <select id="bmPointFilter" class="form-select form-select-sm" disabled>
+                            <option value="">Pilih Point...</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
             
             <div id="bmCardWrapper" class="leaderboard-card mx-3 p-0 overflow-hidden d-none">
                 <div class="p-3 border-bottom bg-light d-flex justify-content-between align-items-center">
