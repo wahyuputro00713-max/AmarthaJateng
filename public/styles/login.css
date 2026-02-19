@@ -109,8 +109,8 @@ body {
     left: 15px;
     transform: translateY(-50%);
     color: var(--text-dark);
-    font-size: 2rem;
-    font-weight: 500;
+    font-size: 1rem;
+    font-weight: 400;
     pointer-events: none;
     z-index: 2;
 }
