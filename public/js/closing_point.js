@@ -424,6 +424,22 @@ function updatePointDropdownOptions(fixedArea = null) {
     else if (availablePoints.includes(userProfile.point)) selectPoint.value = userProfile.point;
     else selectPoint.value = "ALL";
 }
+function syncHeaderLocation(filterArea, filterPoint) {
+    const areaEl = document.getElementById('areaName');
+    const pointEl = document.getElementById('pointName');
+    if (!areaEl || !pointEl) return;
+
+    if (currentRole === "RM" || currentRole === "ADMIN") {
+        areaEl.textContent = (filterArea && filterArea !== "ALL") ? filterArea : "Semua Area";
+        pointEl.textContent = (filterPoint && filterPoint !== "ALL") ? filterPoint : "Semua Point";
+        return;
+    }
+
+    if (currentRole === "AM") {
+        areaEl.textContent = userProfile.area || "Area -";
+        pointEl.textContent = (filterPoint && filterPoint !== "ALL") ? filterPoint : "Semua Point";
+    }
+}
 
 // =================================================================
 // 4. RENDER DATA & UI
@@ -439,6 +455,9 @@ function filterAndRenderData() {
     let filterPoint = (elPoint && elPoint.value) ? elPoint.value : (currentRole === 'BM' ? (userProfile.point || "ALL") : "ALL");
 
     if (currentRole === "RM" && (!elArea || elArea.value === "ALL")) { filterArea = "ALL"; }
+    
+    syncHeaderLocation(filterArea, filterPoint);
+
 
     globalMitraList = [];
     const container = document.getElementById('accordionBP');
