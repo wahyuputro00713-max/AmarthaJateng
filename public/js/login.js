@@ -8,6 +8,29 @@ const app = getFirebaseApp();
 const auth = getAuth(app);
 const db = getDatabase(app);
 
+function setLoading(isVisible) {
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    if (loadingOverlay) {
+        loadingOverlay.style.display = isVisible ? 'flex' : 'none';
+    }
+}
+
+function getFriendlyLoginError(error) {
+    const errorCode = error?.code;
+
+    if (error?.message?.includes("ID Karyawan tidak ditemukan")) {
+        return "❌ ID Karyawan tidak terdaftar.";
+    }
+    if (errorCode === 'auth/invalid-credential' || errorCode === 'auth/wrong-password') {
+        return "❌ Password salah! (Pastikan ID benar)";
+    }
+    if (errorCode === 'auth/too-many-requests') {
+        return "⚠️ Terlalu banyak percobaan gagal. Tunggu sebentar.";
+    }
+
+    return "Gagal Login: " + (error?.message || 'Terjadi kesalahan yang tidak diketahui.');
+}
+
 // --- 1. CEK SESSION ---
 onAuthStateChanged(auth, (user) => {
     if (user) {
@@ -24,8 +47,6 @@ if (loginForm) {
         
         const idInput = document.getElementById('idKaryawan');
         const passInput = document.getElementById('password');
-        const loadingOverlay = document.getElementById('loadingOverlay');
-
         const idKaryawan = idInput.value.trim();
         const password = passInput.value;
 
@@ -35,7 +56,7 @@ if (loginForm) {
         }
 
         // Tampilkan Loading
-        if (loadingOverlay) loadingOverlay.style.display = 'flex';
+        setLoading(true);
 
         try {
             // LANGKAH A: Cari Email Asli berdasarkan ID di Database
@@ -62,21 +83,9 @@ if (loginForm) {
             window.location.replace("home.html");
 
         } catch (error) {
-            if (loadingOverlay) loadingOverlay.style.display = 'none';
+            setLoading(false);
             console.error("Login Error:", error);
-
-            const errorCode = error.code;
-
-            // Handle Error
-            if (error.message.includes("ID Karyawan tidak ditemukan")) {
-                alert("❌ ID Karyawan tidak terdaftar.");
-            } else if (errorCode === 'auth/invalid-credential' || errorCode === 'auth/wrong-password') {
-                alert("❌ Password salah! (Pastikan ID benar)");
-            } else if (errorCode === 'auth/too-many-requests') {
-                alert("⚠️ Terlalu banyak percobaan gagal. Tunggu sebentar.");
-            } else {
-                alert("Gagal Login: " + error.message);
-            }
+            alert(getFriendlyLoginError(error));
         }
     });
 }
@@ -91,7 +100,8 @@ if (forgotPasswordBtn) {
     forgotPasswordBtn.addEventListener('click', async (e) => {
         e.preventDefault();
 
-        let idVal = document.getElementById('idKaryawan').value.trim();
+        const idKaryawanEl = document.getElementById('idKaryawan');
+        let idVal = idKaryawanEl ? idKaryawanEl.value.trim() : "";
         
         if (!idVal) {
             idVal = prompt("Masukkan ID Karyawan Anda untuk reset password:");
@@ -99,8 +109,7 @@ if (forgotPasswordBtn) {
 
         if (!idVal) return;
 
-        const loadingOverlay = document.getElementById('loadingOverlay');
-        if (loadingOverlay) loadingOverlay.style.display = 'flex';
+        setLoading(true);
 
         try {
             const dbRef = ref(db);
@@ -113,18 +122,18 @@ if (forgotPasswordBtn) {
                 if (!realEmail) throw new Error("Email tidak ditemukan untuk ID ini.");
 
                 // Konfirmasi Masking
-                if (loadingOverlay) loadingOverlay.style.display = 'none';
+                setLoading(false);
                 const maskedEmail = realEmail.replace(/(.{2})(.*)(@.*)/, "$1***$3");
                 
                 const confirmReset = confirm(`Kirim link reset password ke email: ${maskedEmail}?`);
                 if (!confirmReset) return;
 
-                if (loadingOverlay) loadingOverlay.style.display = 'flex';
+                setLoading(true);
 
                 // Kirim Reset ke Email Asli
                 await sendPasswordResetEmail(auth, realEmail);
                 
-                if (loadingOverlay) loadingOverlay.style.display = 'none';
+                setLoading(false);
                 alert(`✅ Link reset terkirim ke: ${realEmail}. Silakan cek email lalu login dengan password baru.`);
                 
             } else {
@@ -132,7 +141,7 @@ if (forgotPasswordBtn) {
             }
 
         } catch (error) {
-            if (loadingOverlay) loadingOverlay.style.display = 'none';
+            setLoading(false);
             alert("Gagal: " + error.message);
         }
     });

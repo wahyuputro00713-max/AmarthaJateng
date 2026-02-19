@@ -45,12 +45,14 @@ function timerIncrement() {
 }
 function resetTimer() { idleTime = 0; }
 
-window.onload = function() {
-    setInterval(timerIncrement, 60000); 
-    window.onmousemove = resetTimer; window.onmousedown = resetTimer; window.ontouchstart = resetTimer; 
-    window.onclick = resetTimer; window.onkeypress = resetTimer; window.addEventListener('scroll', resetTimer, true); 
+window.addEventListener("load", () => {
+    setInterval(timerIncrement, 60000);
+    ["mousemove", "mousedown", "touchstart", "click", "keypress"].forEach((eventName) => {
+        window.addEventListener(eventName, resetTimer, true);
+    });
+    window.addEventListener("scroll", resetTimer, true);
     loadAreaProgressChart();
-};
+});
 
 function getLocalTodayDate() {
     const d = new Date();
