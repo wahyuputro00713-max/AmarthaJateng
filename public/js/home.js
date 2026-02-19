@@ -23,6 +23,7 @@ const valRepaymentBtn = document.getElementById('valRepaymentBtn');
 
 let cachedLeaderboardData = [];
 let cachedUsersMap = {};
+let bmTeamDataCache = [];
 
 // --- GLOBAL CHART INSTANCES ---
 window.chartInstance1 = null;
@@ -204,14 +205,26 @@ onAuthStateChanged(auth, (user) => {
                     // Hanya dipanggil jika jabatan adalah BP
                     checkDailyBriefing(user.uid);
                 } 
-                else if (userJabatan === "BM") {
+                else if (["BM", "AM", "RM"].includes(userJabatan)) {
                     const bmContainer = document.getElementById('bmSectionContainer');
                     if(bmContainer) bmContainer.classList.remove('d-none'); 
-                    
-                    if (data.point) {
-                        loadBmDashboard(data.point);
-                    } else {
-                        document.getElementById('bmLoader').innerHTML = '<p class="text-danger">Point tidak ditemukan di profil.</p>';
+
+                    setupBmLikeHeaderByRole(userJabatan);
+
+                    if (userJabatan === "BM") {
+                        if (data.point) {
+                            loadBmDashboard(data.point);
+                        } else {
+                            document.getElementById('bmLoader').innerHTML = '<p class="text-danger">Point tidak ditemukan di profil.</p>';
+                        }
+                    } else if (userJabatan === "AM") {
+                        if (data.area) {
+                            loadRoleTeamDashboard({ role: "AM", area: data.area });
+                        } else {
+                            document.getElementById('bmLoader').innerHTML = '<p class="text-danger">Area tidak ditemukan di profil.</p>';
+                        }
+                    } else if (userJabatan === "RM") {
+                        loadRoleTeamDashboard({ role: "RM" });
                     }
                 } 
             } else {
@@ -489,6 +502,143 @@ async function loadBmDashboard(point) {
         console.error("Err BM:", e);
         if(loader) loader.innerHTML = '<p class="text-danger small">Gagal memuat data.</p>';
     }
+}
+
+function setupBmLikeHeaderByRole(role) {
+    const titleEl = document.querySelector('#bmSectionContainer .section-title');
+    const areaFilterCol = document.getElementById('areaFilterCol');
+    const filterWrapper = document.getElementById('bmFilterWrapper');
+
+    if (titleEl) {
+        if (role === 'AM') {
+            titleEl.innerHTML = 'Capaian Point Area <span class="badge bg-primary ms-2" style="background-color: var(--primary)!important;">AM View</span>';
+        } else if (role === 'RM') {
+            titleEl.innerHTML = 'Capaian Tim per Area <span class="badge bg-primary ms-2" style="background-color: var(--primary)!important;">RM View</span>';
+        } else {
+            titleEl.innerHTML = 'Capaian Tim <span class="badge bg-primary ms-2" style="background-color: var(--primary)!important;">BM View</span>';
+        }
+    }
+
+    if (filterWrapper) filterWrapper.classList.remove('d-none');
+    if (areaFilterCol) areaFilterCol.classList.toggle('d-none', role !== 'RM');
+}
+
+async function loadRoleTeamDashboard({ role, area = '' }) {
+    const loader = document.getElementById('bmLoader');
+    const areaFilter = document.getElementById('bmAreaFilter');
+    const pointFilter = document.getElementById('bmPointFilter');
+    const filterWrapper = document.getElementById('bmFilterWrapper');
+
+    try {
+        const response = await fetchWithRetry(SCRIPT_URL_BP, {
+            body: JSON.stringify({ action: 'get_role_team_data' })
+        });
+        const result = await response.json();
+
+        if (loader) loader.classList.add('d-none');
+        if (filterWrapper) filterWrapper.classList.remove('d-none');
+
+        if (!(result.result === 'success' && Array.isArray(result.data) && result.data.length > 0)) {
+            renderBmLikeList([]);
+            return;
+        }
+
+        bmTeamDataCache = result.data;
+
+        if (role === 'AM') {
+            if (areaFilter) {
+                areaFilter.innerHTML = `<option value="${area}">${area}</option>`;
+                areaFilter.disabled = true;
+            }
+            populatePointFilterByArea(area);
+            return;
+        }
+
+        // RM: bisa pilih area lalu point
+        const areas = [...new Set(bmTeamDataCache.map(item => item.area).filter(Boolean))].sort();
+        if (areaFilter) {
+            areaFilter.disabled = false;
+            areaFilter.innerHTML = '<option value="">Pilih Area...</option>' +
+                areas.map(a => `<option value="${a}">${a}</option>`).join('');
+            areaFilter.onchange = function() {
+                populatePointFilterByArea(this.value);
+            };
+        }
+
+        if (pointFilter) {
+            pointFilter.innerHTML = '<option value="">Pilih Point...</option>';
+            pointFilter.disabled = true;
+        }
+
+        renderBmLikeList([]);
+    } catch (e) {
+        console.error('Err role dashboard:', e);
+        if (loader) loader.innerHTML = '<p class="text-danger small">Gagal memuat data tim.</p>';
+    }
+}
+
+function populatePointFilterByArea(area) {
+    const pointFilter = document.getElementById('bmPointFilter');
+    if (!pointFilter) return;
+
+    const points = [...new Set(bmTeamDataCache.filter(item => item.area === area).map(item => item.point).filter(Boolean))].sort();
+    pointFilter.innerHTML = '<option value="">Pilih Point...</option>' +
+        points.map(p => `<option value="${p}">${p}</option>`).join('');
+    pointFilter.disabled = points.length === 0;
+
+    pointFilter.onchange = function() {
+        const list = bmTeamDataCache.filter(item => item.area === area && item.point === this.value);
+        renderBmLikeList(list);
+    };
+
+    renderBmLikeList([]);
+}
+
+function renderBmLikeList(dataList) {
+    const cardWrapper = document.getElementById('bmCardWrapper');
+    const listContainer = document.getElementById('bmBpList');
+    const totalLabel = document.getElementById('bmTotalMember');
+    if (!cardWrapper || !listContainer || !totalLabel) return;
+
+    cardWrapper.classList.remove('d-none');
+
+    if (!Array.isArray(dataList) || dataList.length === 0) {
+        totalLabel.innerText = '0 Org';
+        listContainer.innerHTML = '<div class="text-center py-4 small text-muted">Pilih filter untuk melihat data BP.</div>';
+        return;
+    }
+
+    dataList.sort((a, b) => (b.amount?.actual || 0) - (a.amount?.actual || 0));
+    totalLabel.innerText = `${dataList.length} Org`;
+
+    let html = '';
+    dataList.forEach(bp => {
+        const dataStr = encodeURIComponent(JSON.stringify(bp));
+        const init = getInitials(bp.nama);
+        const amt = formatJuta(bp.amount?.actual || 0);
+        const pct = Math.min(((bp.amount?.actual || 0) / (bp.amount?.target || 1)) * 100, 100) || 0;
+        html += `
+        <div class="p-3 border-bottom d-flex justify-content-between align-items-center bg-white"
+             onclick="openBmDetail('${dataStr}')"
+             style="cursor: pointer; transition: background 0.2s;"
+             onmouseover="this.style.background='#f8f9fa'"
+             onmouseout="this.style.background='#fff'">
+            <div class="d-flex align-items-center">
+                <div class="rounded-circle bg-light text-primary border d-flex align-items-center justify-content-center fw-bold me-3" style="width:38px; height:38px; font-size: 0.85rem;">${init}</div>
+                <div>
+                    <div class="fw-bold text-dark text-truncate" style="font-size: 0.85rem; max-width: 150px;">${bp.nama || '-'}</div>
+                    <div class="text-muted" style="font-size: 0.7rem;">ID: ${bp.idKaryawan || '-'} • ${bp.point || '-'}</div>
+                </div>
+            </div>
+            <div class="text-end">
+                <div class="fw-bold text-success" style="font-size: 0.85rem;">${amt}</div>
+                <div class="progress mt-1" style="height: 3px; width: 60px; margin-left: auto;">
+                    <div class="progress-bar bg-success" role="progressbar" style="width: ${pct}%"></div>
+                </div>
+            </div>
+        </div>`;
+    });
+    listContainer.innerHTML = html;
 }
 
 // Global Function untuk dipanggil dari HTML string
