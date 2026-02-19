@@ -102,3 +102,20 @@ body {
 .footer-link { margin-top: 25px; font-size: 0.9rem; color: var(--text-grey); }
 .footer-link a { color: var(--primary); text-decoration: none; font-weight: 700; }
 .spinner-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.9); z-index: 20; border-radius: 24px; display: none; align-items: center; justify-content: center; flex-direction: column; }
+
+
+.phone-prefix {
+    position: absolute;
+    top: 50%;
+    left: 15px;
+    transform: translateY(-50%);
+    color: var(--text-dark);
+    font-size: 2rem;
+    font-weight: 500;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.input-hp {
+    padding-left: 70px;
+}
