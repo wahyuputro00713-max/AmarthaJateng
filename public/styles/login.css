@@ -102,3 +102,70 @@ body {
 .footer-link { margin-top: 25px; font-size: 0.9rem; color: var(--text-grey); }
 .footer-link a { color: var(--primary); text-decoration: none; font-weight: 700; }
 .spinner-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.9); z-index: 20; border-radius: 24px; display: none; align-items: center; justify-content: center; flex-direction: column; }
+
+/* --- RAMADHAN DECORATION --- */
+.ramadhan-scene {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    overflow: hidden;
+}
+
+.scene-crescent {
+    position: absolute;
+    top: 8%;
+    right: 12%;
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    box-shadow: -22px 0 0 0 #ffd369;
+    filter: drop-shadow(0 0 12px rgba(255, 211, 105, 0.5));
+}
+
+.scene-lantern {
+    position: absolute;
+    top: 0;
+    width: 42px;
+    height: 62px;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #ffe7a8, #ffbd59);
+    color: #7b4b00;
+    display: grid;
+    place-items: center;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
+    animation: swing 3s ease-in-out infinite;
+}
+
+.scene-lantern::before {
+    content: "";
+    position: absolute;
+    top: -36px;
+    width: 2px;
+    height: 36px;
+    background: rgba(255, 255, 255, 0.5);
+}
+
+.lantern-left { left: 12%; }
+.lantern-right { right: 18%; animation-delay: 0.6s; }
+
+.scene-star {
+    position: absolute;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 1.1rem;
+    animation: twinkle 2s ease-in-out infinite;
+}
+
+.scene-star.s1 { top: 14%; left: 20%; }
+.scene-star.s2 { top: 20%; right: 28%; animation-delay: 0.4s; }
+.scene-star.s3 { top: 28%; left: 72%; animation-delay: 0.8s; }
+
+@keyframes swing {
+    0%, 100% { transform: rotate(-4deg); }
+    50% { transform: rotate(4deg); }
+}
+
+@keyframes twinkle {
+    0%, 100% { opacity: 0.4; transform: scale(0.95); }
+    50% { opacity: 1; transform: scale(1.05); }
+}
