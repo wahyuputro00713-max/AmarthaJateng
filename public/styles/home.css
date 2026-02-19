@@ -290,7 +290,7 @@ a { text-decoration: none; color: inherit; }
 
 /* --- RAMADHAN BANNER --- */
 .ramadhan-banner {
-    margin: 18px 20px 0;
+    margin-top: 16px;
     background: linear-gradient(135deg, #0f6f5c, #168772 50%, #1f9d85);
     border-radius: 18px;
     color: #fff;
