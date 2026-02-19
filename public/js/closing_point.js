@@ -290,7 +290,7 @@ function initPage() {
                 const selectedDate = new Date(parts[0], parts[1] - 1, parts[2]); 
                 currentDayName = days[selectedDate.getDay()]; 
                 const container = document.getElementById('accordionBP');
-                if(container) container.innerHTML = `<div class="empty-state"><div class="spinner-border text-primary"></div><p class="mt-2">Memuat data hari ${currentDayName}...</p></div>`;
+                if(container) container.innerHTML = `<div class="empty-state"><div class="spinner-border text-primary" role="status"></div></div>`;
                 
                 isPageLocked = false; 
                 checkGlobalLock(); 
