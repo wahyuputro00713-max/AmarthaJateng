@@ -270,9 +270,13 @@ function formatJuta(n) {
     if (!n) return "Rp 0";
     let num = Number(String(n).replace(/[^0-9.-]+/g,""));
     if (isNaN(num)) return "Rp 0";
-    if (num >= 1e9) return (num / 1e9).toFixed(1) + "M";
-    else if (num >= 1e6) return (num / 1e6).toFixed(1) + "jt";
-    else return (num / 1e3).toFixed(0) + "rb";
+    if (num >= 1e9) return (num / 1e9).toFixed(1) + " Miliar";
+    return (num / 1e6).toFixed(1) + " Juta";
+}
+function formatJutaan(n) {
+    const num = toNumber(n);
+    if (!num) return "0 Juta";
+    return (num / 1e6).toFixed(1) + " Juta";
 }
 function toNumber(val) {
     if (val === null || val === undefined) return 0;
@@ -778,9 +782,51 @@ async function loadAreaProgressChart() {
             const regionalAmountMetaEl = document.getElementById('regionalAmountMeta');
 
             if (regionalAchievePctEl) regionalAchievePctEl.innerText = `${Math.round(regionalCapaianPct)}%`;
-            if (regionalAchieveMetaEl) regionalAchieveMetaEl.innerText = `Harian: ${Math.round(regionalHarianPct)}%`;
+            if (regionalAchieveMetaEl) regionalAchieveMetaEl.innerText = `Harian: ${Math.round(regionalHarianPct)}% (${formatJutaan(totalProgress)})`;
             if (regionalAmountActEl) regionalAmountActEl.innerText = formatJuta(totalAchievement);
             if (regionalAmountMetaEl) regionalAmountMetaEl.innerText = `Target: ${formatJuta(totalTarget)}`;
+            
+            const regionalDailyAmountCtx = document.getElementById('regionalDailyAmountChart');
+            if (regionalDailyAmountCtx) {
+                if (window.regionalDailyAmountChartInstance) window.regionalDailyAmountChartInstance.destroy();
+                const dailyAmounts = result.data.map(d => Number((toNumber(d.progress) / 1e6).toFixed(1)));
+                window.regionalDailyAmountChartInstance = new Chart(regionalDailyAmountCtx, {
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets: [{
+                            label: 'Amount Harian (Juta)',
+                            data: dailyAmounts,
+                            backgroundColor: 'rgba(142, 38, 212, 0.7)',
+                            borderColor: '#8e26d4',
+                            borderWidth: 1,
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            datalabels: {
+                                anchor: 'end',
+                                align: 'end',
+                                color: '#555',
+                                formatter: (v) => `${v} Jt`
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: (v) => `${v} Jt`
+                                }
+                            },
+                            x: { grid: { display: false } }
+                        }
+                    }
+                });
+            }
             
             window.areaChartInstance = new Chart(ctx, {
                 type: 'bar',
