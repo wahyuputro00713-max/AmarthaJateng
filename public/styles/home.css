@@ -125,6 +125,7 @@ a { text-decoration: none; color: inherit; }
 .rank-3 .rank-badge { background: #CD7F32; }
 .podium-base { width: 100%; text-align: center; }
 .p-name { font-size: 0.75rem; font-weight: 600; color: #444; margin-bottom: 2px; }
+.p-point { font-size: 0.68rem; color: #666; margin-bottom: 2px; }
 .p-amount { font-size: 0.7rem; color: #666; }
 .rank-1 .p-amount { color: var(--primary); font-size: 0.8rem; }
 .btn-link-sm { font-size: 0.75rem; color: var(--primary); font-weight: 600; }
