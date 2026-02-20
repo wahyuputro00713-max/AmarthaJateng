@@ -274,6 +274,13 @@ function formatJuta(n) {
     else if (num >= 1e6) return (num / 1e6).toFixed(1) + "jt";
     else return (num / 1e3).toFixed(0) + "rb";
 }
+function toNumber(val) {
+    if (val === null || val === undefined) return 0;
+    if (typeof val === 'number') return Number.isFinite(val) ? val : 0;
+    const cleaned = String(val).replace(/[^0-9.-]+/g, '');
+    const parsed = Number(cleaned);
+    return Number.isFinite(parsed) ? parsed : 0;
+}
 function formatJamOnly(val) {
     if (!val || val === "-" || val === "0") return "";
     try {
@@ -758,6 +765,23 @@ async function loadAreaProgressChart() {
             const daily = result.data.map(d => d.plan > 0 ? ((d.progress/d.plan)*100).toFixed(1) : 0);
             const achieve = result.data.map(d => d.target > 0 ? ((d.achievement/d.target)*100).toFixed(1) : 0);
 
+            const totalTarget = result.data.reduce((sum, d) => sum + toNumber(d.target), 0);
+            const totalAchievement = result.data.reduce((sum, d) => sum + toNumber(d.achievement), 0);
+            const totalPlan = result.data.reduce((sum, d) => sum + toNumber(d.plan), 0);
+            const totalProgress = result.data.reduce((sum, d) => sum + toNumber(d.progress), 0);
+            const regionalCapaianPct = totalTarget > 0 ? (totalAchievement / totalTarget) * 100 : 0;
+            const regionalHarianPct = totalPlan > 0 ? (totalProgress / totalPlan) * 100 : 0;
+
+            const regionalAchievePctEl = document.getElementById('regionalAchievePct');
+            const regionalAchieveMetaEl = document.getElementById('regionalAchieveMeta');
+            const regionalAmountActEl = document.getElementById('regionalAmountAct');
+            const regionalAmountMetaEl = document.getElementById('regionalAmountMeta');
+
+            if (regionalAchievePctEl) regionalAchievePctEl.innerText = `${Math.round(regionalCapaianPct)}%`;
+            if (regionalAchieveMetaEl) regionalAchieveMetaEl.innerText = `Harian: ${Math.round(regionalHarianPct)}%`;
+            if (regionalAmountActEl) regionalAmountActEl.innerText = formatJuta(totalAchievement);
+            if (regionalAmountMetaEl) regionalAmountMetaEl.innerText = `Target: ${formatJuta(totalTarget)}`;
+            
             window.areaChartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
