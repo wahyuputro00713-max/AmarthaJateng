@@ -130,6 +130,16 @@ a { text-decoration: none; color: inherit; }
 .rank-1 .p-amount { color: var(--primary); font-size: 0.8rem; }
 .btn-link-sm { font-size: 0.75rem; color: var(--primary); font-weight: 600; }
 
+.top-leaderboard-card { padding: 18px 15px 12px; }
+.top-leaderboard-card .podium-container { padding-bottom: 8px; }
+.top-leaderboard-card .avatar-wrapper { margin-bottom: 6px; }
+.top-leaderboard-card .rank-1 { margin-bottom: 8px; }
+.top-leaderboard-card .podium-base { line-height: 1.1; }
+.top-leaderboard-card .p-name { margin-bottom: 1px; }
+.top-leaderboard-card .p-point { font-size: 0.62rem; margin-bottom: 1px; line-height: 1.05; }
+.top-leaderboard-card .p-amount { line-height: 1.1; }
+.top-leaderboard-card .text-center.mt-3 { margin-top: 8px !important; }
+
 /* --- MENU HORIZONTAL SCROLL (REVISI) --- */
 .horizontal-scroll-wrapper {
     display: flex;
