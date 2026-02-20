@@ -334,10 +334,12 @@ async function loadLeaderboard() {
 function updatePodium(sel, data, usersMap) {
     const c = document.querySelector(sel); if (!c) return;
     const txtName = c.querySelector('.p-name');
+    const txtPoint = c.querySelector('.p-point');
     const txtAmt = c.querySelector('.p-amount');
     const img = c.querySelector('.avatar-img');
     
     if(txtName) txtName.classList.remove('skeleton-text');
+    if(txtPoint) txtPoint.classList.remove('skeleton-text');
     if(txtAmt) txtAmt.classList.remove('skeleton-text');
     if(img) img.classList.remove('skeleton-img');
 
@@ -345,13 +347,16 @@ function updatePodium(sel, data, usersMap) {
         const id = String(data.idKaryawan).trim();
         const p = usersMap[id];
         const name = p ? p.nama : (data.nama || id);
+        const pointName = (data.point || data.namaPoint || data.nama_point || "-");
         const photo = (p && p.foto) ? p.foto : `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`;
         
         if(txtName) txtName.textContent = name;
+        if(txtPoint) txtPoint.textContent = pointName;        
         if(txtAmt) txtAmt.textContent = formatJuta(data.amount);
         if(img) img.src = photo;
     } else {
         if(txtName) txtName.textContent = "-";
+        if(txtPoint) txtPoint.textContent = "-";
         if(txtAmt) txtAmt.textContent = "-";
     }
 }
