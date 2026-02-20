@@ -285,6 +285,13 @@ function toNumber(val) {
     const parsed = Number(cleaned);
     return Number.isFinite(parsed) ? parsed : 0;
 }
+function normalizeAmountScale(values) {
+    const nums = values.map(toNumber).filter((n) => Number.isFinite(n));
+    const maxAbs = nums.length ? Math.max(...nums.map((n) => Math.abs(n))) : 0;
+    // Beberapa sheet menyimpan nilai dalam satuan "juta" (contoh: 22000 = 22 miliar).
+    // Jika semua angka masih kecil, anggap input berbasis juta lalu konversi ke rupiah.
+    return maxAbs > 0 && maxAbs < 1e6 ? 1e6 : 1;
+}
 function formatJamOnly(val) {
     if (!val || val === "-" || val === "0") return "";
     try {
@@ -769,10 +776,14 @@ async function loadAreaProgressChart() {
             const daily = result.data.map(d => d.plan > 0 ? ((d.progress/d.plan)*100).toFixed(1) : 0);
             const achieve = result.data.map(d => d.target > 0 ? ((d.achievement/d.target)*100).toFixed(1) : 0);
 
-            const totalTarget = result.data.reduce((sum, d) => sum + toNumber(d.target), 0);
-            const totalAchievement = result.data.reduce((sum, d) => sum + toNumber(d.achievement), 0);
-            const totalPlan = result.data.reduce((sum, d) => sum + toNumber(d.plan), 0);
-            const totalProgress = result.data.reduce((sum, d) => sum + toNumber(d.progress), 0);
+            const amountScale = normalizeAmountScale(
+                result.data.flatMap((d) => [d.target, d.achievement, d.plan, d.progress])
+            );
+
+            const totalTarget = result.data.reduce((sum, d) => sum + (toNumber(d.target) * amountScale), 0);
+            const totalAchievement = result.data.reduce((sum, d) => sum + (toNumber(d.achievement) * amountScale), 0);
+            const totalPlan = result.data.reduce((sum, d) => sum + (toNumber(d.plan) * amountScale), 0);
+            const totalProgress = result.data.reduce((sum, d) => sum + (toNumber(d.progress) * amountScale), 0);
             const regionalCapaianPct = totalTarget > 0 ? (totalAchievement / totalTarget) * 100 : 0;
             const regionalHarianPct = totalPlan > 0 ? (totalProgress / totalPlan) * 100 : 0;
 
@@ -789,7 +800,7 @@ async function loadAreaProgressChart() {
             const regionalDailyAmountCtx = document.getElementById('regionalDailyAmountChart');
             if (regionalDailyAmountCtx) {
                 if (window.regionalDailyAmountChartInstance) window.regionalDailyAmountChartInstance.destroy();
-                const dailyAmounts = result.data.map(d => Number((toNumber(d.progress) / 1e6).toFixed(1)));
+                     const dailyAmounts = result.data.map(d => Number(((toNumber(d.progress) * amountScale) / 1e6).toFixed(1)));
                 window.regionalDailyAmountChartInstance = new Chart(regionalDailyAmountCtx, {
                     type: 'bar',
                     data: {
