@@ -131,6 +131,10 @@ a { text-decoration: none; color: inherit; }
 .btn-link-sm { font-size: 0.75rem; color: var(--primary); font-weight: 600; }
 
 .top-leaderboard-card .podium-base { width: 100%; }
+.top-leaderboard-card {
+    padding: 18px 12px 12px;
+    margin-bottom: 14px;
+}
 .top-leaderboard-card .p-name,
 .top-leaderboard-card .p-point,
 .top-leaderboard-card .p-amount {
@@ -141,6 +145,11 @@ a { text-decoration: none; color: inherit; }
 }
 .top-leaderboard-card .p-point { font-size: 0.62rem; line-height: 1.1; margin-bottom: 0; }
 .top-leaderboard-link { margin-top: 10px; text-align: center; }
+
+#bpSectionContainer,
+#bmSectionContainer {
+    margin-top: 18px;
+}
 
 /* --- MENU HORIZONTAL SCROLL (REVISI) --- */
 .horizontal-scroll-wrapper {
