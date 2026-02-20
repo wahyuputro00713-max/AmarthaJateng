@@ -805,7 +805,10 @@ async function loadAreaProgressChart() {
             const achieve = result.data.map(d => d.target > 0 ? ((d.achievement/d.target)*100).toFixed(1) : 0);
 
             const amountScale = normalizeAmountScale(
-                result.data.flatMap((d) => [d.target, d.achievement, d.plan, d.progress])
+                result.data.flatMap((d) => [d.target, d.achievement])
+            );
+            const dailyScale = normalizeAmountScale(
+                result.data.flatMap((d) => [d.plan, d.progress])
             );
 
             const totalTarget = result.data.reduce((sum, d) => sum + (toNumber(d.target) * amountScale), 0);
@@ -828,7 +831,7 @@ async function loadAreaProgressChart() {
             const regionalDailyAmountCtx = document.getElementById('regionalDailyAmountChart');
             if (regionalDailyAmountCtx) {
                 if (window.regionalDailyAmountChartInstance) window.regionalDailyAmountChartInstance.destroy();
-                     const dailyAmounts = result.data.map(d => Number(((toNumber(d.progress) * amountScale) / 1e6).toFixed(1)));
+                     const dailyAmounts = result.data.map(d => Number(((toNumber(d.progress) * dailyScale) / 1e6).toFixed(1)));
                 window.regionalDailyAmountChartInstance = new Chart(regionalDailyAmountCtx, {
                     type: 'bar',
                     data: {
