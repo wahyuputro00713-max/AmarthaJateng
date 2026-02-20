@@ -281,8 +281,36 @@ function formatJutaan(n) {
 function toNumber(val) {
     if (val === null || val === undefined) return 0;
     if (typeof val === 'number') return Number.isFinite(val) ? val : 0;
-    const cleaned = String(val).replace(/[^0-9.-]+/g, '');
-    const parsed = Number(cleaned);
+    const raw = String(val).trim();
+    if (!raw) return 0;
+
+    const cleaned = raw.replace(/[^0-9,.-]/g, '');
+    const hasDot = cleaned.includes('.');
+    const hasComma = cleaned.includes(',');
+
+    let normalized = cleaned;
+
+    if (hasDot && hasComma) {
+        const lastDot = cleaned.lastIndexOf('.');
+        const lastComma = cleaned.lastIndexOf(',');
+        const decimalSep = lastDot > lastComma ? '.' : ',';
+        const thousandSep = decimalSep === '.' ? ',' : '.';
+        normalized = cleaned.split(thousandSep).join('');
+        normalized = normalized.replace(decimalSep, '.');
+    } else if (hasComma || hasDot) {
+        const sep = hasComma ? ',' : '.';
+        const parts = cleaned.split(sep);
+
+        if (parts.length > 2) {
+            normalized = parts.join('');
+        } else {
+            const fraction = parts[1] || '';
+            const isThousandGroup = fraction.length === 3;
+            normalized = isThousandGroup ? parts.join('') : cleaned.replace(sep, '.');
+        }
+    }
+
+    const parsed = Number(normalized);
     return Number.isFinite(parsed) ? parsed : 0;
 }
 function normalizeAmountScale(values) {
