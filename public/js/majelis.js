@@ -350,7 +350,14 @@ function createRowHtml(m, safeNamaBP) {
 
     const rawStatusBll = String(m.status_bll || "").trim();
     const showStatusBll = rawStatusBll && rawStatusBll !== "-" && rawStatusBll.toLowerCase() !== "null";
-    const bllBadge = showStatusBll ? `<span class="badge-bll">${rawStatusBll}</span>` : '';
+    const bllClassMap = {
+        "AMAN": "badge-bll-green",
+        "AT RISK": "badge-bll-red",
+        "KURANG 1 ANGSURAN": "badge-bll-yellow",
+        "POTENTIAL": "badge-bll-orange"
+    };
+    const bllBadgeClass = bllClassMap[rawStatusBll.toUpperCase()] || "badge-bll-default";
+    const bllBadge = showStatusBll ? `<span class="badge-bll ${bllBadgeClass}">${rawStatusBll}</span>` : '';
     const mitraTitle = `<span class="mitra-title"><span>${rawMitra}</span>${bllBadge}</span>`;
 
     const valAngsuran = formatRupiah(m.angsuran);
