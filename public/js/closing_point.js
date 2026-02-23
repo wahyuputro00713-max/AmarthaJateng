@@ -661,7 +661,15 @@ function createMitraCard(mitra) {
     let bllText = (mitra.status_bll || "").trim();
     let bllBadgeHtml = "";
     if (bllText && bllText !== "-" && bllText.toLowerCase() !== "null") {
-        bllBadgeHtml = `<span class="badge-pill badge-purple">${bllText}</span>`;
+        const normalizedBll = bllText.toUpperCase();
+        const bllBadgeClassMap = {
+            "AMAN": "badge-success",
+            "AT RISK": "badge-danger",
+            "KURANG 1 ANGSURAN": "badge-warning",
+            "POTENTIAL": "badge-orange"
+        };
+        const bllBadgeClass = bllBadgeClassMap[normalizedBll] || "badge-purple";
+        bllBadgeHtml = `<span class="badge-pill ${bllBadgeClass}">${bllText}</span>`;
     }
     let badgeDataO = "";
     if (mitra.data_o && mitra.data_o !== "-" && mitra.data_o !== "null") {
