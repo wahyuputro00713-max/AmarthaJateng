@@ -358,7 +358,17 @@ function createRowHtml(m, safeNamaBP) {
     };
     const bllBadgeClass = bllClassMap[rawStatusBll.toUpperCase()] || "badge-bll-default";
     const bllBadge = showStatusBll ? `<span class="badge-bll ${bllBadgeClass}">${rawStatusBll}</span>` : '';
-    const mitraTitle = `<span class="mitra-title"><span>${rawMitra}</span>${bllBadge}</span>`;
+
+    const rawBucket = String(m.dpd_bucket || m.dpd || "0").trim();
+    const bucketNum = parseInt(rawBucket, 10);
+    const isCurrentBucket = rawBucket.toLowerCase().includes("current")
+        || rawBucket.toLowerCase().includes("lancar")
+        || (!isNaN(bucketNum) && bucketNum <= 1);
+    const bucketText = isCurrentBucket ? "Lancar" : `DPD: ${rawBucket}`;
+    const bucketBadgeClass = isCurrentBucket ? "badge-dpd-info" : "badge-dpd-warning";
+    const bucketBadge = `<span class="badge-dpd ${bucketBadgeClass}">${bucketText}</span>`;
+
+    const mitraTitle = `<span class="mitra-title"><span>${rawMitra}</span>${bucketBadge}${bllBadge}</span>`;
 
     const valAngsuran = formatRupiah(m.angsuran);
     const valPartial = formatRupiah(m.partial);
