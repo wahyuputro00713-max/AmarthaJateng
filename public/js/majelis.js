@@ -348,8 +348,9 @@ function createRowHtml(m, safeNamaBP) {
     const statusKirim = String(m.status_kirim || "").toLowerCase().trim();
     let isSent = (statusKirim === "sudah" || statusKirim === "sudah terkirim" || statusKirim === "terkirim");
 
-    const isBll = (m.status_bll === "BLL");
-    const bllBadge = isBll ? '<span class="badge-bll">BLL</span>' : '';
+    const rawStatusBll = String(m.status_bll || "").trim();
+    const showStatusBll = rawStatusBll && rawStatusBll !== "-" && rawStatusBll.toLowerCase() !== "null";
+    const bllBadge = showStatusBll ? `<span class="badge-bll">${rawStatusBll}</span>` : '';
     const mitraTitle = `<span class="mitra-title"><span>${rawMitra}</span>${bllBadge}</span>`;
 
     const valAngsuran = formatRupiah(m.angsuran);
