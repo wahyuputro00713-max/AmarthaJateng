@@ -31,7 +31,11 @@ const els = {
     loadingOverlay: document.getElementById('loadingOverlay'),
     emptyState: document.getElementById('emptyState'),
     lblTotalMajelis: document.getElementById('totalMajelis'),
-    lblTotalMitra: document.getElementById('totalMitra')
+    lblTotalMitra: document.getElementById('totalMitra'),
+    geoTagModalTitle: document.getElementById('geoTagModalTitle'),
+    housePhotoPreview: document.getElementById('housePhotoPreview'),
+    housePhotoEmpty: document.getElementById('housePhotoEmpty'),
+    openMapsBtn: document.getElementById('openMapsBtn')
 };
 
 // 1. ENTRY POINT
@@ -410,14 +414,27 @@ function createRowHtml(m, safeNamaBP) {
         `;
     }
 
-    let statusIcon = isSent 
-        ? `<i class="fa-solid fa-circle-check text-success"></i>` 
-        : `<i class="fa-regular fa-circle text-muted"></i>`;
+    const fotoMitraUrl = resolvePhotoUrl(m.foto_mitra);
+    const safeFotoRumah = String(m.foto_rumah || '').replace(/'/g, "\\'");
+    const safeAlamat = String(m.alamat || m.alamat_lengkap || '').replace(/'/g, "\\'");
+    const safeLat = String(m.latitude || m.lat || '').replace(/'/g, "\\'");
+    const safeLng = String(m.longitude || m.lng || '').replace(/'/g, "\\'");
+
+    const avatarHtml = fotoMitraUrl
+        ? `<img src="${fotoMitraUrl}" alt="Foto ${rawMitra}" class="mitra-avatar">`
+        : `<span class="mitra-avatar-fallback"><i class="fa-solid fa-user"></i></span>`;
+
+    const geoTagButton = `
+        <button class="btn btn-outline-primary btn-geotag"
+            onclick="window.showGeoTagModal('${safeMitra}', '${safeFotoRumah}', '${safeLat}', '${safeLng}', '${safeAlamat}')">
+            <i class="fa-solid fa-location-dot me-1"></i> Geotag
+        </button>
+    `;
 
     return `
         <tr>
             <td class="ps-3 align-middle text-center" style="font-size: 12px;">
-                ${statusIcon}
+                ${avatarHtml}
             </td>
             <td class="align-middle">
                 <span class="mitra-name">${mitraTitle}</span>
@@ -429,11 +446,59 @@ function createRowHtml(m, safeNamaBP) {
                 ${valPartial !== '-' ? `<div class="nominal-text text-danger" style="font-size:9px">Part: ${valPartial}</div>` : ''}
             </td>
             <td class="text-end align-middle pe-3">
-                ${actionHtml}
+                <div class="d-flex flex-column align-items-end gap-1">
+                    ${geoTagButton}
+                    ${actionHtml}
+                </div>
             </td>
         </tr>
     `;
 }
+
+
+function resolvePhotoUrl(url) {
+    const raw = String(url || "").trim();
+    if (!raw || raw === "-") return "";
+    const lower = raw.toLowerCase();
+    if (lower.startsWith("http://") || lower.startsWith("https://") || lower.startsWith("data:image")) return raw;
+    return `https://drive.google.com/thumbnail?id=${raw}&sz=w1000`;
+}
+
+function buildMapsUrl(lat, lng, fallbackAddress = "") {
+    const latNum = Number(String(lat || "").replace(",", "."));
+    const lngNum = Number(String(lng || "").replace(",", "."));
+    if (!Number.isNaN(latNum) && !Number.isNaN(lngNum) && lat !== "" && lng !== "") {
+        return `https://www.google.com/maps?q=${latNum},${lngNum}`;
+    }
+
+    const address = String(fallbackAddress || "").trim();
+    return address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}` : "https://www.google.com/maps";
+}
+
+window.showGeoTagModal = function(namaMitra, fotoRumah, lat, lng, alamat) {
+    if (!window.bootstrap) return;
+
+    const housePhotoUrl = resolvePhotoUrl(fotoRumah);
+    if (els.geoTagModalTitle) els.geoTagModalTitle.textContent = `Geotag - ${namaMitra || "Mitra"}`;
+
+    if (els.housePhotoPreview) {
+        els.housePhotoPreview.src = housePhotoUrl || "";
+        els.housePhotoPreview.classList.toggle('d-none', !housePhotoUrl);
+    }
+    if (els.housePhotoEmpty) {
+        els.housePhotoEmpty.classList.toggle('d-none', !!housePhotoUrl);
+    }
+
+    if (els.openMapsBtn) {
+        els.openMapsBtn.href = buildMapsUrl(lat, lng, alamat);
+    }
+
+    const modalEl = document.getElementById('geoTagModal');
+    if (!modalEl) return;
+
+    const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+};
 
 // Utilities
 const formatRupiah = (val) => {
@@ -544,7 +609,7 @@ window.kirimPerMitra = async function(custNo, namaMitra, namaBP, selectId, btnId
                 const tr = wrapper.closest('tr');
                 if(tr) {
                     const firstTd = tr.cells[0];
-                    firstTd.innerHTML = `<i class="fa-solid fa-circle-check text-success animate__animated animate__heartBeat"></i>`;
+                    firstTd.innerHTML = `<span class=\"mitra-avatar-fallback\"><i class=\"fa-solid fa-check\"></i></span>`;
                 }
             }
         } else {
