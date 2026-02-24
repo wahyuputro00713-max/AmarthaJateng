@@ -414,19 +414,20 @@ function createRowHtml(m, safeNamaBP) {
         `;
     }
 
-    const fotoMitraUrl = resolvePhotoUrl(m.foto_mitra);
+    const fotoMitraUrl = resolvePhotoUrl(m.foto_mitra, 'w200');
     const safeFotoRumah = String(m.foto_rumah || '').replace(/'/g, "\\'");
     const safeAlamat = String(m.alamat || m.alamat_lengkap || '').replace(/'/g, "\\'");
     const safeLat = String(m.latitude || m.lat || '').replace(/'/g, "\\'");
     const safeLng = String(m.longitude || m.lng || '').replace(/'/g, "\\'");
-
+    const safeGeotag = String(m.geotag || '').replace(/'/g, "\\'");
+    
     const avatarHtml = fotoMitraUrl
         ? `<img src="${fotoMitraUrl}" alt="Foto ${rawMitra}" class="mitra-avatar">`
         : `<span class="mitra-avatar-fallback"><i class="fa-solid fa-user"></i></span>`;
 
     const geoTagButton = `
         <button class="btn btn-outline-primary btn-geotag"
-            onclick="window.showGeoTagModal('${safeMitra}', '${safeFotoRumah}', '${safeLat}', '${safeLng}', '${safeAlamat}')">
+            onclick="window.showGeoTagModal('${safeMitra}', '${safeFotoRumah}', '${safeLat}', '${safeLng}', '${safeAlamat}', '${safeGeotag}')">
             <i class="fa-solid fa-location-dot me-1"></i> Geotag
         </button>
     `;
@@ -456,15 +457,31 @@ function createRowHtml(m, safeNamaBP) {
 }
 
 
-function resolvePhotoUrl(url) {
+function resolvePhotoUrl(url, size = 'w1000') {
     const raw = String(url || "").trim();
     if (!raw || raw === "-") return "";
     const lower = raw.toLowerCase();
     if (lower.startsWith("http://") || lower.startsWith("https://") || lower.startsWith("data:image")) return raw;
-    return `https://drive.google.com/thumbnail?id=${raw}&sz=w1000`;
+    return `https://drive.google.com/thumbnail?id=${raw}&sz=${size}`;
 }
 
-function buildMapsUrl(lat, lng, fallbackAddress = "") {
+function buildMapsUrl(lat, lng, fallbackAddress = "", geotag = "") {
+    const rawGeotag = String(geotag || "").trim();
+    if (rawGeotag && rawGeotag !== "-") {
+        if (/^https?:\/\//i.test(rawGeotag)) {
+            return rawGeotag;
+        }
+
+        const matchedLatLng = rawGeotag.match(/(-?\d+(?:[.,]\d+)?)\s*,\s*(-?\d+(?:[.,]\d+)?)/);
+        if (matchedLatLng) {
+            const gLat = Number(matchedLatLng[1].replace(',', '.'));
+            const gLng = Number(matchedLatLng[2].replace(',', '.'));
+            if (!Number.isNaN(gLat) && !Number.isNaN(gLng)) {
+                return `https://www.google.com/maps?q=${gLat},${gLng}`;
+            }
+        }
+    }
+
     const latNum = Number(String(lat || "").replace(",", "."));
     const lngNum = Number(String(lng || "").replace(",", "."));
     if (!Number.isNaN(latNum) && !Number.isNaN(lngNum) && lat !== "" && lng !== "") {
@@ -475,10 +492,10 @@ function buildMapsUrl(lat, lng, fallbackAddress = "") {
     return address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}` : "https://www.google.com/maps";
 }
 
-window.showGeoTagModal = function(namaMitra, fotoRumah, lat, lng, alamat) {
+window.showGeoTagModal = function(namaMitra, fotoRumah, lat, lng, alamat, geotag) {
     if (!window.bootstrap) return;
 
-    const housePhotoUrl = resolvePhotoUrl(fotoRumah);
+    const housePhotoUrl = resolvePhotoUrl(fotoRumah, 'w900');
     if (els.geoTagModalTitle) els.geoTagModalTitle.textContent = `Geotag - ${namaMitra || "Mitra"}`;
 
     if (els.housePhotoPreview) {
@@ -490,7 +507,7 @@ window.showGeoTagModal = function(namaMitra, fotoRumah, lat, lng, alamat) {
     }
 
     if (els.openMapsBtn) {
-        els.openMapsBtn.href = buildMapsUrl(lat, lng, alamat);
+        els.openMapsBtn.href = buildMapsUrl(lat, lng, alamat, geotag);
     }
 
     const modalEl = document.getElementById('geoTagModal');
