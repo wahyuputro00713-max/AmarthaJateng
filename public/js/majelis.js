@@ -13,7 +13,7 @@ const db = getDatabase(app);
 // URL DEPLOYMENT GOOGLE APPS SCRIPT
 // PASTIKAN INI ADALAH URL DARI DEPLOY TERBARU (New Deployment)
 // =========================================================================
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx-MCecdv6l5xITTH7B3SZ0a3N65EC36v4lDUSCqwcI-b3gWHfnodYtN1gPZO_NfzQ/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz9f5EBWR-DqPKMf-_3ds_l1NEnqV4YPEjf2itMSMEOOiOg-wjvZhFp3KzXlWQ80_LW/exec";
 
 // State Management
 let globalData = [];
