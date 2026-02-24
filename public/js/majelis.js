@@ -19,6 +19,7 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz9f5EBWR-DqPKMf-_3d
 let globalData = [];
 let userProfile = { idKaryawan: "Guest", area: "", point: "" };
 let isTransactionActive = false; // Mencegah double submit
+const imageUrlCache = new Map();
 
 // DOM Elements
 const els = {
@@ -250,6 +251,8 @@ function renderGroupedData(data) {
         return true;
     });
 
+    warmPhotoCache(filtered);
+    
     // Empty State
     if (filtered.length === 0) {
         els.majelisContainer.innerHTML = "";
@@ -336,6 +339,24 @@ function renderGroupedData(data) {
     els.majelisContainer.innerHTML = htmlContent;
 }
 
+function warmPhotoCache(items) {
+    const photosToWarm = items.slice(0, 30);
+    photosToWarm.forEach(item => {
+        const avatarUrl = resolvePhotoUrl(item.foto_mitra, 'w160');
+        const houseUrl = resolvePhotoUrl(item.foto_rumah, 'w720');
+        if (avatarUrl) {
+            const img = new Image();
+            img.decoding = 'async';
+            img.src = avatarUrl;
+        }
+        if (houseUrl) {
+            const img = new Image();
+            img.decoding = 'async';
+            img.src = houseUrl;
+        }
+    });
+}
+
 // 6. HELPER: CREATE ROW HTML
 function createRowHtml(m, safeNamaBP) {
     const rawMitra = m.mitra || "";
@@ -414,15 +435,16 @@ function createRowHtml(m, safeNamaBP) {
         `;
     }
 
-    const fotoMitraUrl = resolvePhotoUrl(m.foto_mitra, 'w200');
-    const safeFotoRumah = String(m.foto_rumah || '').replace(/'/g, "\\'");
+    const fotoMitraUrl = resolvePhotoUrl(m.foto_mitra, 'w160');
+    const fotoRumahUrl = resolvePhotoUrl(m.foto_rumah, 'w720');
+    const safeFotoRumah = String(fotoRumahUrl || '').replace(/'/g, "\\'");
     const safeAlamat = String(m.alamat || m.alamat_lengkap || '').replace(/'/g, "\\'");
     const safeLat = String(m.latitude || m.lat || '').replace(/'/g, "\\'");
     const safeLng = String(m.longitude || m.lng || '').replace(/'/g, "\\'");
     const safeGeotag = String(m.geotag || '').replace(/'/g, "\\'");
     
     const avatarHtml = fotoMitraUrl
-        ? `<img src="${fotoMitraUrl}" alt="Foto ${rawMitra}" class="mitra-avatar">`
+        ? `<img src="${fotoMitraUrl}" alt="Foto ${rawMitra}" class="mitra-avatar" loading="lazy" decoding="async" fetchpriority="low" referrerpolicy="no-referrer">`
         : `<span class="mitra-avatar-fallback"><i class="fa-solid fa-user"></i></span>`;
 
     const geoTagButton = `
@@ -460,9 +482,20 @@ function createRowHtml(m, safeNamaBP) {
 function resolvePhotoUrl(url, size = 'w1000') {
     const raw = String(url || "").trim();
     if (!raw || raw === "-") return "";
+    const cacheKey = `${raw}::${size}`;
+    if (imageUrlCache.has(cacheKey)) return imageUrlCache.get(cacheKey);
+    
     const lower = raw.toLowerCase();
-    if (lower.startsWith("http://") || lower.startsWith("https://") || lower.startsWith("data:image")) return raw;
-    return `https://drive.google.com/thumbnail?id=${raw}&sz=${size}`;
+    if (lower.startsWith("http://") || lower.startsWith("https://") || lower.startsWith("data:image")) {
+        imageUrlCache.set(cacheKey, raw);
+        return raw;
+    }
+
+    const parsedSize = Number(String(size || '').replace(/[^0-9]/g, '')) || 720;
+    const normalizedSize = Math.min(Math.max(parsedSize, 120), 1280);
+    const resolved = `https://lh3.googleusercontent.com/d/${raw}=s${normalizedSize}`;
+    imageUrlCache.set(cacheKey, resolved);
+    return resolved;
 }
 
 function buildMapsUrl(lat, lng, fallbackAddress = "", geotag = "") {
@@ -495,7 +528,7 @@ function buildMapsUrl(lat, lng, fallbackAddress = "", geotag = "") {
 window.showGeoTagModal = function(namaMitra, fotoRumah, lat, lng, alamat, geotag) {
     if (!window.bootstrap) return;
 
-    const housePhotoUrl = resolvePhotoUrl(fotoRumah, 'w900');
+    const housePhotoUrl = resolvePhotoUrl(fotoRumah, 'w720');
     if (els.geoTagModalTitle) els.geoTagModalTitle.textContent = `Geotag - ${namaMitra || "Mitra"}`;
 
     if (els.housePhotoPreview) {
