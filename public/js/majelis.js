@@ -440,7 +440,7 @@ function createRowHtml(m, safeNamaBP) {
 
     const fotoMitraUrl = resolvePhotoUrl(m.foto_mitra, 'w160');
     const fotoRumahUrl = resolvePhotoUrl(m.foto_rumah, 'w720');
-    const fotoMitraFullUrl = resolvePhotoUrl(m.foto_mitra, 'w1000');
+    const fotoMitraFullUrl = resolvePhotoUrl(m.foto_mitra, 'w720');
     const safeFotoMitra = String(fotoMitraFullUrl || '').replace(/'/g, "\\'");
     const safeFotoRumah = String(fotoRumahUrl || '').replace(/'/g, "\\'");
     const safeAlamat = String(m.alamat || m.alamat_lengkap || '').replace(/'/g, "\\'");
