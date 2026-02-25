@@ -34,6 +34,9 @@ const els = {
     lblTotalMajelis: document.getElementById('totalMajelis'),
     lblTotalMitra: document.getElementById('totalMitra'),
     geoTagModalTitle: document.getElementById('geoTagModalTitle'),
+    mitraPhotoModalTitle: document.getElementById('mitraPhotoModalTitle'),
+    mitraPhotoPreview: document.getElementById('mitraPhotoPreview'),
+    mitraPhotoEmpty: document.getElementById('mitraPhotoEmpty'),
     housePhotoPreview: document.getElementById('housePhotoPreview'),
     housePhotoEmpty: document.getElementById('housePhotoEmpty'),
     openMapsBtn: document.getElementById('openMapsBtn')
@@ -437,6 +440,8 @@ function createRowHtml(m, safeNamaBP) {
 
     const fotoMitraUrl = resolvePhotoUrl(m.foto_mitra, 'w160');
     const fotoRumahUrl = resolvePhotoUrl(m.foto_rumah, 'w720');
+    const fotoMitraFullUrl = resolvePhotoUrl(m.foto_mitra, 'w1000');
+    const safeFotoMitra = String(fotoMitraFullUrl || '').replace(/'/g, "\\'");
     const safeFotoRumah = String(fotoRumahUrl || '').replace(/'/g, "\\'");
     const safeAlamat = String(m.alamat || m.alamat_lengkap || '').replace(/'/g, "\\'");
     const safeLat = String(m.latitude || m.lat || '').replace(/'/g, "\\'");
@@ -444,7 +449,9 @@ function createRowHtml(m, safeNamaBP) {
     const safeGeotag = String(m.geotag || '').replace(/'/g, "\\'");
     
     const avatarHtml = fotoMitraUrl
-        ? `<img src="${fotoMitraUrl}" alt="Foto ${rawMitra}" class="mitra-avatar" loading="lazy" decoding="async" fetchpriority="low" referrerpolicy="no-referrer">`
+        ? `<button type="button" class="btn-avatar-preview" onclick="window.showMitraPhotoModal('${safeMitra}', '${safeFotoMitra}')" aria-label="Lihat foto ${rawMitra}">
+                <img src="${fotoMitraUrl}" alt="Foto ${rawMitra}" class="mitra-avatar" loading="lazy" decoding="async" fetchpriority="low" referrerpolicy="no-referrer">
+           </button>`
         : `<span class="mitra-avatar-fallback"><i class="fa-solid fa-user"></i></span>`;
 
     const geoTagButton = `
@@ -544,6 +551,30 @@ window.showGeoTagModal = function(namaMitra, fotoRumah, lat, lng, alamat, geotag
     }
 
     const modalEl = document.getElementById('geoTagModal');
+    if (!modalEl) return;
+
+    const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+};
+
+window.showMitraPhotoModal = function(namaMitra, fotoMitra) {
+    if (!window.bootstrap) return;
+
+    const mitraPhotoUrl = resolvePhotoUrl(fotoMitra, 'w1000');
+    if (els.mitraPhotoModalTitle) {
+        els.mitraPhotoModalTitle.textContent = `Foto Mitra - ${namaMitra || "Mitra"}`;
+    }
+
+    if (els.mitraPhotoPreview) {
+        els.mitraPhotoPreview.src = mitraPhotoUrl || "";
+        els.mitraPhotoPreview.classList.toggle('d-none', !mitraPhotoUrl);
+    }
+
+    if (els.mitraPhotoEmpty) {
+        els.mitraPhotoEmpty.classList.toggle('d-none', !!mitraPhotoUrl);
+    }
+
+    const modalEl = document.getElementById('mitraPhotoModal');
     if (!modalEl) return;
 
     const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
