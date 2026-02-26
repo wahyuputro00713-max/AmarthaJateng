@@ -370,7 +370,10 @@ function summarizeMajelisRows(rows) {
       noaDpd61_90Modal: sumOf(["noa_dpd_61_90_modal", "noa dpd 61-90 modal"]),
       noaDpd90PlusModal: sumOf(["noa_dpd_90_modal", "noa_dpd_90_plus_modal", "noa dpd 90+ modal"]),
       mitraDpd0: sumOf(["mitra_dpd_0", "mitra dpd 0"]),
-      persenModal: findValue(first, ["persen_modal", "%_modal", "%modal", "% modal"]) || "0%",
+      persenModal: resolvePercentModal(first, {
+        modal: sumOf(["noa_modal", "noa modal"]),
+        total: sumOf(["total_noa", "total noa"])
+      }),
       jumlahAnggota: sumOf(["jumlah_anggota", "jumlah anggota"])
     };
   });
@@ -470,7 +473,10 @@ function bpStatsTemplate(row) {
     ["NoA DPD 61-90 Modal", toNum(findValue(row, ["noa_dpd_61_90_modal", "noa dpd 61-90 modal"]))],
     ["NoA DPD 90+ Modal", toNum(findValue(row, ["noa_dpd_90_modal", "noa_dpd_90_plus_modal", "noa dpd 90+ modal"]))],
     ["Mitra DPD 0", toNum(findValue(row, ["mitra_dpd_0", "mitra dpd 0"]))],
-    ["% Modal", findValue(row, ["persen_modal", "%_modal", "%modal", "% modal"]) || "0%"]
+    ["% Modal", resolvePercentModal(row, {
+      modal: toNum(findValue(row, ["noa_modal", "noa modal"])),
+      total: toNum(findValue(row, ["total_noa", "total noa"]))
+    })]
   ];
   return statsTemplate(stats);
 }
@@ -479,6 +485,50 @@ function statsTemplate(stats) {
   return `
     ${stats.map(([label, value]) => `<div class="statline"><span>${label}</span><b>${value}</b></div>`).join("")}
   `;
+}
+
+function resolvePercentModal(row, fallback = {}) {
+  const raw = findValue(row, [
+    "persen_modal",
+    "percent_modal",
+    "%_modal",
+    "%modal",
+    "% modal",
+    "persen modal",
+    "modal_percent",
+    "modal_ratio"
+  ]);
+
+  const parsed = parsePercentLike(raw);
+  if (parsed !== null) return `${parsed}%`;
+
+  const modal = toNum(fallback.modal);
+  const total = toNum(fallback.total);
+  if (total > 0) {
+    const calc = (modal / total) * 100;
+    return `${trimPercent(calc)}%`;
+  }
+
+  return "0%";
+}
+
+function parsePercentLike(raw) {
+  if (raw === undefined || raw === null || String(raw).trim() === "") return null;
+
+  const original = String(raw).trim();
+  const normalized = original.replace(',', '.');
+  const n = Number(normalized.replace(/[^0-9.-]/g, ''));
+  if (!Number.isFinite(n)) return null;
+
+  const hasPercentSign = /%/.test(original);
+  if (!hasPercentSign && n > 0 && n <= 1) {
+    return trimPercent(n * 100);
+  }
+  return trimPercent(n);
+}
+
+function trimPercent(n) {
+  return Number(n.toFixed(2)).toString();
 }
 
 function sumMajelisStats(items) {
