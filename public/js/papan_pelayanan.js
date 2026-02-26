@@ -205,12 +205,57 @@ async function fetchMajelisRowsBySelectedBp({ point, selectedBp, selectedBpRow, 
   const bpCandidates = getBpQueryCandidates(selectedBpRow, selectedBp);
 
   const byPointRows = await fetchMajelisByPoint(pointCandidate, filters);
-  if (!byPointRows.length) return [];
+  const byPointAndBpRows = filterMajelisByBp(byPointRows, bpCandidates, false);
+  if (byPointAndBpRows.length) return byPointAndBpRows;
 
-  const exactBpRows = byPointRows.filter((row) => isSameBpName(row, bpCandidates, { relaxed: false }));
-  if (exactBpRows.length) return exactBpRows;
+  const byBpRows = await fetchMajelisByBp(pointCandidate, bpCandidates, filters);
+  if (byBpRows.length) return byBpRows;
 
-  return byPointRows.filter((row) => isSameBpName(row, bpCandidates, { relaxed: true }));
+  return filterMajelisByBp(byPointRows, bpCandidates, true);
+}
+
+async function fetchMajelisByBp(point, bpCandidates, filters) {
+  const rowsByBp = [];
+  const payloadBuilders = [
+    (bp) => ({ point, bp, filters }),
+    (bp) => ({ branch: point, bp, filters }),
+    (bp) => ({ point, last_business_partner: bp, filters }),
+    (bp) => ({ point, nama_bp: bp, filters })
+  ];
+
+  for (const bp of bpCandidates) {
+    for (const makePayload of payloadBuilders) {
+      const rows = await safeApiPost('get_majelis_by_bp', makePayload(bp));
+      if (Array.isArray(rows) && rows.length) {
+        rowsByBp.push(...rows);
+      }
+    }
+  }
+
+  if (!rowsByBp.length) return [];
+
+  const uniqueRows = dedupeRows(rowsByBp);
+  const byPoint = uniqueRows.filter((row) => isSamePoint(row, point));
+  const source = byPoint.length ? byPoint : uniqueRows;
+
+  const exact = filterMajelisByBp(source, bpCandidates, false);
+  if (exact.length) return exact;
+  return filterMajelisByBp(source, bpCandidates, true);
+}
+
+function filterMajelisByBp(rows, bpCandidates, relaxed) {
+  if (!Array.isArray(rows) || !rows.length) return [];
+  return rows.filter((row) => isSameBpName(row, bpCandidates, { relaxed }));
+}
+
+function dedupeRows(rows) {
+  const seen = new Set();
+  return rows.filter((row) => {
+    const key = JSON.stringify(row || {});
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 async function fetchMajelisByPoint(point, filters) {
@@ -230,9 +275,15 @@ async function fetchMajelisByPoint(point, filters) {
     }
   }
 
-  const allMajelisRows = await safeApiPost("get_majelis", { filters });
-  if (!Array.isArray(allMajelisRows) || !allMajelisRows.length) return [];
-  return allMajelisRows.filter((row) => isSamePoint(row, point));
+  for (const action of ['get_majelis', 'get_all_majelis', 'get_majelis_all']) {
+    const allMajelisRows = await safeApiPost(action, { filters });
+    if (Array.isArray(allMajelisRows) && allMajelisRows.length) {
+      const filtered = allMajelisRows.filter((row) => isSamePoint(row, point));
+      if (filtered.length) return filtered;
+    }
+  }
+
+  return [];
 }
 
 function renderMajelisLevel() {
@@ -448,7 +499,7 @@ function findPointName(row) {
 }
 
 function isSamePoint(row, selectedPoint) {
-  const actual = normalizeIdentifier(findValue(row, ["point", "branch", "nama_point", "nama point", "cabang"]));
+  const actual = normalizeIdentifier(findValue(row, ["point", "branch", "nama_point", "nama point", "cabang", "point_name", "branch_name"]));
   const target = normalizeIdentifier(selectedPoint);
   if (!actual || !target) return false;
   if (actual === target) return true;
