@@ -17,7 +17,7 @@ const state = {
   level: "point",
   selectedPoint: "",
   selectedBP: "",
-  selectedBpRow: null,  
+  selectedBpRow: null,
   points: [],
   bps: [],
   majelisRows: []
@@ -110,7 +110,7 @@ function renderPointLevel() {
   state.level = "point";
   state.selectedPoint = "";
   state.selectedBP = "";
-  state.selectedBpRow = null;  
+  state.selectedBpRow = null;
   state.bps = [];
   state.majelisRows = [];
 
@@ -163,7 +163,7 @@ function renderBpLevel() {
     const bpName = findValue(row, ["last_business_partner", "nama_bp", "bp", "nama", "nama bp"]) || "Tanpa Nama BP";
 
     return `
-        <div class="data-card" data-bp="${escapeAttr(bpName)}" data-bp-index="${idx}">
+      <div class="data-card" data-bp="${escapeAttr(bpName)}" data-bp-index="${idx}">
         <div class="card-title">${bpName}</div>
         ${bpStatsTemplate(row)}
       </div>
@@ -179,27 +179,16 @@ function renderBpLevel() {
   els.viewBp.querySelectorAll(".data-card").forEach((card) => {
     card.addEventListener("click", async () => {
       state.selectedBP = card.dataset.bp;
-      state.selectedBpRow = state.bps[Number(card.dataset.bpIndex)] || null;      
+      state.selectedBpRow = state.bps[Number(card.dataset.bpIndex)] || null;
       toggleLoading(true);
       try {
         const filters = scopeFilter(state.profile, upper(state.profile.jabatan));
-        const fallbackBp = getBpQueryCandidate(state.selectedBpRow, state.selectedBP);        
-        state.majelisRows = await apiPost("get_majelis_by_bp", {
+        state.majelisRows = await fetchMajelisRowsBySelectedBp({
           point: state.selectedPoint,
-          bp: fallbackBp,
+          selectedBp: state.selectedBP,
+          selectedBpRow: state.selectedBpRow,
           filters
         });
-
-        if (!state.majelisRows.length) {
-          const allMajelisRows = await safeApiPost("get_majelis", { filters });
-          if (Array.isArray(allMajelisRows)) {
-            state.majelisRows = allMajelisRows.filter((row) => {
-              const samePoint = isSamePoint(row, state.selectedPoint);
-              const sameBp = isSameBpName(row, state.selectedBP, state.selectedBpRow);
-              return samePoint && sameBp;
-            });
-          }
-        }
         
         renderMajelisLevel();
       } catch (error) {
@@ -209,6 +198,41 @@ function renderBpLevel() {
       }
     });
   });
+}
+
+async function fetchMajelisRowsBySelectedBp({ point, selectedBp, selectedBpRow, filters }) {
+  const bpCandidate = getBpQueryCandidate(selectedBpRow, selectedBp);
+  const pointCandidates = unique([
+    point,
+    findValue(selectedBpRow, ["point", "branch", "nama_point", "nama point"])
+  ]).map((v) => String(v || "").trim()).filter(Boolean);
+
+  const queryPayloads = [];
+  pointCandidates.forEach((pointValue) => {
+    queryPayloads.push({ point: pointValue, bp: bpCandidate, filters });
+    queryPayloads.push({ point: pointValue, last_business_partner: bpCandidate, filters });
+    queryPayloads.push({ point: pointValue, nama_bp: bpCandidate, filters });
+    queryPayloads.push({ branch: pointValue, bp: bpCandidate, filters });
+  });
+
+  for (const payload of queryPayloads) {
+    const rows = await safeApiPost("get_majelis_by_bp", payload);
+    if (Array.isArray(rows) && rows.length) return rows;
+  }
+
+  for (const action of ["get_majelis", "get_all_majelis", "get_majelis_all"]) {
+    const allMajelisRows = await safeApiPost(action, { filters });
+    if (Array.isArray(allMajelisRows) && allMajelisRows.length) {
+      const filtered = allMajelisRows.filter((row) => {
+        const samePoint = isSamePoint(row, point, selectedBpRow);
+        const sameBp = isSameBpName(row, selectedBp, selectedBpRow);
+        return samePoint && sameBp;
+      });
+      if (filtered.length) return filtered;
+    }
+  }
+
+  return [];
 }
 
 function renderMajelisLevel() {
@@ -423,9 +447,14 @@ function findPointName(row) {
   return findValue(row, ["point", "branch", "nama_point", "nama point"]) || "Tanpa Point";
 }
 
-function isSamePoint(row, selectedPoint) {
+function isSamePoint(row, selectedPoint, selectedBpRow) {
   const point = findValue(row, ["point", "branch", "nama_point", "nama point"]);
-  return normalizeText(point) === normalizeText(selectedPoint);
+  const targets = unique([
+    selectedPoint,
+    selectedBpRow && findValue(selectedBpRow, ["point", "branch", "nama_point", "nama point"])
+  ]).map(normalizeText).filter(Boolean);
+  const actual = normalizeText(point);
+  return targets.some((target) => actual === target);
 }
 
 function isSameBpName(row, selectedBp, selectedBpRow) {
