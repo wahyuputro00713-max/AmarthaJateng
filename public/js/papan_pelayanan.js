@@ -201,31 +201,34 @@ function renderBpLevel() {
 }
 
 async function fetchMajelisRowsBySelectedBp({ point, selectedBp, selectedBpRow, filters }) {
-  const bpCandidates = getBpQueryCandidates(selectedBpRow, selectedBp);
   const pointCandidate = getPointQueryCandidate(selectedBpRow, point);
+  const bpCandidates = getBpQueryCandidates(selectedBpRow, selectedBp);
 
-  for (const bpValue of bpCandidates) {
-    const rows = await safeApiPost("get_majelis_by_bp", {
-      point: pointCandidate,
-      bp: bpValue,
-      filters
-    });
+  const byPointRows = await fetchMajelisByPoint(pointCandidate, filters);
+  if (!byPointRows.length) return [];
 
+  return byPointRows.filter((row) => isSameBpName(row, bpCandidates));
+}
+
+async function fetchMajelisByPoint(point, filters) {
+  const payloads = [
+    { point, filters },
+    { branch: point, filters },
+    { point_name: point, filters },
+    { nama_point: point, filters }
+  ];
+
+  for (const payload of payloads) {
+    const rows = await safeApiPost("get_majelis", payload);
     if (Array.isArray(rows) && rows.length) {
-      return rows.filter((row) => isSamePoint(row, pointCandidate) && isSameBpName(row, selectedBp, selectedBpRow));
+      const filteredPointRows = rows.filter((row) => isSamePoint(row, point));
+      if (filteredPointRows.length) return filteredPointRows;
     }
   }
 
   const allMajelisRows = await safeApiPost("get_majelis", { filters });
-  if (Array.isArray(allMajelisRows) && allMajelisRows.length) {
-    return allMajelisRows.filter((row) => {
-      const samePoint = isSamePoint(row, pointCandidate);
-      const sameBp = isSameBpName(row, selectedBp, selectedBpRow);
-      return samePoint && sameBp;
-    });
-  }
-
-  return [];
+  if (!Array.isArray(allMajelisRows) || !allMajelisRows.length) return [];
+  return allMajelisRows.filter((row) => isSamePoint(row, point));
 }
 
 function renderMajelisLevel() {
@@ -445,24 +448,17 @@ function isSamePoint(row, selectedPoint) {
   return normalizeText(point) === normalizeText(selectedPoint);
 }
 
-function isSameBpName(row, selectedBp, selectedBpRow) {
+function isSameBpName(row, bpCandidates) {
   const actual = normalizePersonName(findValue(row, [
     "last_business_partner",
     "last_bp",
     "nama_bp",
-    "bp",
-    "nama",
     "nama bp",
     "last bp"
   ]));
 
   if (!actual) return false;
-
-  const candidates = getBpQueryCandidates(selectedBpRow, selectedBp)
-    .map(normalizePersonName)
-    .filter(Boolean);
-
-  return candidates.some((candidate) => candidate === actual);
+  return bpCandidates.some((candidate) => normalizePersonName(candidate) === actual);
 }
 
 function normalizeText(v) {
@@ -482,8 +478,7 @@ function normalizePersonName(v) {
 
 function getBpQueryCandidates(bpRow, selectedBp) {
   return unique([
-    findValue(bpRow, ["last_business_partner", "nama_bp", "bp", "nama", "nama bp"]),
-    findValue(bpRow, ["user_name", "nama_user", "pic", "ao_name"]),
+    findValue(bpRow, ["last_business_partner", "nama_bp", "last_bp", "nama bp", "last bp"]),
     selectedBp
   ]).map((v) => String(v || "").trim()).filter(Boolean);
 }
