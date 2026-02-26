@@ -186,6 +186,7 @@ onAuthStateChanged(auth, (user) => {
                 // Toggle Menu berdasarkan Jabatan
                 if (["RM", "AM", "BM"].includes(userJabatan) && closingMenuBtn) {
                     closingMenuBtn.classList.remove('d-none');
+                }    
                 if (["RM", "AM", "BM"].includes(userJabatan) && papanPelayananBtn) {
                     papanPelayananBtn.classList.remove('d-none');
                 }    
