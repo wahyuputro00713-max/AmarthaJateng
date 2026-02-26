@@ -190,27 +190,34 @@ function renderMajelisLevel() {
   els.btnBack.classList.remove("d-none");
   els.crumb.textContent = `Level: Majelis • ${state.selectedBP}`;
 
-  const byMajelis = groupBy(state.majelisRows, (r) => findValue(r, ["majelis", "nama_majelis"]) || "Tanpa Majelis");
-  const names = Object.keys(byMajelis).sort();
-
-  const rowsHtml = names.map((name, idx) => {
-    const list = byMajelis[name];
-    const stats = sumMajelisStats(list);
-    const hariMap = DAYS.map((d) => list.some((x) => normalizeDay(findValue(x, ["hari"])) === d) ? d.slice(0, 3) : "-").join(" | ");
-    return `<tr>
+  const majelisSummary = summarizeMajelisRows(state.majelisRows);
+  const rowsHtml = majelisSummary.map((row, idx) => `
+    <tr>
       <td>${idx + 1}</td>
-      <td>${name}</td>
-      <td>${hariMap}</td>
-      <td>${stats.mitra}</td>
-      <td>${stats.dpd0}</td>
-      <td>${stats.dpd1_30}</td>
-      <td>${stats.dpd31_60}</td>
-      <td>${stats.dpd61_90}</td>
-      <td>${stats.dpd90}</td>
-    </tr>`;
-  }).join("");
+      <td>${row.lastBusinessPartner}</td>
+      <td>${row.groupName}</td>
+      <td>${row.groupId}</td>
+      <td>${row.hariPelayanan}</td>
+      <td>${row.totalNoA}</td>
+      <td>${row.noaGL}</td>
+      <td>${row.noaModal}</td>
+      <td>${row.noaDpd0GL}</td>
+      <td>${row.noaDpd1_30GL}</td>
+      <td>${row.noaDpd31_60GL}</td>
+      <td>${row.noaDpd61_90GL}</td>
+      <td>${row.noaDpd90PlusGL}</td>
+      <td>${row.noaDpd0Modal}</td>
+      <td>${row.noaDpd1_30Modal}</td>
+      <td>${row.noaDpd31_60Modal}</td>
+      <td>${row.noaDpd61_90Modal}</td>
+      <td>${row.noaDpd90PlusModal}</td>
+      <td>${row.mitraDpd0}</td>
+      <td>${row.persenModal}</td>
+      <td>${row.jumlahAnggota}</td>
+    </tr>
+  `).join("");
 
-  els.summaryText.textContent = `${names.length} majelis milik ${state.selectedBP}`;
+  els.summaryText.textContent = `${majelisSummary.length} majelis milik ${state.selectedBP}`;
   els.viewMajelis.innerHTML = `
     <div class="title-row">
       <h5 class="m-0">Detail Majelis - ${state.selectedBP}</h5>
@@ -220,16 +227,51 @@ function renderMajelisLevel() {
       <table class="table table-sm table-bordered">
         <thead>
           <tr>
-            <th>No</th><th>Majelis</th><th>Hari Aktif</th><th>Total Mitra</th>
-            <th>DPD 0</th><th>DPD 1-30</th><th>DPD 31-60</th><th>DPD 61-90</th><th>DPD 90+</th>
+             <th>No</th><th>Last BP</th><th>Nama Majelis</th><th>Group ID</th><th>Hari Pelayanan</th>
+            <th>Total NoA</th><th>NoA GL</th><th>NoA Modal</th>
+            <th>NoA DPD 0 GL</th><th>NoA DPD 1-30 GL</th><th>NoA DPD 31-60 GL</th><th>NoA DPD 61-90 GL</th><th>NoA DPD 90+ GL</th>
+            <th>NoA DPD 0 Modal</th><th>NoA DPD 1-30 Modal</th><th>NoA DPD 31-60 Modal</th><th>NoA DPD 61-90 Modal</th><th>NoA DPD 90+ Modal</th>
+            <th>Mitra DPD 0</th><th>% Modal</th><th>Jumlah Anggota</th>
           </tr>
         </thead>
-        <tbody>${rowsHtml || '<tr><td class="text-center" colspan="9">Tidak ada data majelis</td></tr>'}</tbody>
+        <tbody>${rowsHtml || '<tr><td class="text-center" colspan="21">Tidak ada data majelis</td></tr>'}</tbody>
       </table>
     </div>
   `;
 
   document.getElementById("btnBoard").addEventListener("click", renderBoardLevel);
+}
+
+function summarizeMajelisRows(rows) {
+  const byMajelis = groupBy(rows, (r) => findValue(r, ["group_name", "majelis", "nama_majelis"]) || "Tanpa Majelis");
+  return Object.keys(byMajelis).sort().map((groupName) => {
+    const list = byMajelis[groupName];
+    const first = list[0] || {};
+    const sumOf = (keys) => list.reduce((acc, item) => acc + toNum(findValue(item, keys)), 0);
+
+    return {
+      groupName,
+      lastBusinessPartner: findValue(first, ["last_business_partner", "nama_bp", "bp", "nama", "nama bp"]) || state.selectedBP || "-",
+      groupId: findValue(first, ["group_id", "id_group", "id_majelis"]) || "-",
+      hariPelayanan: findValue(first, ["hari_pelayanan", "hari", "hari pelayanan"]) || "-",
+      totalNoA: sumOf(["total_noa", "total noa"]),
+      noaGL: sumOf(["noa_gl", "noa gl"]),
+      noaModal: sumOf(["noa_modal", "noa modal"]),
+      noaDpd0GL: sumOf(["noa_dpd_0_gl", "noa dpd 0 gl"]),
+      noaDpd1_30GL: sumOf(["noa_dpd_1_30_gl", "noa dpd 1-30 gl"]),
+      noaDpd31_60GL: sumOf(["noa_dpd_31_60_gl", "noa dpd 31-60 gl"]),
+      noaDpd61_90GL: sumOf(["noa_dpd_61_90_gl", "noa dpd 61-90 gl"]),
+      noaDpd90PlusGL: sumOf(["noa_dpd_90_gl", "noa_dpd_90_plus_gl", "noa dpd 90+ gl"]),
+      noaDpd0Modal: sumOf(["noa_dpd_0_modal", "noa dpd 0 modal"]),
+      noaDpd1_30Modal: sumOf(["noa_dpd_1_30_modal", "noa dpd 1-30 modal"]),
+      noaDpd31_60Modal: sumOf(["noa_dpd_31_60_modal", "noa dpd 31-60 modal"]),
+      noaDpd61_90Modal: sumOf(["noa_dpd_61_90_modal", "noa dpd 61-90 modal"]),
+      noaDpd90PlusModal: sumOf(["noa_dpd_90_modal", "noa_dpd_90_plus_modal", "noa dpd 90+ modal"]),
+      mitraDpd0: sumOf(["mitra_dpd_0", "mitra dpd 0"]),
+      persenModal: findValue(first, ["persen_modal", "%_modal", "%modal", "% modal"]) || "0%",
+      jumlahAnggota: sumOf(["jumlah_anggota", "jumlah anggota"])
+    };
+  });
 }
 
 function renderBoardLevel() {
