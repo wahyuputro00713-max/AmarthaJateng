@@ -85,6 +85,16 @@ async function apiPost(action, payload = {}) {
   return Array.isArray(json.data) ? json.data : [];
 }
 
+async function safeApiPost(action, payload = {}) {
+  try {
+    return await apiPost(action, payload);
+  } catch (error) {
+    const msg = String(error?.message || error || "");
+    if (/Action tidak dikenal/i.test(msg)) return null;
+    throw error;
+  }
+}
+
 function scopeFilter(profile, jabatan) {
   const p = {
     area: String(profile.area || ""),
@@ -169,21 +179,22 @@ function renderBpLevel() {
       state.selectedBP = card.dataset.bp;
       toggleLoading(true);
       try {
+        const filters = scopeFilter(state.profile, upper(state.profile.jabatan));
         state.majelisRows = await apiPost("get_majelis_by_bp", {
           point: state.selectedPoint,
           bp: state.selectedBP,
-          filters: scopeFilter(state.profile, upper(state.profile.jabatan))
+          filters
         });
 
         if (!state.majelisRows.length) {
-          const allMajelisRows = await apiPost("get_majelis", {
-            filters: scopeFilter(state.profile, upper(state.profile.jabatan))
-          });
-          state.majelisRows = allMajelisRows.filter((row) => {
-            const samePoint = isSamePoint(row, state.selectedPoint);
-            const sameBp = isSameBpName(row, state.selectedBP);
-            return samePoint && sameBp;
-          });
+          const allMajelisRows = await safeApiPost("get_majelis", { filters });
+          if (Array.isArray(allMajelisRows)) {
+            state.majelisRows = allMajelisRows.filter((row) => {
+              const samePoint = isSamePoint(row, state.selectedPoint);
+              const sameBp = isSameBpName(row, state.selectedBP);
+              return samePoint && sameBp;
+            });
+          }
         }
         
         renderMajelisLevel();
