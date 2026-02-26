@@ -20,6 +20,8 @@ const logoutBtn = document.getElementById('logoutBtn');
 const btnAdmin = document.getElementById('btnAdmin'); 
 const closingMenuBtn = document.getElementById('closingMenuBtn');
 const valRepaymentBtn = document.getElementById('valRepaymentBtn');
+const papanPelayananBtn = document.getElementById('papanPelayananBtn');
+
 
 let cachedLeaderboardData = [];
 let cachedUsersMap = {};
@@ -184,7 +186,9 @@ onAuthStateChanged(auth, (user) => {
                 // Toggle Menu berdasarkan Jabatan
                 if (["RM", "AM", "BM"].includes(userJabatan) && closingMenuBtn) {
                     closingMenuBtn.classList.remove('d-none');
-                }
+                if (["RM", "AM", "BM"].includes(userJabatan) && papanPelayananBtn) {
+                    papanPelayananBtn.classList.remove('d-none');
+                }    
                 if (["RM", "AM", "ADMIN"].includes(userJabatan) && valRepaymentBtn) {
                     valRepaymentBtn.classList.remove('d-none');
                 }
