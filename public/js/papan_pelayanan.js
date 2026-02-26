@@ -207,7 +207,10 @@ async function fetchMajelisRowsBySelectedBp({ point, selectedBp, selectedBpRow, 
   const byPointRows = await fetchMajelisByPoint(pointCandidate, filters);
   if (!byPointRows.length) return [];
 
-  return byPointRows.filter((row) => isSameBpName(row, bpCandidates));
+  const exactBpRows = byPointRows.filter((row) => isSameBpName(row, bpCandidates, { relaxed: false }));
+  if (exactBpRows.length) return exactBpRows;
+
+  return byPointRows.filter((row) => isSameBpName(row, bpCandidates, { relaxed: true }));
 }
 
 async function fetchMajelisByPoint(point, filters) {
@@ -215,7 +218,8 @@ async function fetchMajelisByPoint(point, filters) {
     { point, filters },
     { branch: point, filters },
     { point_name: point, filters },
-    { nama_point: point, filters }
+    { nama_point: point, filters },
+    { point_code: point, filters }
   ];
 
   for (const payload of payloads) {
@@ -444,11 +448,15 @@ function findPointName(row) {
 }
 
 function isSamePoint(row, selectedPoint) {
-  const point = findValue(row, ["point", "branch", "nama_point", "nama point"]);
-  return normalizeText(point) === normalizeText(selectedPoint);
+  const actual = normalizeIdentifier(findValue(row, ["point", "branch", "nama_point", "nama point", "cabang"]));
+  const target = normalizeIdentifier(selectedPoint);
+  if (!actual || !target) return false;
+  if (actual === target) return true;
+  return actual.includes(target) || target.includes(actual);
 }
 
-function isSameBpName(row, bpCandidates) {
+function isSameBpName(row, bpCandidates, options = {}) {
+  const relaxed = Boolean(options.relaxed);
   const actual = normalizePersonName(findValue(row, [
     "last_business_partner",
     "last_bp",
@@ -458,12 +466,26 @@ function isSameBpName(row, bpCandidates) {
   ]));
 
   if (!actual) return false;
-  return bpCandidates.some((candidate) => normalizePersonName(candidate) === actual);
+
+  return bpCandidates.some((candidate) => {
+    const target = normalizePersonName(candidate);
+    if (!target) return false;
+    if (target === actual) return true;
+    if (!relaxed) return false;
+    return target.includes(actual) || actual.includes(target);
+  });
 }
 
 function normalizeText(v) {
   return String(v || "")
     .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeIdentifier(v) {
+  return normalizeText(v)
+    .replace(/[^a-z0-9\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
