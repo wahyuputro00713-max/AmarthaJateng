@@ -148,27 +148,12 @@ function renderBpLevel() {
   els.crumb.textContent = `Level: BP • Point ${state.selectedPoint}`;
 
   const cards = state.bps.map((row) => {
-    const bpName = findValue(row, ["nama_bp", "bp", "nama", "nama bp"]) || "Tanpa Nama BP";
-    const totalMajelis = toNum(findValue(row, ["jumlah_majelis", "jumlah majelis", "total_majelis"]));
-    const totalMitra = toNum(findValue(row, ["total_mitra_aktif", "total mitra aktif", "total_mitra", "mitra"]));
-    const dpd0 = toNum(findValue(row, ["noa_dpd_0", "dpd_0", "dpd0"]));
-    const dpd1_30 = toNum(findValue(row, ["noa_dpd_1_30", "dpd_1_30"]));
-    const dpd31_60 = toNum(findValue(row, ["noa_dpd_31_60", "dpd_31_60"]));
-    const dpd61_90 = toNum(findValue(row, ["noa_dpd_61_90", "dpd_61_90"]));
-    const dpd90 = toNum(findValue(row, ["noa_dpd_90", "dpd_90", "dpd_90_plus"]));
+    const bpName = findValue(row, ["last_business_partner", "nama_bp", "bp", "nama", "nama bp"]) || "Tanpa Nama BP";
 
     return `
       <div class="data-card" data-bp="${escapeAttr(bpName)}">
         <div class="card-title">${bpName}</div>
-        ${statsTemplate({
-          majelis: totalMajelis,
-          mitra: totalMitra,
-          dpd0,
-          dpd1_30,
-          dpd31_60,
-          dpd61_90,
-          dpd90
-        })}
+        ${bpStatsTemplate(row)}
       </div>
     `;
   }).join("");
@@ -297,27 +282,58 @@ function renderBoardLevel() {
 }
 
 function pointStatsTemplate(row) {
-  const stats = {
-    majelis: toNum(findValue(row, ["jumlah_majelis", "jumlah majelis"])),
-    mitra: toNum(findValue(row, ["total_mitra_aktif", "total mitra aktif", "mitra_aktif"])),
-    dpd0: toNum(findValue(row, ["noa_dpd_0", "dpd_0"])),
-    dpd1_30: toNum(findValue(row, ["noa_dpd_1_30", "dpd_1_30"])),
-    dpd31_60: toNum(findValue(row, ["noa_dpd_31_60", "dpd_31_60"])),
-    dpd61_90: toNum(findValue(row, ["noa_dpd_61_90", "dpd_61_90"])),
-    dpd90: toNum(findValue(row, ["noa_dpd_90", "dpd_90", "dpd_90_plus"]))
-  };
+  const stats = [
+    ["Area", findValue(row, ["area"]) || "-"],
+    ["Branch", findValue(row, ["branch", "point"]) || "-"],
+    ["Jumlah Majelis", toNum(findValue(row, ["jumlah_majelis", "jumlah majelis"]))],
+    ["Total Mitra Aktif", toNum(findValue(row, ["total_mitra_aktif", "total mitra aktif", "mitra_aktif"]))],
+    ["Mitra DPD 0-30", toNum(findValue(row, ["mitra_dpd_0_30", "mitra dpd 0-30"]))],
+    ["NoA GL", toNum(findValue(row, ["noa_gl", "noa gl"]))],
+    ["NoA Modal", toNum(findValue(row, ["noa_modal", "noa modal"]))],
+    ["NoA DPD 0 GL", toNum(findValue(row, ["noa_dpd_0_gl", "noa dpd 0 gl"]))],
+    ["NoA DPD 1-30 GL", toNum(findValue(row, ["noa_dpd_1_30_gl", "noa dpd 1-30 gl"]))],
+    ["NoA DPD 31-60 GL", toNum(findValue(row, ["noa_dpd_31_60_gl", "noa dpd 31-60 gl"]))],
+    ["NoA DPD 61-90 GL", toNum(findValue(row, ["noa_dpd_61_90_gl", "noa dpd 61-90 gl"]))],
+    ["NoA DPD 90+ GL", toNum(findValue(row, ["noa_dpd_90_gl", "noa_dpd_90_plus_gl", "noa dpd 90+ gl"]))],
+    ["NoA DPD 0 Modal", toNum(findValue(row, ["noa_dpd_0_modal", "noa dpd 0 modal"]))],
+    ["NoA DPD 1-30 Modal", toNum(findValue(row, ["noa_dpd_1_30_modal", "noa dpd 1-30 modal"]))],
+    ["NoA DPD 61-90 Modal", toNum(findValue(row, ["noa_dpd_61_90_modal", "noa dpd 61-90 modal"]))],
+    ["NoA DPD 31-60 Modal", toNum(findValue(row, ["noa_dpd_31_60_modal", "noa dpd 31-60 modal"]))],
+    ["NoA DPD 90+ Modal", toNum(findValue(row, ["noa_dpd_90_modal", "noa_dpd_90_plus_modal", "noa dpd 90+ modal"]))],
+    ["NoA DPD 90+", toNum(findValue(row, ["noa_dpd_90_plus", "noa dpd 90+"]))],
+    ["%NPL", findValue(row, ["npl", "%npl", "persen_npl"]) || "0%"]
+  ];
+  return statsTemplate(stats);
+}
+
+function bpStatsTemplate(row) {
+  const stats = [
+    ["Area", findValue(row, ["area"]) || "-"],
+    ["Branch", findValue(row, ["branch", "point"]) || "-"],
+    ["Last Business Partner", findValue(row, ["last_business_partner", "nama_bp"]) || "-"],
+    ["Total NoA", toNum(findValue(row, ["total_noa", "total noa"]))],
+    ["NoA GL", toNum(findValue(row, ["noa_gl", "noa gl"]))],
+    ["Jumlah Majelis", toNum(findValue(row, ["jumlah_majelis", "jumlah majelis"]))],
+    ["NoA Modal", toNum(findValue(row, ["noa_modal", "noa modal"]))],
+    ["NoA DPD 0 GL", toNum(findValue(row, ["noa_dpd_0_gl", "noa dpd 0 gl"]))],
+    ["NoA DPD 1-30 GL", toNum(findValue(row, ["noa_dpd_1_30_gl", "noa dpd 1-30 gl"]))],
+    ["NoA DPD 31-60 GL", toNum(findValue(row, ["noa_dpd_31_60_gl", "noa dpd 31-60 gl"]))],
+    ["NoA DPD 61-90 GL", toNum(findValue(row, ["noa_dpd_61_90_gl", "noa dpd 61-90 gl"]))],
+    ["NoA DPD 0 Modal", toNum(findValue(row, ["noa_dpd_0_modal", "noa dpd 0 modal"]))],
+    ["NoA DPD 90+ GL", toNum(findValue(row, ["noa_dpd_90_gl", "noa_dpd_90_plus_gl", "noa dpd 90+ gl"]))],
+    ["NoA DPD 1-30 Modal", toNum(findValue(row, ["noa_dpd_1_30_modal", "noa dpd 1-30 modal"]))],
+    ["NoA DPD 31-60 Modal", toNum(findValue(row, ["noa_dpd_31_60_modal", "noa dpd 31-60 modal"]))],
+    ["NoA DPD 61-90 Modal", toNum(findValue(row, ["noa_dpd_61_90_modal", "noa dpd 61-90 modal"]))],
+    ["NoA DPD 90+ Modal", toNum(findValue(row, ["noa_dpd_90_modal", "noa_dpd_90_plus_modal", "noa dpd 90+ modal"]))],
+    ["Mitra DPD 0", toNum(findValue(row, ["mitra_dpd_0", "mitra dpd 0"]))],
+    ["% Modal", findValue(row, ["persen_modal", "%_modal", "%modal", "% modal"]) || "0%"]
+  ];
   return statsTemplate(stats);
 }
 
 function statsTemplate(stats) {
   return `
-    <div class="statline"><span>Majelis</span><b>${stats.majelis}</b></div>
-    <div class="statline"><span>Total Mitra</span><b>${stats.mitra}</b></div>
-    <div class="statline"><span>DPD 0</span><b>${stats.dpd0}</b></div>
-    <div class="statline"><span>DPD 1-30</span><b>${stats.dpd1_30}</b></div>
-    <div class="statline"><span>DPD 31-60</span><b>${stats.dpd31_60}</b></div>
-    <div class="statline"><span>DPD 61-90</span><b>${stats.dpd61_90}</b></div>
-    <div class="statline"><span>DPD 90+</span><b>${stats.dpd90}</b></div>
+    ${stats.map(([label, value]) => `<div class="statline"><span>${label}</span><b>${value}</b></div>`).join("")}
   `;
 }
 
