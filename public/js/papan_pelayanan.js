@@ -3,7 +3,7 @@ import { getDatabase, get, ref } from "https://www.gstatic.com/firebasejs/10.7.1
 import { getFirebaseApp } from "./firebase-init.js";
 
 // Ganti URL ini setelah deploy Apps Script baru (kode ada di apps_script/papan_pelayanan.gs)
-const SCRIPT_URL = "https://script.google.com/macros/s/REPLACE_WITH_DEPLOYMENT_ID/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzNrSmpDed86wRC6f7FjS9bAndBfLhzDPCm9x-j_olVE2Qj4U1DQMu80SGfWQAQ_eV6bA/exec";
 const ALLOWED = ["RM", "AM", "BM"];
 const DAYS = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 const HOURS = [9, 10, 11, 12, 13, 14, 15, 16, 17];
