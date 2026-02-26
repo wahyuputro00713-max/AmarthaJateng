@@ -174,6 +174,18 @@ function renderBpLevel() {
           bp: state.selectedBP,
           filters: scopeFilter(state.profile, upper(state.profile.jabatan))
         });
+
+        if (!state.majelisRows.length) {
+          const allMajelisRows = await apiPost("get_majelis", {
+            filters: scopeFilter(state.profile, upper(state.profile.jabatan))
+          });
+          state.majelisRows = allMajelisRows.filter((row) => {
+            const samePoint = isSamePoint(row, state.selectedPoint);
+            const sameBp = isSameBpName(row, state.selectedBP);
+            return samePoint && sameBp;
+          });
+        }
+        
         renderMajelisLevel();
       } catch (error) {
         showError(els.viewMajelis, error);
@@ -394,6 +406,31 @@ function sumMajelisStats(items) {
 
 function findPointName(row) {
   return findValue(row, ["point", "branch", "nama_point", "nama point"]) || "Tanpa Point";
+}
+
+function isSamePoint(row, selectedPoint) {
+  const point = findValue(row, ["point", "branch", "nama_point", "nama point"]);
+  return normalizeText(point) === normalizeText(selectedPoint);
+}
+
+function isSameBpName(row, selectedBp) {
+  const bp = findValue(row, [
+    "last_business_partner",
+    "last_bp",
+    "nama_bp",
+    "bp",
+    "nama",
+    "nama bp",
+    "last bp"
+  ]);
+  return normalizeText(bp) === normalizeText(selectedBp);
+}
+
+function normalizeText(v) {
+  return String(v || "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function findValue(obj, keys) {
