@@ -17,6 +17,7 @@ const state = {
   level: "point",
   selectedPoint: "",
   selectedBP: "",
+  selectedBpRow: null,
   points: [],
   bps: [],
   majelisRows: []
@@ -109,6 +110,7 @@ function renderPointLevel() {
   state.level = "point";
   state.selectedPoint = "";
   state.selectedBP = "";
+  state.selectedBpRow = null;
   state.bps = [];
   state.majelisRows = [];
 
@@ -157,11 +159,11 @@ function renderBpLevel() {
   els.btnBack.classList.remove("d-none");
   els.crumb.textContent = `Level: BP • Point ${state.selectedPoint}`;
 
-  const cards = state.bps.map((row) => {
+  const cards = state.bps.map((row, idx) => {
     const bpName = findValue(row, ["last_business_partner", "nama_bp", "bp", "nama", "nama bp"]) || "Tanpa Nama BP";
 
     return `
-      <div class="data-card" data-bp="${escapeAttr(bpName)}">
+      <div class="data-card" data-bp="${escapeAttr(bpName)}" data-bp-index="${idx}">
         <div class="card-title">${bpName}</div>
         ${bpStatsTemplate(row)}
       </div>
@@ -177,25 +179,16 @@ function renderBpLevel() {
   els.viewBp.querySelectorAll(".data-card").forEach((card) => {
     card.addEventListener("click", async () => {
       state.selectedBP = card.dataset.bp;
+      state.selectedBpRow = state.bps[Number(card.dataset.bpIndex)] || null;
       toggleLoading(true);
       try {
         const filters = scopeFilter(state.profile, upper(state.profile.jabatan));
-        state.majelisRows = await apiPost("get_majelis_by_bp", {
+        state.majelisRows = await fetchMajelisRowsBySelectedBp({
           point: state.selectedPoint,
-          bp: state.selectedBP,
+          selectedBp: state.selectedBP,
+          selectedBpRow: state.selectedBpRow,
           filters
         });
-
-        if (!state.majelisRows.length) {
-          const allMajelisRows = await safeApiPost("get_majelis", { filters });
-          if (Array.isArray(allMajelisRows)) {
-            state.majelisRows = allMajelisRows.filter((row) => {
-              const samePoint = isSamePoint(row, state.selectedPoint);
-              const sameBp = isSameBpName(row, state.selectedBP);
-              return samePoint && sameBp;
-            });
-          }
-        }
         
         renderMajelisLevel();
       } catch (error) {
@@ -205,6 +198,41 @@ function renderBpLevel() {
       }
     });
   });
+}
+
+async function fetchMajelisRowsBySelectedBp({ point, selectedBp, selectedBpRow, filters }) {
+  const bpCandidate = getBpQueryCandidate(selectedBpRow, selectedBp);
+  const pointCandidates = unique([
+    point,
+    findValue(selectedBpRow, ["point", "branch", "nama_point", "nama point"])
+  ]).map((v) => String(v || "").trim()).filter(Boolean);
+
+  const queryPayloads = [];
+  pointCandidates.forEach((pointValue) => {
+    queryPayloads.push({ point: pointValue, bp: bpCandidate, filters });
+    queryPayloads.push({ point: pointValue, last_business_partner: bpCandidate, filters });
+    queryPayloads.push({ point: pointValue, nama_bp: bpCandidate, filters });
+    queryPayloads.push({ branch: pointValue, bp: bpCandidate, filters });
+  });
+
+  for (const payload of queryPayloads) {
+    const rows = await safeApiPost("get_majelis_by_bp", payload);
+    if (Array.isArray(rows) && rows.length) return rows;
+  }
+
+  for (const action of ["get_majelis", "get_all_majelis", "get_majelis_all"]) {
+    const allMajelisRows = await safeApiPost(action, { filters });
+    if (Array.isArray(allMajelisRows) && allMajelisRows.length) {
+      const filtered = allMajelisRows.filter((row) => {
+        const samePoint = isSamePoint(row, point, selectedBpRow);
+        const sameBp = isSameBpName(row, selectedBp, selectedBpRow);
+        return samePoint && sameBp;
+      });
+      if (filtered.length) return filtered;
+    }
+  }
+
+  return [];
 }
 
 function renderMajelisLevel() {
@@ -419,12 +447,17 @@ function findPointName(row) {
   return findValue(row, ["point", "branch", "nama_point", "nama point"]) || "Tanpa Point";
 }
 
-function isSamePoint(row, selectedPoint) {
+function isSamePoint(row, selectedPoint, selectedBpRow) {
   const point = findValue(row, ["point", "branch", "nama_point", "nama point"]);
-  return normalizeText(point) === normalizeText(selectedPoint);
+  const targets = unique([
+    selectedPoint,
+    selectedBpRow && findValue(selectedBpRow, ["point", "branch", "nama_point", "nama point"])
+  ]).map(normalizeText).filter(Boolean);
+  const actual = normalizeText(point);
+  return targets.some((target) => actual === target);
 }
 
-function isSameBpName(row, selectedBp) {
+function isSameBpName(row, selectedBp, selectedBpRow) {
   const bp = findValue(row, [
     "last_business_partner",
     "last_bp",
@@ -434,7 +467,27 @@ function isSameBpName(row, selectedBp) {
     "nama bp",
     "last bp"
   ]);
-  return normalizeText(bp) === normalizeText(selectedBp);
+  const targetCandidates = [
+    selectedBp,
+    selectedBpRow && findValue(selectedBpRow, ["last_business_partner", "nama_bp", "bp", "nama", "nama bp"]),
+    selectedBpRow && findValue(selectedBpRow, ["user_name", "nama_user", "pic", "ao_name"])
+  ].filter(Boolean).map(normalizePersonName);
+
+  const actual = normalizePersonName(bp);
+  if (!actual || !targetCandidates.length) return false;
+
+  return targetCandidates.some((target) => {
+    if (actual === target) return true;
+    if (actual.includes(target) || target.includes(actual)) return true;
+
+    const actualTokens = actual.split(" ").filter(Boolean);
+    const targetTokens = target.split(" ").filter(Boolean);
+    if (!actualTokens.length || !targetTokens.length) return false;
+
+    const overlap = targetTokens.filter((token) => actualTokens.includes(token)).length;
+    const minTokens = Math.min(actualTokens.length, targetTokens.length);
+    return minTokens >= 2 && overlap >= minTokens - 1;
+  });
 }
 
 function normalizeText(v) {
@@ -442,6 +495,19 @@ function normalizeText(v) {
     .toLowerCase()
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function normalizePersonName(v) {
+  return normalizeText(v)
+    .replace(/\(.*?\)/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getBpQueryCandidate(bpRow, selectedBp) {
+  const rowCandidate = findValue(bpRow, ["last_business_partner", "nama_bp", "bp", "nama", "nama bp"]);
+  return rowCandidate || selectedBp;
 }
 
 function findValue(obj, keys) {
