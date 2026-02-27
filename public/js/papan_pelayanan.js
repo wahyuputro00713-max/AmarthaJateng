@@ -5,8 +5,7 @@ import { getFirebaseApp } from "./firebase-init.js";
 // Ganti URL ini setelah deploy Apps Script baru (kode ada di apps_script/papan_pelayanan.gs)
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzNrSmpDed86wRC6f7FjS9bAndBfLhzDPCm9x-j_olVE2Qj4U1DQMu80SGfWQAQ_eV6bA/exec";
 const ALLOWED = ["RM", "AM", "BM"];
-const DAYS = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-const HOURS = [9, 10, 11, 12, 13, 14, 15, 16, 17];
+const DAYS = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat"];
 
 const app = getFirebaseApp();
 const auth = getAuth(app);
@@ -385,45 +384,39 @@ function renderBoardLevel() {
   els.btnBack.classList.remove("d-none");
   els.crumb.textContent = `Level: Papan Pelayanan • ${state.selectedBP}`;
 
-  const groupedSlot = {};
+  const byDay = {};
   state.majelisRows.forEach((row) => {
-    const day = normalizeDay(findValue(row, ["hari"]));
-    const hour = normalizeHour(findValue(row, ["jam", "jam_mulai", "jam pelayanan"]));
-    if (!DAYS.includes(day) || !HOURS.includes(hour)) return;
-    const key = `${day}|${hour}`;
-    if (!groupedSlot[key]) groupedSlot[key] = [];
-    groupedSlot[key].push(row);
+    const day = normalizeDay(findValue(row, ["hari_pelayanan", "hari", "hari pelayanan"]));
+    if (!DAYS.includes(day)) return;
+    if (!byDay[day]) byDay[day] = [];
+    byDay[day].push(row);
   });
 
-  const heads = `<div class="time-col">JAM</div>${DAYS.map((d) => `<div class="board-head">${d.toUpperCase()}</div>`).join("")}`;
-  const body = HOURS.map((hour) => {
-    const cols = DAYS.map((day) => {
-      const slotRows = groupedSlot[`${day}|${hour}`] || [];
-      if (!slotRows.length) return `<div class="slot"></div>`;
+  const heads = DAYS.map((d) => `<div class="board-head">${d.toUpperCase()}</div>`).join("");
+  const body = DAYS.map((day) => {
+    const slotRows = byDay[day] || [];
+    if (!slotRows.length) return `<div class="slot"></div>`;
 
-      const byMajelis = groupBy(slotRows, (r) => findValue(r, ["majelis", "nama_majelis"]) || "Tanpa Majelis");
-      const slotCards = Object.keys(byMajelis).map((majelisName) => {
-        const items = byMajelis[majelisName];
-        const stats = sumMajelisStats(items);
-        const kecamatan = unique(items.map((i) => findValue(i, ["kecamatan", "kec"]) || "-")).join(", ");
-        const riskClass = stats.dpd90 + stats.dpd61_90 > 0 ? "high" : (stats.dpd31_60 + stats.dpd1_30 > 0 ? "mid" : "");
+    const byMajelis = groupBy(slotRows, (r) => findValue(r, ["majelis", "nama_majelis", "group_name"]) || "Tanpa Majelis");
+    const slotCards = Object.keys(byMajelis).map((majelisName) => {
+      const items = byMajelis[majelisName];
+      const stats = sumMajelisStats(items);
+      const kecamatan = unique(items.map((i) => findValue(i, ["kecamatan", "kec"]) || "-")).join(", ");
+      const riskClass = stats.dpd90 + stats.dpd61_90 > 0 ? "high" : (stats.dpd31_60 + stats.dpd1_30 > 0 ? "mid" : "");
 
-        return `<div class="slot-item ${riskClass}">
-          <div class="nm">${majelisName}</div>
-          <div class="meta">Total Mitra: ${stats.mitra} | DPD 0: ${stats.dpd0} | 1-30: ${stats.dpd1_30} | 31-60: ${stats.dpd31_60} | 61-90: ${stats.dpd61_90} | 90+: ${stats.dpd90}</div>
-          <div class="meta">Kecamatan: ${kecamatan}</div>
-        </div>`;
-      }).join("");
-
-      return `<div class="slot">${slotCards}</div>`;
+      return `<div class="slot-item ${riskClass}">
+        <div class="nm">${majelisName}</div>
+        <div class="meta">Total Mitra: ${stats.mitra} | DPD 0: ${stats.dpd0} | 1-30: ${stats.dpd1_30} | 31-60: ${stats.dpd31_60} | 61-90: ${stats.dpd61_90} | 90+: ${stats.dpd90}</div>
+        <div class="meta">Kecamatan: ${kecamatan}</div>
+      </div>`;
     }).join("");
 
-    return `<div class="time-col">${hour}:00</div>${cols}`;
+    return `<div class="slot">${slotCards}</div>`;
   }).join("");
 
   els.summaryText.textContent = `Pemetaan hari pelayanan untuk BP ${state.selectedBP}`;
   els.viewBoard.innerHTML = `
-    <div class="title-row"><h5 class="m-0">Papan Pelayanan Detail</h5></div>
+    <div class="title-row"><h5 class="m-0">Papan Pelayanan Detail (Senin - Jumat)</h5></div>
     <div class="board-grid">${heads}${body}</div>
   `;
 }
@@ -642,17 +635,9 @@ function normalizeDay(dayRaw) {
     sabtu: "Sabtu",
     minggu: "Minggu"
   };
-  return map[val] || "Senin";
+  return map[val] || "";
 }
 
-function normalizeHour(jamRaw) {
-  const text = String(jamRaw || "").trim();
-  const match = text.match(/(\d{1,2})/);
-  if (!match) return 9;
-  const hour = Number(match[1]);
-  if (!Number.isFinite(hour)) return 9;
-  return Math.max(0, Math.min(23, hour));
-}
 
 function toNum(v) {
   const n = Number(String(v ?? "0").replace(/[^0-9.-]/g, ""));
