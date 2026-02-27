@@ -189,21 +189,19 @@ body {
 
 .board-grid {
   display: grid;
-  grid-template-columns: 90px repeat(6, minmax(180px, 1fr));
+  grid-template-columns: repeat(5, minmax(220px, 1fr));
   border: 1px solid var(--line);
   border-radius: 12px;
   overflow: auto;
   background: #fff;
 }
 
-.time-col,
 .board-head,
 .slot {
   border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
 }
 
-.time-col,
 .board-head {
   font-weight: 700;
   color: #42516c;
@@ -214,7 +212,7 @@ body {
 }
 
 .slot {
-  min-height: 88px;
+  min-height: 180px;
   padding: 8px;
   background: #fff;
 }
