@@ -410,6 +410,7 @@ function renderBoardLevel() {
         <div class="meta">Total NoA: ${stats.totalNoA} | NoA GL: ${stats.noaGL} | NoA Modal: ${stats.noaModal}</div>
         <div class="meta">NoA DPD 0 GL: ${stats.noaDpd0GL} | NoA DPD 0 Modal: ${stats.noaDpd0Modal}</div>
         <div class="meta">NoA DPD 1-30 GL: ${stats.noaDpd1_30GL} | NoA DPD 1-30 Modal: ${stats.noaDpd1_30Modal}</div>
+        <div class="meta">NoA DPD 90+ GL: ${stats.noaDpd90PlusGL} | NoA DPD 90+ Modal: ${stats.noaDpd90PlusModal}</div>
         <div class="meta">Kecamatan: ${kecamatan}</div>
       </div>`;
     }).join("");
@@ -552,7 +553,9 @@ function getMajelisCardStats(items) {
     noaDpd0GL: toNum(findValue(row, ["noa_dpd_0_gl", "noa dpd 0 gl"])),
     noaDpd0Modal: toNum(findValue(row, ["noa_dpd_0_modal", "noa dpd 0 modal"])),
     noaDpd1_30GL: toNum(findValue(row, ["noa_dpd_1_30_gl", "noa dpd 1-30 gl"])),
-    noaDpd1_30Modal: toNum(findValue(row, ["noa_dpd_1_30_modal", "noa dpd 1-30 modal"]))
+    noaDpd1_30Modal: toNum(findValue(row, ["noa_dpd_1_30_modal", "noa dpd 1-30 modal"])),
+    noaDpd90PlusGL: toNum(findValue(row, ["noa_dpd_90_gl", "noa_dpd_90_plus_gl", "noa dpd 90+ gl"])),
+    noaDpd90PlusModal: toNum(findValue(row, ["noa_dpd_90_modal", "noa_dpd_90_plus_modal", "noa dpd 90+ modal"]))
   };
 }
 
@@ -565,7 +568,9 @@ function sumMajelisStats(items) {
     noaDpd0GL: sumByKeys(["noa_dpd_0_gl", "noa dpd 0 gl"]),
     noaDpd0Modal: sumByKeys(["noa_dpd_0_modal", "noa dpd 0 modal"]),
     noaDpd1_30GL: sumByKeys(["noa_dpd_1_30_gl", "noa dpd 1-30 gl"]),
-    noaDpd1_30Modal: sumByKeys(["noa_dpd_1_30_modal", "noa dpd 1-30 modal"])
+    noaDpd1_30Modal: sumByKeys(["noa_dpd_1_30_modal", "noa dpd 1-30 modal"]),
+    noaDpd90PlusGL: sumByKeys(["noa_dpd_90_gl", "noa_dpd_90_plus_gl", "noa dpd 90+ gl"]),
+    noaDpd90PlusModal: sumByKeys(["noa_dpd_90_modal", "noa_dpd_90_plus_modal", "noa dpd 90+ modal"])
   };
 }
 
