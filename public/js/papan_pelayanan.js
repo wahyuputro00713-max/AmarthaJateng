@@ -525,16 +525,56 @@ function trimPercent(n) {
 }
 
 function sumMajelisStats(items) {
-  const stats = { mitra: items.length, dpd0: 0, dpd1_30: 0, dpd31_60: 0, dpd61_90: 0, dpd90: 0 };
+  const sumByKeys = (keys) => items.reduce((acc, item) => acc + toNum(findValue(item, keys)), 0);
+
+  const totalMitra = sumByKeys(["total_mitra_aktif", "total_mitra", "mitra_aktif", "jumlah_anggota", "total_noa", "total noa"]);
+
+  const bucketFromColumns = {
+    dpd0: sumByKeys(["mitra_dpd_0", "mitra_dpd0", "mitra dpd 0"]),
+    dpd1_30: sumByKeys(["mitra_dpd_1_30", "mitra_dpd1_30", "mitra dpd 1-30"]),
+    dpd31_60: sumByKeys(["mitra_dpd_31_60", "mitra_dpd31_60", "mitra dpd 31-60"]),
+    dpd61_90: sumByKeys(["mitra_dpd_61_90", "mitra_dpd61_90", "mitra dpd 61-90"]),
+    dpd90: sumByKeys(["mitra_dpd_90", "mitra_dpd_90_plus", "mitra_dpd90_plus", "mitra dpd 90+"])
+  };
+
+  const hasBucketColumns = Object.values(bucketFromColumns).some((v) => v > 0);
+  if (hasBucketColumns) {
+    return {
+      mitra: totalMitra || (bucketFromColumns.dpd0 + bucketFromColumns.dpd1_30 + bucketFromColumns.dpd31_60 + bucketFromColumns.dpd61_90 + bucketFromColumns.dpd90),
+      ...bucketFromColumns
+    };
+  }
+
+  const bucketFromNoaColumns = {
+    dpd0: sumByKeys(["noa_dpd_0_modal", "noa_dpd_0_gl", "noa_dpd_0", "noa dpd 0 modal", "noa dpd 0 gl"]),
+    dpd1_30: sumByKeys(["noa_dpd_1_30_modal", "noa_dpd_1_30_gl", "noa_dpd_1_30", "noa dpd 1-30 modal", "noa dpd 1-30 gl"]),
+    dpd31_60: sumByKeys(["noa_dpd_31_60_modal", "noa_dpd_31_60_gl", "noa_dpd_31_60", "noa dpd 31-60 modal", "noa dpd 31-60 gl"]),
+    dpd61_90: sumByKeys(["noa_dpd_61_90_modal", "noa_dpd_61_90_gl", "noa_dpd_61_90", "noa dpd 61-90 modal", "noa dpd 61-90 gl"]),
+    dpd90: sumByKeys(["noa_dpd_90_modal", "noa_dpd_90_gl", "noa_dpd_90_plus_modal", "noa_dpd_90_plus_gl", "noa_dpd_90_plus", "noa dpd 90+ modal", "noa dpd 90+ gl"])
+  };
+
+  const hasNoaBucketColumns = Object.values(bucketFromNoaColumns).some((v) => v > 0);
+  if (hasNoaBucketColumns) {
+    return {
+      mitra: totalMitra || sumByKeys(["total_noa", "total noa"]),
+      ...bucketFromNoaColumns
+    };
+  }
+
+  const bucketFromDpdValue = { dpd0: 0, dpd1_30: 0, dpd31_60: 0, dpd61_90: 0, dpd90: 0 };
   items.forEach((item) => {
     const d = toNum(findValue(item, ["dpd", "noa_dpd", "dpd_now", "dpd no", "dpd_nasabah"]));
-    if (d <= 0) stats.dpd0 += 1;
-    else if (d <= 30) stats.dpd1_30 += 1;
-    else if (d <= 60) stats.dpd31_60 += 1;
-    else if (d <= 90) stats.dpd61_90 += 1;
-    else stats.dpd90 += 1;
+    if (d <= 0) bucketFromDpdValue.dpd0 += 1;
+    else if (d <= 30) bucketFromDpdValue.dpd1_30 += 1;
+    else if (d <= 60) bucketFromDpdValue.dpd31_60 += 1;
+    else if (d <= 90) bucketFromDpdValue.dpd61_90 += 1;
+    else bucketFromDpdValue.dpd90 += 1;
   });
-  return stats;
+
+  return {
+    mitra: totalMitra || items.length,
+    ...bucketFromDpdValue
+  };
 }
 
 function findPointName(row) {
